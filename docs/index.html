@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tulkan – Dokumentation</title>
+<style>
+  :root {
+    --bg:#111827; --bg2:#1f2937; --bg3:#374151; --acc:#6366f1; --acc2:#818cf8;
+    --text:#e2e8f0; --muted:#94a3b8; --border:#2d3748;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .card { max-width:640px; width:100%; }
+  h1 { font-size:1.8rem; margin-bottom:6px; }
+  h1 span { color:var(--acc2); }
+  p.lead { color:var(--muted); margin-bottom:28px; font-size:.95rem; }
+  .links { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:520px){ .links { grid-template-columns:1fr; } }
+  .links a {
+    display:block; background:var(--bg2); border:1px solid var(--border); border-radius:10px;
+    padding:20px; text-decoration:none; color:var(--text); transition:.15s;
+  }
+  .links a:hover { border-color:var(--acc); background:var(--bg3); }
+  .links .ic { font-size:1.8rem; margin-bottom:8px; }
+  .links .t { font-weight:700; margin-bottom:4px; }
+  .links .s { color:var(--muted); font-size:.82rem; line-height:1.4; }
+  footer { margin-top:28px; text-align:center; color:var(--muted); font-size:.8rem; }
+  footer a { color:var(--acc2); }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f8fafc; --bg2:#fff; --bg3:#eef1f6; --border:#dde3ec; --text:#0f172a; --muted:#5b6472; }
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>tul<span>kan</span></h1>
+  <p class="lead">Dokumentation für mkan (Kanban-Board) und tul_s (Werkzeug-Suite).</p>
+  <div class="links">
+    <a href="aufbau.html">
+      <div class="ic">🧭</div>
+      <div class="t">Aufbau &amp; Zusammenspiel</div>
+      <div class="s">Wie mkan und tul_s installiert werden, aufgebaut sind und zusammenspielen — für technisch Interessierte.</div>
+    </a>
+    <a href="anleitung/index.html">
+      <div class="ic">📖</div>
+      <div class="t">Bedienungsanleitung</div>
+      <div class="s">Wie man mkan und die tul-Werkzeuge im Alltag benutzt.</div>
+    </a>
+  </div>
+  <footer>tulkan ist AGPLv3-lizenziert · <a href="https://github.com/mithubin/tulkan">Quellcode auf GitHub</a></footer>
+</div>
+</body>
+</html>
