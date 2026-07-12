@@ -358,12 +358,24 @@ eigenständigen Werkzeug-Modulen. Alle teilen sich drei gemeinsame Schichten:</d
 <tr><td>buch</td><td>PDF-Seiten neu zusammenstellen/mischen</td></tr>
 </table>
 
-<div class="help-h2">Herkunft der Module: Ur-Skript → Panel-Fork</div>
-<div class="help-p">Jedes Modul begann als eigenständiges Kommandozeilen-Werkzeug (das
-„Ur-Skript"). Für die Panel-Suite wurde es einmal kopiert und um eine Web-Oberfläche,
-Mehrbenutzer-Fähigkeit und die gemeinsame Auth/DV-Anbindung erweitert (der „Panel-Fork"). Beide
-Versionen existieren unabhängig weiter — das Ur-Skript bleibt ein reines lokales CLI-Werkzeug,
-Änderungen am Panel-Fork fließen nicht zurück.</div>
+<div class="help-h2">Offen für neue Module — zwei Wege</div>
+<div class="help-p">tul_s ist keine geschlossene Liste von acht Werkzeugen, sondern ein Muster.
+Es gibt zwei Wege, etwas Neues hinzuzufügen — je nachdem, wie viel Eigenlogik gebraucht wird:</div>
+
+<div class="help-h3">Weg 1 — Ur-Skript → Panel-Fork (für Werkzeuge mit eigenem Backend)</div>
+<div class="help-p">Jedes der acht bestehenden Module begann als eigenständiges
+Kommandozeilen-Werkzeug (das „Ur-Skript"). Für die Panel-Suite wurde es einmal kopiert und um eine
+Web-Oberfläche, Mehrbenutzer-Fähigkeit und die gemeinsame Auth/DV-Anbindung erweitert (der
+„Panel-Fork"). Beide Versionen existieren unabhängig weiter — das Ur-Skript bleibt ein reines
+lokales CLI-Werkzeug, Änderungen am Panel-Fork fließen nicht zurück. Dieser Weg passt, wenn das
+neue Werkzeug eigene Serverlogik braucht (Dateiverarbeitung, externe Programme, eigene Datenbank-Tabellen).</div>
+
+<div class="help-h3">Weg 2 — direkt hochladen über <code>nach</code> (für reine HTML/JS-Werkzeuge)</div>
+<div class="help-p">Braucht das neue Werkzeug gar kein eigenes Backend — läuft es komplett im
+Browser (Canvas, JavaScript, lokale Berechnung) — genügt der Umweg über Ur-Skript/Panel-Fork nicht
+einmal: Eine einzelne HTML-Datei oder ein ZIP mit mehreren Dateien lässt sich direkt im
+<code>nach</code>-Modul hochladen und erscheint sofort unter eigener URL, komplett ohne
+Programmierung auf Server-Seite. Siehe Live-Beispiel in der <a href="anleitung/tul-werkzeuge.html" style="color:var(--acc2)">Bedienungsanleitung → tul-Werkzeuge</a>.</div>
 
 <div class="help-h2">Deploy-Mechanismus</div>
 <div class="help-p">Anders als mkan: tul_s deployt über <strong>Git</strong>. Ein Push auf den

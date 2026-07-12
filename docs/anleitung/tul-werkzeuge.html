@@ -65,8 +65,24 @@
     (Canvas-Layout mit freier Positionierung).</div>
 
     <div class="help-h2">nach — HTML-Hoster</div>
-    <div class="help-p">Einzelne HTML-Seiten oder ganze ZIP-Sets hochladen und unter einer eigenen
-    URL bereitstellen — praktisch für kleine Web-Inhalte ohne eigenes Hosting.</div>
+    <div class="help-p">Eine einzelne HTML-Datei hochladen — oder ein ZIP mit mehreren Dateien
+    (eigenes CSS, eigenes JavaScript, Bilder), Einstiegspunkt ist dann eine <code>index_*.html</code>
+    darin. Beides erscheint sofort als eigener Eintrag mit eigener URL, inklusive automatisch
+    eingebauter Zurück-Navigation zum Hub. Es entsteht dabei kein neues Backend, keine Datenbank,
+    keine Programmierung — <strong>jede eigenständige, funktionale Web-Seite lässt sich so in
+    Sekunden bereitstellen</strong>, ohne Server-Konfiguration.</div>
+
+    <div class="help-p">Live-Beispiel — eine per <code>nach</code> hochgeladene interaktive
+    HTML-Datei, unverändert eingebettet:</div>
+
+    <div style="border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin:8px 0 18px;">
+      <iframe src="../demo/matrix.html" style="width:100%; height:340px; border:none; display:block; background:#000"
+        title="Live-Demo: interaktive HTML-Datei, wie sie per nach hochgeladen und gehostet werden kann"></iframe>
+    </div>
+    <div class="help-p" style="font-size:.78rem; color:var(--muted); margin-top:-10px">
+      Diese Demo läuft komplett im Browser (Canvas + JavaScript, kein Server-Code) — genau die Art
+      von eigenständiger HTML-Datei, die <code>nach</code> versteht und sofort bereitstellt.
+    </div>
 
     <div class="help-h2">kal-trel — Multi-Kanban</div>
     <div class="help-p">Ein zweites, unabhängiges Kanban-Board (nicht zu verwechseln mit mkan) —
