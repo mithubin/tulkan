@@ -3,44 +3,239 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>tulkan – Dokumentation</title>
+<title>tulkan – Organisation, Vorbereitung, Dokumentation. Alles aus zwei Browser-Tabs.</title>
 <style>
   :root {
-    --bg:#111827; --bg2:#1f2937; --bg3:#374151; --acc:#6366f1; --acc2:#818cf8;
-    --text:#e2e8f0; --muted:#94a3b8; --border:#2d3748;
+    --bg:#0d1117; --bg2:#161b22; --bg3:#21262d; --acc:#6366f1; --acc2:#818cf8;
+    --text:#e6edf3; --muted:#8b949e; --border:#30363d; --good:#34d399;
   }
   * { box-sizing:border-box; margin:0; padding:0; }
   body {
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    background:var(--bg); color:var(--text); min-height:100vh;
-    display:flex; align-items:center; justify-content:center; padding:20px;
+    background:var(--bg); color:var(--text); line-height:1.55;
   }
-  .card { max-width:640px; width:100%; }
-  h1 { font-size:1.8rem; margin-bottom:6px; }
-  h1 span { color:var(--acc2); }
-  p.lead { color:var(--muted); margin-bottom:28px; font-size:.95rem; }
-  .links { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  @media (max-width:520px){ .links { grid-template-columns:1fr; } }
-  .links a {
+  a { color:var(--acc2); }
+
+  /* Hero */
+  .hero {
+    padding: 70px 20px 50px; text-align:center;
+    background: radial-gradient(ellipse at top, rgba(99,102,241,.18), transparent 60%);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero h1 { font-size: 2.6rem; font-weight:800; letter-spacing:-.02em; }
+  .hero h1 span { color:var(--acc2); }
+  .hero .tagline {
+    max-width: 720px; margin: 18px auto 0; font-size:1.15rem; color:#c9d1d9; font-weight:500;
+  }
+  .hero .sub { max-width: 640px; margin: 14px auto 0; color:var(--muted); font-size:.95rem; }
+  .hero .cta { margin-top:28px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .btn {
+    display:inline-block; padding:11px 22px; border-radius:8px; font-weight:600; font-size:.9rem;
+    text-decoration:none; border:1px solid var(--border);
+  }
+  .btn.pri { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .btn.pri:hover { background:var(--acc2); }
+  .btn.sec { color:var(--text); }
+  .btn.sec:hover { background:var(--bg3); }
+
+  main { max-width: 880px; margin:0 auto; padding: 60px 20px; }
+
+  .section-lead { text-align:center; max-width:600px; margin:0 auto 40px; }
+  .section-lead h2 { font-size:1.6rem; margin-bottom:10px; }
+  .section-lead p { color:var(--muted); font-size:.95rem; }
+
+  /* Ladder */
+  .ladder { position:relative; padding-left: 34px; margin-bottom: 60px; }
+  .ladder::before {
+    content:''; position:absolute; left:13px; top:8px; bottom:8px; width:2px;
+    background: linear-gradient(var(--acc), var(--good));
+  }
+  .rung { position:relative; margin-bottom: 30px; }
+  .rung::before {
+    content: attr(data-n); position:absolute; left:-34px; top:0; width:28px; height:28px;
+    background:var(--bg2); border:2px solid var(--acc); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:700;
+    color:var(--acc2);
+  }
+  .rung:last-child::before { border-color:var(--good); color:var(--good); }
+  .rung .rt { font-size:1.05rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .rung .rt .ic { font-size:1.2rem; }
+  .rung .rd { color:#c9d1d9; font-size:.88rem; margin-top:5px; max-width:600px; }
+  .rung .rd strong { color:var(--text); }
+
+  /* Feature grid */
+  .fgrid {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:14px; margin-bottom:60px;
+  }
+  .fcard {
+    background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:18px;
+  }
+  .fcard .ic { font-size:1.5rem; margin-bottom:8px; }
+  .fcard .t { font-weight:700; font-size:.92rem; margin-bottom:5px; }
+  .fcard .s { color:var(--muted); font-size:.8rem; line-height:1.5; }
+
+  /* Two-tabs banner */
+  .banner {
+    background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(52,211,153,.08));
+    border:1px solid var(--acc); border-radius:12px; padding:28px 24px; text-align:center;
+    margin-bottom:60px;
+  }
+  .banner .big { font-size:1.3rem; font-weight:800; margin-bottom:8px; }
+  .banner .big span { color:var(--acc2); }
+  .banner p { color:#c9d1d9; font-size:.9rem; max-width:600px; margin:0 auto; }
+
+  /* Doc links */
+  .doclinks { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:560px){ .doclinks { grid-template-columns:1fr; } }
+  .doclinks a {
     display:block; background:var(--bg2); border:1px solid var(--border); border-radius:10px;
-    padding:20px; text-decoration:none; color:var(--text); transition:.15s;
+    padding:22px; text-decoration:none; color:var(--text); transition:.15s;
   }
-  .links a:hover { border-color:var(--acc); background:var(--bg3); }
-  .links .ic { font-size:1.8rem; margin-bottom:8px; }
-  .links .t { font-weight:700; margin-bottom:4px; }
-  .links .s { color:var(--muted); font-size:.82rem; line-height:1.4; }
-  footer { margin-top:28px; text-align:center; color:var(--muted); font-size:.8rem; }
-  footer a { color:var(--acc2); }
+  .doclinks a:hover { border-color:var(--acc); background:var(--bg3); }
+  .doclinks .ic { font-size:1.8rem; margin-bottom:8px; }
+  .doclinks .t { font-weight:700; margin-bottom:4px; }
+  .doclinks .s { color:var(--muted); font-size:.82rem; line-height:1.4; }
+
+  footer { text-align:center; color:var(--muted); font-size:.8rem; padding:30px 20px; border-top:1px solid var(--border); }
+
   @media (prefers-color-scheme: light) {
     :root { --bg:#f8fafc; --bg2:#fff; --bg3:#eef1f6; --border:#dde3ec; --text:#0f172a; --muted:#5b6472; }
+    .hero .tagline { color:#334155; }
+    .rung .rd, .banner p, .fcard .s { color:#334155; }
   }
 </style>
 </head>
 <body>
-<div class="card">
+
+<div class="hero">
   <h1>tul<span>kan</span></h1>
-  <p class="lead">Dokumentation für mkan (Kanban-Board) und tul_s (Werkzeug-Suite).</p>
-  <div class="links">
+  <p class="tagline">Organisation, Vorbereitung und Dokumentation für Teams, Klassen und Projekte —
+  vom einfachen Kanban-Board bis zur vollwertigen Arbeitsumgebung mit eigener Datensicherung.</p>
+  <p class="sub">Selbstgehostet, quelloffen, ohne Cloud-Abhängigkeit. Kein Vendor-Lock-in, keine
+  Abo-Falle — Ihre Daten bleiben auf Ihrem eigenen Server.</p>
+  <div class="cta">
+    <a href="anleitung/index.html" class="btn pri">Bedienungsanleitung ansehen</a>
+    <a href="aufbau.html" class="btn sec">Wie es aufgebaut ist →</a>
+  </div>
+</div>
+
+<main>
+
+  <div class="section-lead">
+    <h2>Ein Werkzeug, das mit Ihnen mitwächst</h2>
+    <p>Man kann tulkan wie ein einfaches Trello-artiges Board benutzen — und genau dort aufhören.
+    Wer mehr braucht, findet darunter eine komplette Arbeitsumgebung, die mitwächst statt im Weg
+    zu stehen.</p>
+  </div>
+
+  <div class="ladder">
+
+    <div class="rung" data-n="1">
+      <div class="rt"><span class="ic">📋</span> Einfaches Kanban</div>
+      <div class="rd">Boards, Spalten, Karten, Drag &amp; Drop — sofort nutzbar, keine Einarbeitung
+      nötig. Genau das, was jeder von einem Kanban-Board erwartet.</div>
+    </div>
+
+    <div class="rung" data-n="2">
+      <div class="rt"><span class="ic">🗂️</span> Tiefere Struktur, wenn sie gebraucht wird</div>
+      <div class="rd">Lanes quer über die Spalten, Unterkarten bis zu drei Ebenen tief,
+      Dateikarten als vollwertige Karten — die Struktur wächst mit der Komplexität der Arbeit, statt
+      sie von Anfang an aufzuzwingen.</div>
+    </div>
+
+    <div class="rung" data-n="3">
+      <div class="rt"><span class="ic">🧩</span> Meta-Werkzeuge direkt an Karte und Datei</div>
+      <div class="rd">Jede Karte und jede Datei kann eigene <strong>Notizen</strong> (Markdown),
+      <strong>Unteraufgaben</strong> und eine eigene <strong>Tabelle</strong> tragen — wahlweise als
+      freie Tabelle oder als Drei-Zustands-Pipeline. Kontext und Inhalt bleiben an einem Ort statt
+      über drei verschiedene Werkzeuge verstreut.</div>
+    </div>
+
+    <div class="rung" data-n="4">
+      <div class="rt"><span class="ic">🕐</span> Personen- &amp; Zeit-Dokumentation — das „Klassenbuch"</div>
+      <div class="rd">Anwesenheit, Punkte und Zeitverläufe lassen sich über einen Personen-Bezug
+      pro Karte festhalten. <strong>Snapshots</strong> frieren den Zustand eines Boards zu einem
+      bestimmten Zeitpunkt ein — eine echte, retrospektiv abrufbare Verlaufsdokumentation, kein
+      loser Haufen Notizen.</div>
+    </div>
+
+    <div class="rung" data-n="5">
+      <div class="rt"><span class="ic">🖼️</span> Präsentationsfähig direkt aus der Karte</div>
+      <div class="rd">Mehrere PDFs, Bilder und Videos an einer einzigen Karte — direkt im Browser
+      als Galerie durchblätterbar, im Vollbild, ohne Download. Eine Karte wird so zur vollwertigen
+      Präsentationsgrundlage, nicht nur zur Ablage.</div>
+    </div>
+
+    <div class="rung" data-n="6">
+      <div class="rt"><span class="ic">✏️</span> Grundbearbeitung, ohne die Seite zu verlassen</div>
+      <div class="rd">Office-Dokumente (docx/xlsx/pptx/odt) direkt im Browser bearbeiten, Bilder
+      zuschneiden und drehen, Text- und Markdown-Anhänge inline editieren, Skizzen direkt einbetten.</div>
+    </div>
+
+    <div class="rung" data-n="7">
+      <div class="rt"><span class="ic">✉️</span> E-Mail — einzeln und als Serie</div>
+      <div class="rd">Eine Mail direkt aus einer Karte heraus versenden — oder das ganze Board als
+      Datenquelle für eine <strong>Serienmail</strong> nutzen: Platzhalter aus einer Tabelle befüllt,
+      an alle passenden Empfänger auf einmal, mit Versandprotokoll.</div>
+    </div>
+
+    <div class="rung" data-n="8">
+      <div class="rt"><span class="ic">📄</span> Seriendokumente</div>
+      <div class="rd">Eine DOCX-Vorlage plus Datenquelle genügt: pro Datensatz entsteht automatisch
+      ein fertiges Dokument — Serienbriefe, Zertifikate, Berichte, ohne manuelles Copy-Paste. Serienmail
+      und Seriendokument lassen sich in einem einzigen kombinierten Arbeitsschritt zusammen ausführen.</div>
+    </div>
+
+    <div class="rung" data-n="9">
+      <div class="rt"><span class="ic">🔧</span> Und dann: die tul_s-Werkzeuge</div>
+      <div class="rd">Eine Datei, die schon in einer Karte liegt, muss nicht heruntergeladen werden,
+      um sie weiterzuverarbeiten. Direkt verbunden: Audio-Transkription, PDF-Optimierung,
+      Lernkarten-Erzeugung, Brennofen-Kurvenauswertung, Bildlayout und mehr — acht eigenständige
+      Werkzeuge, eine gemeinsame Anmeldung, eine Datei-Brücke ohne Umweg.</div>
+    </div>
+
+  </div>
+
+  <div class="section-lead">
+    <h2>Struktur- und Datensicherung inklusive</h2>
+    <p>Nichts davon nützt etwas, wenn es nicht sicher ist. Deshalb ist das kein Zusatz, sondern
+    Grundausstattung.</p>
+  </div>
+
+  <div class="fgrid">
+    <div class="fcard">
+      <div class="ic">🔐</div>
+      <div class="t">Vier Rollen, fein abgestuft</div>
+      <div class="s">Viewer · Editor · Owner · Admin — jede Ebene bekommt genau die Rechte, die sie braucht.</div>
+    </div>
+    <div class="fcard">
+      <div class="ic">🚪</div>
+      <div class="t">Externer Zugang auf eine einzige Spalte</div>
+      <div class="s">Eine Person von außen sieht und bearbeitet ausschließlich ihre zugewiesene Spalte —
+      kein Einblick ins restliche Board, keine Verschiebungen, keine Board-weiten Aktionen.</div>
+    </div>
+    <div class="fcard">
+      <div class="ic">💾</div>
+      <div class="t">Automatische Backups</div>
+      <div class="s">Datenbank-Sicherung vor jedem Update, Snapshots als zusätzliche inhaltliche
+      Zeitkapsel — zwei unabhängige Sicherheitsnetze.</div>
+    </div>
+    <div class="fcard">
+      <div class="ic">🗝️</div>
+      <div class="t">Zwei-Kanal-Sicherheit bei Einladungen</div>
+      <div class="s">Zugangslink und Passwort-Erinnerung gehen als getrennte Mails raus — eine
+      abgefangene Nachricht reicht allein nicht für einen Zugriff.</div>
+    </div>
+  </div>
+
+  <div class="banner">
+    <div class="big">Alles davon aus <span>zwei Browser-Tabs</span></div>
+    <p>Kein App-Store, keine Installation auf jedem Gerät, kein Update-Zwang für Nutzende. Ein
+    Tab für das Board, ein Tab für die Werkzeuge — der Rest läuft auf dem eigenen Server, den
+    sonst niemand sieht.</p>
+  </div>
+
+  <div class="doclinks">
     <a href="aufbau.html">
       <div class="ic">🧭</div>
       <div class="t">Aufbau &amp; Zusammenspiel</div>
@@ -49,10 +244,12 @@
     <a href="anleitung/index.html">
       <div class="ic">📖</div>
       <div class="t">Bedienungsanleitung</div>
-      <div class="s">Wie man mkan und die tul-Werkzeuge im Alltag benutzt.</div>
+      <div class="s">Wie man mkan und die tul-Werkzeuge im Alltag benutzt, Kapitel für Kapitel.</div>
     </a>
   </div>
-  <footer>tulkan ist AGPLv3-lizenziert · <a href="https://github.com/mithubin/tulkan">Quellcode auf GitHub</a></footer>
-</div>
+
+</main>
+
+<footer>tulkan ist AGPLv3-lizenziert · <a href="https://github.com/mithubin/tulkan">Quellcode auf GitHub</a></footer>
 </body>
 </html>
