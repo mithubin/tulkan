@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boards &amp; Karten – tulkan Anleitung</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>tul<span>kan</span> — Bedienungsanleitung</h1>
+  <div class="nav-links">
+    <a href="../aufbau.html">Aufbau &amp; Zusammenspiel</a>
+    <a href="https://github.com/mithubin/tulkan" class="pri">GitHub</a>
+  </div>
+</header>
+
+<div class="layout">
+  <aside>
+    <nav>
+      <a href="index.html">Übersicht</a>
+      <a href="erste-schritte.html">Erste Schritte</a>
+      <a href="boards-karten.html" class="cur">Boards &amp; Karten</a>
+      <a href="dateien-dv.html">Dateien &amp; DV</a>
+      <a href="zusammenarbeit.html">Zusammenarbeit</a>
+      <a href="tul-werkzeuge.html">tul-Werkzeuge</a>
+      <a href="tipps.html">Tipps &amp; Shortcuts</a>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="h1c">🗂️ Boards &amp; Karten</div>
+    <div class="subline">Spalten, Lanes, Kartenmodi, Unterkarten, Dateikarten</div>
+
+    <div class="help-h2">Spalten &amp; Lanes</div>
+    <div class="help-p"><strong>Spalten</strong> (vertikal) stehen meist für einen Status — z.B.
+    Offen · In Arbeit · Fertig. Neue Spalte über <strong>+ Spalte</strong> an den Spaltenköpfen,
+    per Drag am Kopf umsortieren.</div>
+    <div class="help-p"><strong>Lanes</strong> (horizontale Bahnen) gruppieren Karten quer über alle
+    Spalten — z.B. nach Person oder Team. Am linken Lane-Rand: Drag-Handle zum Umsortieren, ein
+    ⚙-Button öffnet <strong>Lane-Aktionen</strong> für Stapelverarbeitung (Labels/Zuweisung für
+    mehrere Karten gleichzeitig setzen).</div>
+
+    <figure class="shot">
+      <img src="screens/board-spalten-lanes.png" alt="Board mit Spalten und Lanes" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+      <div class="missing" style="display:none">📷 Screenshot folgt<code>screens/board-spalten-lanes.png</code></div>
+      <figcaption>Board-Ansicht mit Spalten und Lanes</figcaption>
+    </figure>
+
+    <div class="help-h2">Kartenmodi</div>
+    <table class="help-tbl">
+      <tr><th>Modus</th><th>Wofür</th></tr>
+      <tr><td>Org</td><td>Standard — Notiz, Fälligkeit, Anhänge</td></tr>
+      <tr><td>Wissen</td><td>Nachschlage-Karten, im Board optisch markiert</td></tr>
+      <tr><td>Schüler</td><td>Zusätzlich: Punkte, Anwesenheits-Widget</td></tr>
+      <tr><td>Monster</td><td>Wie Schüler, plus Timer-Funktion</td></tr>
+      <tr><td>Mail</td><td>Vorlage für Serien-Mail-Versand</td></tr>
+      <tr><td>Dok</td><td>Vorlage für Serien-Dokumente (DOCX)</td></tr>
+    </table>
+    <div class="help-p">Den Modus stellt man über die Buttons in der Kopfzeile des Karten-Modals um.</div>
+
+    <div class="help-h2">Unterkarten</div>
+    <div class="help-p">Jede Karte kann Unterkarten enthalten (bis zu zwei Ebenen tief) — praktisch
+    für Checklisten mit eigenem Kontext statt einfacher Kästchen. Im Karten-Detail unten:
+    <strong>+ Unterkarte</strong>.</div>
+
+    <div class="help-h2">Dateikarten</div>
+    <div class="help-p">Eine Dateikarte ist eine eigene Karte, deren Hauptinhalt eine angehängte Datei
+    ist — anders als ein simpler Anhang lässt sie sich wie jede andere Karte verschieben,
+    kommentieren und in der Galerie-Vollansicht durchblättern (Pfeiltasten oder ← →-Buttons).</div>
+
+    <figure class="shot">
+      <img src="screens/galerie-vollansicht.png" alt="Galerie-Vollansicht einer Dateikarte" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+      <div class="missing" style="display:none">📷 Screenshot folgt<code>screens/galerie-vollansicht.png</code></div>
+      <figcaption>Galerie-Vollansicht mit Bildeditor</figcaption>
+    </figure>
+
+    <div class="help-h2">Suche &amp; Filter</div>
+    <div class="help-p">Die Filterleiste (Textsuche, Farbe, Labels, Zuweisung, offene Unterpunkte)
+    blendet nicht-passende Karten ab, ohne sie zu löschen — Elternkarten mit passenden Unterkarten
+    bleiben abgedunkelt sichtbar, damit der Kontext erhalten bleibt.</div>
+
+    <div class="pagenav">
+      <a href="erste-schritte.html">← Erste Schritte</a>
+      <a href="dateien-dv.html">Weiter: Dateien &amp; DV →</a>
+    </div>
+  </main>
+</div>
+
+<footer>
+  tulkan ist AGPLv3-lizenziert · <a href="https://github.com/mithubin/tulkan">Quellcode auf GitHub</a>
+</footer>
+</body>
+</html>

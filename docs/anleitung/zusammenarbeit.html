@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zusammenarbeit – tulkan Anleitung</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>tul<span>kan</span> — Bedienungsanleitung</h1>
+  <div class="nav-links">
+    <a href="../aufbau.html">Aufbau &amp; Zusammenspiel</a>
+    <a href="https://github.com/mithubin/tulkan" class="pri">GitHub</a>
+  </div>
+</header>
+
+<div class="layout">
+  <aside>
+    <nav>
+      <a href="index.html">Übersicht</a>
+      <a href="erste-schritte.html">Erste Schritte</a>
+      <a href="boards-karten.html">Boards &amp; Karten</a>
+      <a href="dateien-dv.html">Dateien &amp; DV</a>
+      <a href="zusammenarbeit.html" class="cur">Zusammenarbeit</a>
+      <a href="tul-werkzeuge.html">tul-Werkzeuge</a>
+      <a href="tipps.html">Tipps &amp; Shortcuts</a>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="h1c">👥 Zusammenarbeit</div>
+    <div class="subline">Mitglieder einladen, Rollen, Nur-Spalten-Zugriff</div>
+
+    <div class="help-h2">Mitglied einladen</div>
+    <div class="help-p">Als Owner: Mitglieder-Dialog öffnen (Symbol in der Kopfzeile) →
+    <strong>Neues Mitglied</strong>. Name und E-Mail eingeben — es gehen automatisch zwei getrennte
+    Mails raus (Zugangslink und Passwort-Erinnerung), damit eine abgefangene Mail allein nicht für
+    einen Zugriff reicht.</div>
+
+    <figure class="shot">
+      <img src="screens/mitglieder-dialog.png" alt="Mitglieder-Dialog" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+      <div class="missing" style="display:none">📷 Screenshot folgt<code>screens/mitglieder-dialog.png</code></div>
+      <figcaption>Mitglieder-Dialog mit Rollen-Auswahl</figcaption>
+    </figure>
+
+    <div class="help-h2">Rollen</div>
+    <table class="help-tbl">
+      <tr><th>Rolle</th><th>Kann</th></tr>
+      <tr><td>Viewer</td><td>nur lesen</td></tr>
+      <tr><td>Editor</td><td>Karten anlegen &amp; bearbeiten</td></tr>
+      <tr><td>Owner</td><td>zusätzlich: Mitglieder verwalten, Board-Einstellungen, DV-Freigabe</td></tr>
+    </table>
+
+    <div class="help-h2">Nur-Spalten-Zugriff</div>
+    <div class="help-p">Für ein Mitglied lässt sich der Zugriff auf genau eine Spalte einschränken
+    (Dropdown im Mitglieder-Dialog). Ein so beschränktes Mitglied sieht nur diese Spalte, kann
+    Karten darin anlegen/bearbeiten, aber nicht verschieben, keine Board-Verknüpfungen setzen,
+    keine Snapshots auslösen und keine Karten für DV freigeben. Löschen nur bei eigenen Karten.</div>
+
+    <div class="help-h2">Echtzeit-Zusammenarbeit</div>
+    <div class="help-p">Änderungen anderer Mitglieder erscheinen automatisch, ohne die Seite neu zu
+    laden — kein manuelles Aktualisieren nötig.</div>
+
+    <div class="help-h2">Snapshots &amp; Klassenbuch</div>
+    <div class="help-p">Ein Snapshot friert den aktuellen Board-Zustand ein (z.B. Punktestand am
+    Ende einer Unterrichtsstunde) — nützlich für eine retrospektive Dokumentation. Snapshots sind
+    nur für Owner auslösbar, nicht für Nur-Spalten-Mitglieder.</div>
+
+    <div class="pagenav">
+      <a href="dateien-dv.html">← Dateien &amp; DV</a>
+      <a href="tul-werkzeuge.html">Weiter: tul-Werkzeuge →</a>
+    </div>
+  </main>
+</div>
+
+<footer>
+  tulkan ist AGPLv3-lizenziert · <a href="https://github.com/mithubin/tulkan">Quellcode auf GitHub</a>
+</footer>
+</body>
+</html>

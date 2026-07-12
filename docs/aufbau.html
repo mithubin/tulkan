@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tulkan – Aufbau &amp; Zusammenspiel</title>
+<style>
+  :root {
+    --bg:  #111827; --bg2: #1f2937; --bg3: #374151;
+    --acc: #6366f1; --acc2: #818cf8;
+    --dng: #ef4444; --text: #e2e8f0; --muted: #94a3b8; --border: #2d3748;
+    --r: 8px; --sh: 0 4px 16px rgba(0,0,0,.45);
+  }
+  * , *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5;
+    min-height: 100vh; display:flex; flex-direction:column;
+  }
+  header {
+    background: var(--bg2); border-bottom: 1px solid var(--border);
+    padding: 14px 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    position: sticky; top:0; z-index:10;
+  }
+  header h1 { font-size: 1.05rem; font-weight:700; }
+  header h1 span { color: var(--acc2); }
+  .nav-links { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+  .nav-links a {
+    color: var(--muted); text-decoration:none; font-size:.82rem;
+    padding:6px 12px; border-radius:6px; border:1px solid var(--border);
+  }
+  .nav-links a:hover { color:var(--text); background:var(--bg3); }
+  .nav-links a.pri { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .nav-links a.pri:hover { background:var(--acc2); }
+
+  main { flex:1; max-width: 900px; width:100%; margin:0 auto; padding: 24px 20px 60px; }
+
+  #overview .lead { color:var(--muted); font-size:.95rem; margin-bottom:22px; max-width:640px; }
+  .grid {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr));
+    gap: 14px; margin-top: 10px;
+  }
+  .tile {
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--r);
+    padding:16px; cursor:pointer; transition:.15s; text-align:left;
+  }
+  .tile:hover { border-color:var(--acc); background:var(--bg3); }
+  .tile .ic { font-size:1.6rem; margin-bottom:8px; }
+  .tile .t { font-weight:700; font-size:.92rem; margin-bottom:4px; }
+  .tile .s { color:var(--muted); font-size:.78rem; line-height:1.4; }
+
+  #detail { display:none; }
+  #detail.vis { display:block; }
+  #overview.hid { display:none; }
+  .back {
+    display:inline-flex; align-items:center; gap:6px; background:none; border:none;
+    color:var(--muted); cursor:pointer; font-size:.9rem; padding:6px 4px; margin-bottom:14px;
+    font-family:inherit;
+  }
+  .back:hover { color:var(--text); }
+
+  .h1c { font-size:1.4rem; font-weight:800; margin-bottom:4px; display:flex; align-items:center; gap:10px; }
+  .subline { color:var(--muted); font-size:.85rem; margin-bottom:22px; }
+
+  .help-h2 { font-size:1.05rem; font-weight:700; margin:26px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+  .help-h2:first-of-type { margin-top:0; }
+  .help-h3 { font-size:.92rem; font-weight:700; color:var(--acc2); margin:16px 0 5px; }
+  .help-p { color: #cbd5e1; margin:6px 0 10px; font-size:.88rem; line-height:1.65; }
+  .help-p strong { color:var(--text); }
+  .help-p code { background:var(--bg3); padding:1px 6px; border-radius:4px; font-size:.85em; }
+  ul.help-list, ol.help-list { margin:6px 0 12px 22px; color:#cbd5e1; font-size:.88rem; line-height:1.7; }
+  ul.help-list li, ol.help-list li { margin-bottom:3px; }
+
+  .help-tbl { width:100%; border-collapse:collapse; font-size:.83rem; margin:8px 0 16px; }
+  .help-tbl th { text-align:left; padding:6px 10px; border-bottom:1px solid var(--border); color:var(--muted); font-weight:600; }
+  .help-tbl td { padding:6px 10px; border-bottom:1px solid var(--border); vertical-align:top; color:#cbd5e1; }
+  .help-tbl td:first-child { color:var(--text); font-weight:600; white-space:nowrap; }
+
+  .callout {
+    background: rgba(99,102,241,.08); border-left:3px solid var(--acc);
+    padding:10px 14px; border-radius:0 6px 6px 0; margin:12px 0 16px; font-size:.85rem; color:#cbd5e1;
+  }
+  .callout.warn { background: rgba(239,68,68,.08); border-left-color:var(--dng); }
+
+  figure.shot {
+    margin: 14px 0 18px; border:1px solid var(--border); border-radius:var(--r);
+    overflow:hidden; background:var(--bg2);
+  }
+  figure.shot img { width:100%; display:block; }
+  figure.shot .missing {
+    padding: 34px 16px; text-align:center; color:var(--muted); font-size:.8rem;
+    background: repeating-linear-gradient(45deg, var(--bg2), var(--bg2) 10px, #1a2333 10px, #1a2333 20px);
+  }
+  figure.shot .missing code { display:block; margin-top:6px; color:var(--acc2); }
+  figure.shot figcaption { padding:8px 14px; font-size:.78rem; color:var(--muted); border-top:1px solid var(--border); }
+
+  pre {
+    background:#0b1020; border:1px solid var(--border); border-radius:6px;
+    padding:12px 14px; overflow-x:auto; font-size:.8rem; margin:8px 0 16px; line-height:1.5;
+  }
+  code { font-family: ui-monospace, 'SF Mono', Consolas, monospace; }
+
+  .diagram {
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--r);
+    padding:16px; margin:12px 0 18px; font-size:.8rem; color:#cbd5e1;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .diagram .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .diagram .box {
+    background:var(--bg3); border:1px solid var(--border); border-radius:6px;
+    padding:6px 12px; font-weight:600; color:var(--text);
+  }
+  .diagram .box.acc { border-color:var(--acc); color:var(--acc2); }
+  .diagram .arrow { color:var(--muted); }
+
+  footer { text-align:center; color:var(--muted); font-size:.75rem; padding:20px; border-top:1px solid var(--border); }
+  footer a { color:var(--acc2); }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:#f8fafc; --bg2:#ffffff; --bg3:#eef1f6; --border:#dde3ec; --text:#0f172a; --muted:#5b6472;
+    }
+    .help-p, ul.help-list, ol.help-list, .help-tbl td { color:#334155; }
+    figure.shot .missing { background: repeating-linear-gradient(45deg, #eef1f6, #eef1f6 10px, #e2e6ee 10px, #e2e6ee 20px); }
+    pre { background:#0f172a; color:#e2e8f0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>tul<span>kan</span> — Aufbau &amp; Zusammenspiel</h1>
+  <div class="nav-links">
+    <a href="anleitung/index.html">Bedienungsanleitung →</a>
+    <a href="https://github.com/mithubin/tulkan" class="pri">GitHub</a>
+  </div>
+</header>
+
+<main>
+
+  <div id="overview">
+    <p class="lead">
+      Wie <strong>mkan</strong> (Kanban-Board) und <strong>tul_s</strong> (Werkzeug-Suite) aufgebaut sind,
+      wie sie auf dem Server installiert werden und wie sie zusammenspielen — Kapitel für Kapitel.
+      Für die reine Bedienung siehe stattdessen die <a href="anleitung/index.html" style="color:var(--acc2)">Bedienungsanleitung</a>.
+    </p>
+    <div class="grid" id="chapterGrid"></div>
+  </div>
+
+  <div id="detail">
+    <button class="back" onclick="showOverview()">← Übersicht</button>
+    <div id="detailBody"></div>
+  </div>
+
+</main>
+
+<footer>
+  tulkan ist AGPLv3-lizenziert · <a href="https://github.com/mithubin/tulkan">Quellcode auf GitHub</a>
+</footer>
+
+<script>
+function shot(filename, caption) {
+  return `<figure class="shot">
+    <img src="screens/${filename}" alt="${caption}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+    <div class="missing" style="display:none">📷 Screenshot folgt<code>screens/${filename}</code></div>
+    <figcaption>${caption}</figcaption>
+  </figure>`;
+}
+
+const CHAPTERS = [
+{
+  id: 'ueberblick', icon: '🧭', title: 'Überblick',
+  sub: 'Was ist tulkan, wie hängen mkan und tul_s zusammen',
+  html: `
+<div class="help-h2">Zwei Werkzeuge, ein Zuhause</div>
+<div class="help-p"><strong>tulkan</strong> ist der gemeinsame Name für zwei selbstständig lauffähige,
+aber optional verbundene Projekte:</div>
+<ul class="help-list">
+  <li><strong>mkan</strong> — ein Kanban-Board mit Dateiverwaltung, gedacht für kleine, nicht-IT-affine
+  Gruppen (Vereine, Schulklassen, Projektteams). Karten, Boards, Anhänge, mehrere Nutzerrollen.</li>
+  <li><strong>tul_s</strong> — eine Suite kleiner, eigenständiger Werkzeuge (Audio-Transkription,
+  PDF-Optimierung, Lernkarten-Erstellung, Ofenkurven-Auswertung, ein schlanker HTML-Hoster u.a.),
+  die sich eine gemeinsame Anmeldung, ein gemeinsames Erscheinungsbild und eine gemeinsame
+  Dateiverwaltung teilen.</li>
+</ul>
+<div class="help-p">Beide laufen unabhängig voneinander. Optional lassen sie sich über eine
+<strong>Datei-Brücke (DV)</strong> verbinden: eine mkan-Karte kann eine Datei für ein bestimmtes
+tul_s-Werkzeug freigeben, ohne Um­weg über Down- und Upload. Details dazu im Kapitel „DV-Brücke".</div>
+
+<div class="help-h2">Warum getrennt, aber zusammen dokumentiert</div>
+<div class="help-p">Technisch sind es zwei unabhängige Anwendungen mit unterschiedlichem Stack
+(mkan: Python/FastAPI + SQLite, single-file Frontend · tul_s: mehrere kleine Flask-Anwendungen
+hinter einem gemeinsamen Hub). Sie leben im selben Repository, weil sie vom selben Betreiber auf
+derselben Infrastruktur laufen und sich ergänzen — nicht, weil der eine Code den anderen braucht.</div>
+
+${shot('overview-beide-apps.png', 'mkan-Board (links) und tul_s-Hub (rechts) nebeneinander')}
+`
+},
+{
+  id: 'infra', icon: '🖥️', title: 'Server & Infrastruktur',
+  sub: 'Docker, Reverse-Proxy, Domains — wie alles auf dem Host zusammenhängt',
+  html: `
+<div class="help-h2">Grundprinzip</div>
+<div class="help-p">Beide Anwendungen laufen als <strong>Docker-Container</strong> auf einem einzigen
+Host. Ein zentraler <strong>nginx-Reverse-Proxy</strong> nimmt eingehende HTTPS-Anfragen entgegen und
+leitet sie anhand des Domainnamens bzw. Pfads an den richtigen Container weiter. SSL-Zertifikate
+(Let's Encrypt) werden zentral verwaltet, nicht pro Anwendung.</div>
+
+<div class="diagram">
+  <div class="row">
+    <div class="box">Internet</div><div class="arrow">→</div>
+    <div class="box acc">nginx (Reverse-Proxy + SSL)</div>
+  </div>
+  <div class="row" style="padding-left:24px">
+    <div class="arrow">├─</div><div class="box">mkan.yourdomain.example</div><div class="arrow">→</div><div class="box">mkan-Container</div>
+  </div>
+  <div class="row" style="padding-left:24px">
+    <div class="arrow">└─</div><div class="box">tul.yourdomain.example/&lt;modul&gt;</div><div class="arrow">→</div><div class="box">tul_s-Hub + Module</div>
+  </div>
+</div>
+
+<div class="help-h3">mkan-Seite</div>
+<div class="help-p">Ein Docker-Compose-Stack mit drei Diensten: die mkan-Anwendung selbst, ein
+OnlyOffice-Dokumentenserver (für das Bearbeiten von docx/xlsx/pptx-Anhängen direkt im Browser) und
+Excalidraw (für Zeichnungs-Anhänge). Nur die mkan-Anwendung braucht öffentlichen Zugriff über den
+Proxy; die anderen beiden werden von mkan intern angesprochen.</div>
+
+<div class="help-h3">tul_s-Seite</div>
+<div class="help-p">Ein größerer Compose-Stack: ein zentraler <strong>Hub</strong> (Login-Seite,
+Übersicht, Admin-Bereich) plus ein Container pro Werkzeug-Modul. nginx routet Unterpfade
+(<code>/trskr</code>, <code>/lern</code>, <code>/kurv</code> …) auf den jeweiligen Container. Alle
+Module teilen sich eine einzige SQLite-Datenbank für Login-Daten, Themes und Datei-Metadaten.</div>
+
+<div class="callout">
+Beide Stacks sind komplett unabhängig voneinander installierbar — tul_s braucht kein laufendes mkan
+und umgekehrt. Nur die optionale DV-Brücke (siehe eigenes Kapitel) verbindet beide zur Laufzeit über
+eine interne HTTP-Schnittstelle.
+</div>
+`
+},
+{
+  id: 'mkan-arch', icon: '📋', title: 'mkan: Architektur',
+  sub: 'Backend, Datenbank, Deploy-Mechanismus',
+  html: `
+<div class="help-h2">Technologie-Stack</div>
+<table class="help-tbl">
+<tr><th>Schicht</th><th>Technologie</th></tr>
+<tr><td>Backend</td><td>Python 3.12, FastAPI, uvicorn — modular in Router-Dateien je Themenbereich (Boards, Cards, Attachments, Mail, …)</td></tr>
+<tr><td>Datenbank</td><td>SQLite im WAL-Modus, kein ORM — direktes <code>sqlite3</code>, bewusst schlank gehalten</td></tr>
+<tr><td>Frontend</td><td>Eine einzige HTML-Datei (Single-Page-Application), kein Build-Schritt, kein Framework — bewusst so, um Wartung durch eine Einzelperson zu ermöglichen</td></tr>
+<tr><td>Auth</td><td>JWT-Token, im Browser gespeichert; serverseitig bcrypt für Passwort-Hashes</td></tr>
+</table>
+
+<div class="help-h2">Deploy-Mechanismus</div>
+<div class="help-p">mkan wird <strong>nicht</strong> über einen Git-Push-Hook deployt, sondern über
+ein einfaches Skript: <code>deploy.sh</code> packt den aktuellen Stand als <code>tar</code>-Archiv,
+überträgt es per <code>scp</code> auf den Server und startet dort per SSH den
+Docker-Compose-Rebuild. Ein automatisches Datenbank-Backup läuft vor jedem Deploy.</div>
+<pre>bash deploy.sh
+# → tar packen → scp übertragen → per SSH: docker compose up -d --build</pre>
+
+<div class="help-h2">Datenmodell im Überblick</div>
+<div class="help-p">Die Grundhierarchie: <strong>Board → Spalte → Lane-Zelle → Karte</strong>. Karten
+können wiederum Unterkarten enthalten (bis zu drei Ebenen tief), und an jeder Ebene können
+<strong>Dateikarten</strong> hängen — echte Karten im Board, die primär eine angehängte Datei
+repräsentieren (mehr dazu im Kapitel „Karten &amp; Hierarchie").</div>
+<div class="help-p">Ergänzend: Personen (Klassenroster, unabhängig von Login-Accounts), Snapshots
+(eingefrorene Zustände fürs „Klassenbuch"), und ein einfaches Echtzeit-Update über
+Server-Sent-Events, damit mehrere Nutzer gleichzeitig am selben Board arbeiten können, ohne die
+Seite neu zu laden.</div>
+`
+},
+{
+  id: 'mkan-karten', icon: '🗂️', title: 'mkan: Karten & Hierarchie',
+  sub: 'Boards, Spalten, Lanes, Unterkarten, Dateikarten, Kartenmodi',
+  html: `
+<div class="help-h2">Die Hierarchie</div>
+<ol class="help-list">
+  <li><strong>Board</strong> — die oberste Einheit, z.B. ein Projekt oder eine Klasse</li>
+  <li><strong>Spalte</strong> (vertikal) — meist ein Status: Offen · In Arbeit · Fertig</li>
+  <li><strong>Lane</strong> (horizontal) — eine Kategorie oder ein Team, das quer über alle Spalten läuft</li>
+  <li><strong>Karte</strong> — die eigentliche Arbeitseinheit in einer Spalte/Lane-Zelle</li>
+  <li><strong>Unterkarte</strong> — bis zu zwei Ebenen tief innerhalb einer Karte</li>
+</ol>
+
+<div class="help-h2">Kartenmodi</div>
+<div class="help-p">Jede Karte hat einen <strong>Modus</strong>, der bestimmt, welche Felder sichtbar
+sind: <strong>Org</strong> (Standard), <strong>Wissen</strong>, <strong>Schüler</strong>,
+<strong>Monster</strong>, <strong>Mail</strong> und <strong>Dok</strong>. Der Mail-Modus macht aus
+einer Karte eine Vorlage für Serien-Mails, der Dok-Modus verwaltet eine DOCX-Vorlage für
+Seriendokumente (beide zusammen ergeben den „Serien-Hub" — eine Karte, die Dokument-Erzeugung und
+Mail-Versand in einem Schritt kombiniert).</div>
+
+<div class="help-h2">Dateikarten vs. gewöhnliche Anhänge</div>
+<div class="help-p">Eine Karte kann Dateien auf zwei Arten tragen:</div>
+<ul class="help-list">
+  <li><strong>Anhang</strong> — klassisch, an eine bestehende Karte gehängt, taucht als Chip im Karten-Detail auf.</li>
+  <li><strong>Dateikarte</strong> — eine eigene, vollwertige Karte, deren Hauptinhalt eine Datei ist
+  (Bild, PDF, Office-Dokument …). Dateikarten können wie normale Karten verschoben, kommentiert und
+  in der Galerie-Ansicht durchgeblättert werden.</li>
+</ul>
+<div class="help-p">Diese Unterscheidung ist wichtig für die DV-Brücke zu tul_s: nur was als
+Dateikarte oder Anhang existiert, kann für externe Werkzeuge freigegeben werden.</div>
+
+${shot('karten-hierarchie.png', 'Board mit Spalten, Lanes und einer aufgeklappten Karte samt Unterkarten')}
+`
+},
+{
+  id: 'mkan-user', icon: '👥', title: 'mkan: User & Rollen',
+  sub: 'Anmeldung, Rollen, Nur-Spalten-Zugriff',
+  html: `
+<div class="help-h2">Rollenmodell</div>
+<table class="help-tbl">
+<tr><th>Rolle</th><th>Rechte</th></tr>
+<tr><td>Viewer</td><td>Boards lesen</td></tr>
+<tr><td>Editor</td><td>Karten anlegen und bearbeiten</td></tr>
+<tr><td>Owner</td><td>zusätzlich: Mitglieder verwalten, Spalten-Zugriff zuweisen, Karten extern freigeben (DV)</td></tr>
+<tr><td>Admin</td><td>systemweit: alle Boards, Nutzerverwaltung, Zugangs-Token</td></tr>
+</table>
+
+<div class="help-h2">Nur-Spalten-Zugriff</div>
+<div class="help-p">Ein Owner kann ein Mitglied auf genau <strong>eine Spalte</strong> beschränken —
+nützlich z.B. wenn jede Person nur ihren eigenen Bereich sehen und bearbeiten soll. Ein so
+beschränktes Mitglied kann seine Karten nicht verschieben, keine Board-Verknüpfungen anlegen, keine
+Snapshots auslösen und keine Dateien extern freigeben (DV) — nur die eigenen Karten innerhalb der
+zugewiesenen Spalte bearbeiten und löschen.</div>
+
+<div class="help-h2">Einladung neuer Mitglieder</div>
+<div class="help-p">Ein Owner kann direkt aus dem Mitglieder-Dialog heraus einen neuen Account
+anlegen und per Mail einladen (Zugangs-Link + separate Passwort-Erinnerung als zwei getrennte
+Mails — falls eine Mail abgefangen wird, reicht das allein nicht für einen Zugriff).</div>
+`
+},
+{
+  id: 'tuls-arch', icon: '🧰', title: 'tul_s: Panel-Suite',
+  sub: 'Gemeinsame Basis, die einzelnen Werkzeuge, Deploy',
+  html: `
+<div class="help-h2">Eine gemeinsame Basis, viele Module</div>
+<div class="help-p">tul_s besteht aus einem <strong>Hub</strong> (Login, Übersicht, Admin) und acht
+eigenständigen Werkzeug-Modulen. Alle teilen sich drei gemeinsame Schichten:</div>
+<table class="help-tbl">
+<tr><th>Schicht</th><th>Aufgabe</th></tr>
+<tr><td>Auth</td><td>Ein Login gilt für alle Module (gemeinsamer JWT-Cookie)</td></tr>
+<tr><td>Theme</td><td>Einheitliche Kopfzeile, Hell/Dunkel-Umschalter, pro Modul eine eigene Akzentfarbe</td></tr>
+<tr><td>Dateiverwaltung (DV)</td><td>Ein einheitliches Datei-Modal in jedem Modul: Hochladen, zu Nextcloud senden, zwischen Werkzeugen austauschen</td></tr>
+</table>
+
+<div class="help-h2">Die Module</div>
+<table class="help-tbl">
+<tr><th>Modul</th><th>Funktion</th></tr>
+<tr><td>trskr</td><td>Audio/Video-Transkription (lokal, ohne Cloud-Dienst)</td></tr>
+<tr><td>lern</td><td>Lernkarten erstellen und als PDF-Bögen drucken</td></tr>
+<tr><td>kurv</td><td>Brennofen-Log-Auswertung → PDF/HTML-Kurvendiagramme</td></tr>
+<tr><td>popt</td><td>PDF-Dateigröße optimieren</td></tr>
+<tr><td>bild</td><td>Bildseiten-Layout (Canvas-basiert)</td></tr>
+<tr><td>nach</td><td>Schlanker HTML-Hoster für Einzelseiten und ZIP-Sets</td></tr>
+<tr><td>kal-trel</td><td>Weiteres Kanban-Board (SQLite-basiert, unabhängig von mkan)</td></tr>
+<tr><td>buch</td><td>PDF-Seiten neu zusammenstellen/mischen</td></tr>
+</table>
+
+<div class="help-h2">Herkunft der Module: Ur-Skript → Panel-Fork</div>
+<div class="help-p">Jedes Modul begann als eigenständiges Kommandozeilen-Werkzeug (das
+„Ur-Skript"). Für die Panel-Suite wurde es einmal kopiert und um eine Web-Oberfläche,
+Mehrbenutzer-Fähigkeit und die gemeinsame Auth/DV-Anbindung erweitert (der „Panel-Fork"). Beide
+Versionen existieren unabhängig weiter — das Ur-Skript bleibt ein reines lokales CLI-Werkzeug,
+Änderungen am Panel-Fork fließen nicht zurück.</div>
+
+<div class="help-h2">Deploy-Mechanismus</div>
+<div class="help-p">Anders als mkan: tul_s deployt über <strong>Git</strong>. Ein Push auf den
+Server-seitigen Branch löst automatisch einen Container-Rebuild und einen nginx-Reload aus — kein
+manuelles SSH-Kommando nötig für den Regelfall.</div>
+<pre>git subtree push --prefix=tul_s nuc master
+# → Server-Hook baut alle betroffenen Container neu, prüft Healthchecks, lädt nginx neu</pre>
+<div class="callout">
+tul_s lebt im selben Repository wie mkan (daher <code>git subtree push</code> statt eines simplen
+<code>git push</code>) — technisches Detail, das nur beim Deployen selbst relevant ist, nicht für
+die Nutzung der Werkzeuge.
+</div>
+`
+},
+{
+  id: 'dv-bridge', icon: '🌉', title: 'DV-Brücke',
+  sub: 'Wie mkan-Karten und tul_s-Werkzeuge Dateien austauschen',
+  html: `
+<div class="help-h2">Das Problem, das DV löst</div>
+<div class="help-p">Ohne Brücke müsste man eine Datei aus einer mkan-Karte erst herunterladen und
+dann manuell in einem tul_s-Werkzeug wieder hochladen. Die DV-Brücke („Datei-Verteiler")
+verbindet beide Seiten so, dass Dateien direkt sichtbar sind — ohne Umweg.</div>
+
+<div class="help-h2">Wie es technisch funktioniert</div>
+<div class="diagram">
+  <div class="row"><div class="box">mkan-Karte</div><div class="arrow">— Freigabe für „popt" —→</div><div class="box acc">tul_s-Hub (interne Schnittstelle)</div></div>
+  <div class="row" style="padding-left:24px"><div class="arrow">↓</div></div>
+  <div class="row" style="padding-left:24px"><div class="box">popt-Werkzeug zeigt die Datei automatisch als eigenen Reiter im Datei-Modal</div></div>
+</div>
+<div class="help-p">Eine mkan-Karte kann für <strong>ein bestimmtes tul_s-Werkzeug</strong> freigegeben
+werden (nicht pauschal für alle). Das Zielwerkzeug fragt beim Öffnen automatisch beim mkan-Hub nach,
+ob Karten für sich selbst freigegeben wurden, und zeigt sie als eigenen Tab im Datei-Modal —
+inklusive Vorschau, ohne dass die Datei irgendwo zwischengespeichert werden muss.</div>
+<div class="help-p">Die Verbindung funktioniert auch andersherum: Eine im tul_s-Werkzeug erzeugte
+Ausgabedatei lässt sich direkt „→ an eine mkan-Karte" schicken, ohne Umweg über den eigenen Rechner.</div>
+
+<div class="help-h2">Sicherheit</div>
+<div class="help-p">Die Verbindung zwischen Hub und mkan läuft über ein separates, internes Secret
+(nicht dasselbe wie die Nutzer-Anmeldung) — der Browser sieht davon nichts, die beiden Server
+sprechen intern direkt miteinander.</div>
+`
+},
+{
+  id: 'install', icon: '⚙️', title: 'Installation Schritt für Schritt',
+  sub: 'Für alle, die es selbst aufsetzen wollen',
+  html: `
+<div class="help-h2">Voraussetzungen</div>
+<ul class="help-list">
+  <li>Ein Linux-Server mit Docker + Docker Compose</li>
+  <li>Ein Reverse-Proxy (nginx empfohlen) für SSL-Terminierung, falls öffentlich erreichbar</li>
+  <li>Eine oder zwei Domains (mkan und tul_s können auf verschiedene Subdomains zeigen)</li>
+</ul>
+
+<div class="help-h2">mkan aufsetzen</div>
+<pre>cd mkan/
+cp .env.example .env
+# .env ausfüllen: SECRET_KEY (openssl rand -hex 32), optional SMTP + OnlyOffice
+docker compose up -d --build</pre>
+<div class="help-p">Lokal ausprobieren ohne Docker: <code>bash start-local.sh</code> (Python 3.10+
+genügt, öffnet automatisch den Browser).</div>
+
+<div class="help-h2">tul_s aufsetzen</div>
+<pre>cd tul_s/
+# .env anlegen mit TUL_SECRET (openssl rand -hex 32) und ADMIN_EMAIL
+docker compose up -d --build</pre>
+<div class="callout">
+Wird die DV-Brücke zwischen mkan und tul_s genutzt: zusätzlich <code>TUL_BRIDGE_SECRET</code>
+setzen — identischer Wert in <strong>beiden</strong> <code>.env</code>-Dateien (mkan und tul_s).
+Ohne DV-Nutzung kann dieser Wert entfallen.
+</div>
+
+<div class="help-h2">Reverse-Proxy</div>
+<div class="help-p">Beispiel-Konfigurationen liegen bei: <code>mkan/nginx-block.conf</code> und
+<code>tul_s/nginx_tul.conf</code>. Wichtiger Stolperstein bei eigenen Anpassungen: beim
+<code>proxy_pass</code> mit Variable niemals einen abschließenden Schrägstrich setzen, sonst geht
+der Pfad verloren (Details direkt in den Beispiel-Configs kommentiert).</div>
+
+<div class="help-h2">Updates</div>
+<div class="help-p">mkan: <code>bash deploy.sh</code> erneut ausführen. tul_s: erneuter
+<code>git subtree push</code> (siehe Kapitel „tul_s: Panel-Suite") — beide Wege bauen die
+betroffenen Container neu und starten sie automatisch neu.</div>
+`
+}
+];
+
+function renderGrid() {
+  const grid = document.getElementById('chapterGrid');
+  grid.innerHTML = CHAPTERS.map(c => `
+    <div class="tile" onclick="showChapter('${c.id}')">
+      <div class="ic">${c.icon}</div>
+      <div class="t">${c.title}</div>
+      <div class="s">${c.sub}</div>
+    </div>`).join('');
+}
+
+function showChapter(id) {
+  const c = CHAPTERS.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('detailBody').innerHTML =
+    `<div class="h1c"><span>${c.icon}</span> ${c.title}</div><div class="subline">${c.sub}</div>${c.html}`;
+  document.getElementById('overview').classList.add('hid');
+  document.getElementById('detail').classList.add('vis');
+  window.scrollTo(0,0);
+  history.pushState({chapter:id}, '', '#' + id);
+}
+
+function showOverview() {
+  document.getElementById('overview').classList.remove('hid');
+  document.getElementById('detail').classList.remove('vis');
+  history.pushState({}, '', location.pathname);
+}
+
+renderGrid();
+if (location.hash) {
+  const id = location.hash.slice(1);
+  if (CHAPTERS.some(c => c.id === id)) showChapter(id);
+}
+window.addEventListener('popstate', (e) => {
+  if (e.state && e.state.chapter) showChapter(e.state.chapter);
+  else showOverview();
+});
+</script>
+</body>
+</html>
