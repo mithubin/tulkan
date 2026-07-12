@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farbfächer · Tonhöhen-Skala</title>
+<style>
+  :root {
+    --bg: #111110; --panel: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781; --border: rgba(255,255,255,0.12);
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f9f9f7; --panel: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781; --border: rgba(11,11,11,0.12); }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px 30px 60px; background:var(--bg); color:var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  h1 + p { color:var(--muted); font-size:13px; margin:0 0 28px; max-width:640px; line-height:1.5; }
+  section { margin-bottom:34px; }
+  h2 { font-size:14px; margin:0 0 3px; }
+  section > p.desc { color:var(--ink2); font-size:12.5px; margin:0 0 12px; max-width:680px; line-height:1.5; }
+  .row { display:flex; gap:4px; margin-bottom:4px; align-items:stretch; }
+  .row-label { width:96px; flex:none; display:flex; align-items:center; font-size:11.5px; color:var(--muted); }
+  .swatch { flex:1; min-width:0; aspect-ratio:1/1; border-radius:6px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; cursor:pointer; border:1px solid var(--border);
+    font-size:10.5px; line-height:1.35; user-select:none; transition:transform .1s; }
+  .swatch:hover { transform:scale(1.04); }
+  .swatch:active { transform:scale(0.97); }
+  .swatch b { font-size:11.5px; font-weight:600; }
+  .colhead { display:flex; gap:4px; margin-bottom:6px; }
+  .colhead .row-label { width:96px; flex:none; }
+  .colhead span { flex:1; text-align:center; font-size:10.5px; color:var(--muted); }
+  code.copied::after { content:" ✓"; }
+</style>
+</head>
+<body>
+
+<h1>Farbfächer — Tonklassen-Skala (Ton 1–11)</h1>
+<p>Testseite zur Auswahl einer Regenbogen-Skala für die Obertöne-Ansicht: drei Verfahren im Vergleich,
+  jeweils von Dunkelviolett bis Hellrot, in mehreren Sättigungs-/Chromastufen. Klick auf eine Kachel kopiert den Hex-Code.</p>
+
+<section id="sec-a">
+  <h2>A — reines HSL, voller Kreis (0–360°, aktuell im Tool)</h2>
+  <p class="desc">Referenz: der bisherige Ansatz. Hue läuft über den vollen Farbkreis, inklusive Magenta/Pink
+    (~300–330°) und dem hellen Cyan-Bereich (~180°) — beide erscheinen bei gleichem S/L auffällig heller/blasser
+    als z.B. Rot oder Blau, weil HSL kein perzeptuell gleichmäßiges Modell ist.</p>
+  <div id="grid-a"></div>
+</section>
+
+<section id="sec-b">
+  <h2>B — HSL, eingeschränkter Bereich (265° Violett → 0° Rot)</h2>
+  <p class="desc">Gleiches HSL-Modell, aber der Hue-Kreis wird nicht voll durchlaufen, sondern nur von Violett über
+    Blau, Cyan, Grün, Gelb, Orange bis Rot — wie ein optisches Spektrum. Kein Magenta/Pink mehr, Cyan bekommt nur
+    einen von 11 Schritten statt eines überproportionalen Anteils.</p>
+  <div id="grid-b"></div>
+</section>
+
+<section id="sec-c">
+  <h2>C — OKLCH, eingeschränkter Bereich (perzeptuell gleichmäßig)</h2>
+  <p class="desc">Gleicher Hue-Bereich wie B, aber im OKLCH-Farbraum berechnet: numerisch gleiche Helligkeit sieht
+    hier für alle Farbtöne auch gleich hell aus — der "Cyan/Gelb wirkt heller"-Effekt von HSL entfällt. Das dürfte
+    dem, was intuitiv als gleichmäßig empfunden wird, am nächsten kommen.</p>
+  <div id="grid-c"></div>
+</section>
+
+<script>
+const N = 11;
+const HUE_FROM = 265; // Violett
+const HUE_TO = 0;     // Rot
+
+function hueAt(i) { return HUE_FROM + (HUE_TO - HUE_FROM) * (i / (N - 1)); }
+
+function pickTextColor(r, g, b) {
+  const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+  return lum > 0.6 ? '#111' : '#fff';
+}
+function toHex(r, g, b) {
+  const h = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return '#' + h(r) + h(g) + h(b);
+}
+
+/* HSL -> RGB (0-255) */
+function hslToRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360 / 360;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h * 12) % 12;
+    return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  return [f(0) * 255, f(8) * 255, f(4) * 255];
+}
+
+/* OKLCH -> sRGB (0-255), Referenz: Björn Ottosson, öffentliche Formeln */
+function oklchToRgb(L, C, Hdeg) {
+  const h = Hdeg * Math.PI / 180;
+  const a = Math.cos(h) * C, b = Math.sin(h) * C;
+
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+  const l = l_ ** 3, m = m_ ** 3, s = s_ ** 3;
+
+  let r = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  let g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  let bb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+  const toSrgb = c => {
+    c = Math.max(0, Math.min(1, c));
+    return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  };
+  return [toSrgb(r) * 255, toSrgb(g) * 255, toSrgb(bb) * 255];
+}
+
+function makeSwatch(rgb, label1, label2) {
+  const [r, g, b] = rgb;
+  const hex = toHex(r, g, b);
+  const el = document.createElement('div');
+  el.className = 'swatch';
+  el.style.background = hex;
+  el.style.color = pickTextColor(r, g, b);
+  el.innerHTML = `<b>${label1}</b><code>${hex}</code><span>${label2}</span>`;
+  el.title = 'Klick zum Kopieren';
+  el.addEventListener('click', () => {
+    navigator.clipboard?.writeText(hex).catch(() => {});
+    const codeEl = el.querySelector('code');
+    codeEl.classList.add('copied');
+    setTimeout(() => codeEl.classList.remove('copied'), 900);
+  });
+  return el;
+}
+
+function colHeads(container) {
+  const head = document.createElement('div');
+  head.className = 'colhead';
+  head.innerHTML = '<div class="row-label"></div>' +
+    Array.from({length:N}, (_, i) => `<span>Ton ${i+1}<br>${Math.round(hueAt(i))}°</span>`).join('');
+  container.appendChild(head);
+}
+
+function buildHslSection(containerId, sats) {
+  const container = document.getElementById(containerId);
+  colHeads(container);
+  for (const s of sats) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const label = document.createElement('div');
+    label.className = 'row-label';
+    label.textContent = `S=${Math.round(s*100)}% L=50%`;
+    row.appendChild(label);
+    for (let i = 0; i < N; i++) {
+      const rgb = hslToRgb(hueAt(i), s, 0.5);
+      row.appendChild(makeSwatch(rgb, `n=${i+1}`, `s${Math.round(s*100)}`));
+    }
+    container.appendChild(row);
+  }
+}
+
+function buildOklchSection(containerId, chromas) {
+  const container = document.getElementById(containerId);
+  colHeads(container);
+  for (const c of chromas) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const label = document.createElement('div');
+    label.className = 'row-label';
+    label.textContent = `C=${c.toFixed(2)} L=0.68`;
+    row.appendChild(label);
+    for (let i = 0; i < N; i++) {
+      const rgb = oklchToRgb(0.68, c, hueAt(i));
+      row.appendChild(makeSwatch(rgb, `n=${i+1}`, `c${c.toFixed(2)}`));
+    }
+    container.appendChild(row);
+  }
+}
+
+/* A: voller HSL-Kreis 0-360 statt eingeschränkt, eigene hueAt-Variante */
+function hueAtFull(i) { return (360 / N) * i; }
+function buildHslFullSection(containerId, sats) {
+  const container = document.getElementById(containerId);
+  const head = document.createElement('div');
+  head.className = 'colhead';
+  head.innerHTML = '<div class="row-label"></div>' +
+    Array.from({length:N}, (_, i) => `<span>Ton ${i+1}<br>${Math.round(hueAtFull(i))}°</span>`).join('');
+  container.appendChild(head);
+  for (const s of sats) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const label = document.createElement('div');
+    label.className = 'row-label';
+    label.textContent = `S=${Math.round(s*100)}% L=50%`;
+    row.appendChild(label);
+    for (let i = 0; i < N; i++) {
+      const rgb = hslToRgb(hueAtFull(i), s, 0.5);
+      row.appendChild(makeSwatch(rgb, `n=${i+1}`, `s${Math.round(s*100)}`));
+    }
+    container.appendChild(row);
+  }
+}
+
+buildHslFullSection('grid-a', [0.55, 0.7, 0.85]);
+buildHslSection('grid-b', [0.55, 0.7, 0.85]);
+buildOklchSection('grid-c', [0.12, 0.16, 0.20]);
+</script>
+</body>
+</html>

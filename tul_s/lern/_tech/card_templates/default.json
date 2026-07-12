@@ -1,0 +1,31 @@
+{
+  "card_width_mm": 180.0,
+  "card_height_mm": 80.0,
+  "margin_mm": 4.0,
+  "topic_width_mm": 10.0,
+  "line_spacing": 1.2,
+  "answer_line_spacing": 1.2,
+  "repeat_gap_mm": 4.0,
+  "front_bg": "",
+  "back_bg": "",
+  "topic_style": {
+    "font": "helv", "font_path": "", "size": 9,
+    "color": [1.0, 1.0, 1.0],
+    "shadow_offset": [1.0, 1.0], "shadow_color": [0.0, 0.0, 0.0]
+  },
+  "question_style": {
+    "font": "helv", "font_path": "", "size": 14,
+    "color": [1.0, 1.0, 1.0],
+    "shadow_offset": [1.5, 1.5], "shadow_color": [0.0, 0.0, 0.0]
+  },
+  "answer_style": {
+    "font": "helv", "font_path": "", "size": 13,
+    "color": [1.0, 1.0, 1.0],
+    "shadow_offset": [1.5, 1.5], "shadow_color": [0.0, 0.0, 0.0]
+  },
+  "repeat_style": {
+    "font": "helv", "font_path": "", "size": 7,
+    "color": [0.8, 0.8, 0.8],
+    "shadow_offset": [0.0, 0.0], "shadow_color": [0.0, 0.0, 0.0]
+  }
+}

@@ -1,0 +1,167 @@
+/* tul-theme.css — Theme Panel + Color Picker
+ * Alle Klassen/IDs mit tlt- Präfix, kein Konflikt mit Panel-CSS.
+ * Setzt voraus: CSS-Variablen --bg --bg2 --bg3 --border --text --muted --acc --acc2 --blur
+ */
+
+/* ── Floating Panels ──────────────────────────────────────────────────────── */
+.tlt-float-panel {
+  position: fixed; bottom: 20px; z-index: 100;
+  background: rgba(12,12,22,.96);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border: 1px solid #252540; border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.65);
+  font-size: 13px; color: #dde;
+}
+#tlt-panel-main { right: 20px; width: 284px; flex-direction: column; }
+#tlt-panel-lab  { left: 20px; width: 308px; top: 40px; display: flex; flex-direction: column; }
+
+.tlt-fp-header {
+  display: flex; align-items: center; padding: 8px 12px;
+  border-bottom: 1px solid #1e1e36; cursor: pointer;
+  border-radius: 12px 12px 0 0; gap: 8px; flex-shrink: 0;
+  user-select: none;
+}
+.tlt-fp-header:hover { background: rgba(255,255,255,.03); }
+.tlt-fp-title  { flex: 1; font-size: 11px; font-weight: 600; letter-spacing: .07em; color: #99a; text-transform: uppercase; }
+.tlt-fp-toggle { font-size: 14px; color: #445; transition: transform .2s; }
+.tlt-fp-toggle.tlt-open { transform: rotate(180deg); }
+
+.tlt-fp-body { padding: 8px 12px; overflow-y: auto; flex: 1; }
+.tlt-fp-body.tlt-collapsed { display: none; }
+.tlt-fp-body::-webkit-scrollbar       { width: 4px; }
+.tlt-fp-body::-webkit-scrollbar-track { background: transparent; }
+.tlt-fp-body::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 2px; }
+
+.tlt-ctrl { margin-bottom: 7px; }
+.tlt-ctrl-lbl { display: flex; justify-content: space-between; font-size: 11px; color: #667; margin-bottom: 2px; }
+.tlt-val { color: #aab; font-weight: 600; font-family: monospace; min-width: 38px; text-align: right; }
+.tlt-fp-body input[type=range] { width: 100%; height: 4px; accent-color: #7c9cbf; cursor: pointer; }
+
+.tlt-fp-sep { border: none; border-top: 1px solid #1a1a32; margin: 6px 0; }
+.tlt-fp-section { font-size: 10px; text-transform: uppercase; letter-spacing: .09em; color: #3a3a58; margin-bottom: 5px; margin-top: 2px; font-weight: 600; }
+
+/* ── Farb-Picker ──────────────────────────────────────────────────────────── */
+.tlt-color-row { display: flex; gap: 8px; align-items: center; margin-bottom: 7px; }
+
+.tlt-cp-swatch {
+  width: 38px; height: 28px; border-radius: 6px; border: 1px solid #2a2a4a;
+  cursor: pointer; flex-shrink: 0; padding: 0;
+  transition: border-color .15s, transform .1s;
+}
+.tlt-cp-swatch:hover { border-color: #7c9cbf; transform: scale(1.06); }
+
+.tlt-color-hex {
+  flex: 1; background: #0d0d1e; border: 1px solid #2a2a4a; color: #aab;
+  border-radius: 5px; padding: 5px 9px; font-family: monospace; font-size: 12px;
+}
+.tlt-color-hex:focus { outline: none; border-color: #7c9cbf; }
+
+#tlt-cp-popup {
+  position: fixed; z-index: 9999;
+  background: #14141f; border: 1px solid #2a2a4a; border-radius: 11px;
+  padding: 12px; width: 240px;
+  box-shadow: 0 10px 36px rgba(0,0,0,.75);
+  display: flex; flex-direction: column; gap: 10px;
+}
+#tlt-cp-popup.tlt-cp-hidden { display: none; }
+
+#tlt-cp-field {
+  height: 180px; border-radius: 7px; position: relative;
+  cursor: crosshair; user-select: none; overflow: hidden;
+}
+#tlt-cp-cursor {
+  position: absolute; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid #fff; box-shadow: 0 0 0 1.5px rgba(0,0,0,.5);
+  transform: translate(-50%,-50%); pointer-events: none;
+}
+#tlt-cp-hue {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 16px; border-radius: 8px; border: none; outline: none; cursor: pointer;
+  background: linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);
+}
+#tlt-cp-hue::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; border: 2px solid #999; box-shadow: 0 1px 4px rgba(0,0,0,.4); cursor: pointer;
+}
+#tlt-cp-hue::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2px solid #999; cursor: pointer; }
+
+#tlt-cp-bottom { display: flex; gap: 8px; align-items: center; }
+#tlt-cp-preview { width: 36px; height: 32px; border-radius: 6px; border: 1px solid #2a2a4a; flex-shrink: 0; }
+#tlt-cp-hex {
+  flex: 1; background: #0d0d1e; border: 1px solid #2a2a4a; color: #ccd;
+  border-radius: 5px; padding: 6px 9px; font-family: monospace; font-size: 13px; outline: none;
+}
+#tlt-cp-hex:focus { border-color: #7c9cbf; }
+
+/* ── Presets ──────────────────────────────────────────────────────────────── */
+.tlt-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tlt-preset-swatch {
+  width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: border-color .15s, transform .1s;
+}
+.tlt-preset-swatch:hover { transform: scale(1.2); }
+
+.tlt-fp-btn {
+  width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #252540;
+  background: #111122; color: #99a; font-size: 12px; cursor: pointer;
+  transition: all .15s; margin-bottom: 6px;
+}
+.tlt-fp-btn:hover { border-color: #7c9cbf; color: #dde; }
+.tlt-fp-btn.tlt-pri { background: #7c9cbf; color: #fff; border-color: #7c9cbf; }
+.tlt-fp-btn.tlt-pri:hover { filter: brightness(1.1); }
+
+/* ── Live-Swatches ────────────────────────────────────────────────────────── */
+.tlt-swatch-strip { display: flex; gap: 4px; margin-bottom: 7px; }
+.tlt-swatch-item  { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tlt-swatch-box   { width: 100%; height: 20px; border-radius: 4px; border: 1px solid #151525; }
+.tlt-swatch-lbl   { font-size: 9px;  color: #3a3a56; font-family: monospace; }
+.tlt-swatch-hex   { font-size: 8px;  color: #2a2a44; font-family: monospace; }
+
+/* ── Snapshot-Log ─────────────────────────────────────────────────────────── */
+.tlt-log-list { max-height: 170px; overflow-y: auto; margin-top: 4px; }
+.tlt-log-entry {
+  display: flex; align-items: center; gap: 6px; padding: 5px 6px;
+  border-radius: 5px; cursor: pointer; border: 1px solid transparent;
+  margin-bottom: 3px; transition: background .1s;
+}
+.tlt-log-entry:hover { background: #181828; border-color: #252540; }
+.tlt-log-swatches   { display: flex; gap: 2px; }
+.tlt-log-sw         { width: 12px; height: 12px; border-radius: 2px; }
+.tlt-log-meta       { flex: 1; font-size: 10px; color: #445; font-family: monospace; line-height: 1.5; }
+.tlt-log-ts         { font-size: 9px; color: #2a2a44; }
+.tlt-log-del        { font-size: 14px; color: #2a2a44; cursor: pointer; padding: 0 2px; }
+.tlt-log-del:hover  { color: #bf6a6a; }
+.tlt-log-empty      { font-size: 11px; color: #2a2a44; text-align: center; padding: 12px 0; }
+
+/* ── Spread-Row ───────────────────────────────────────────────────────────── */
+.tlt-spread-row  { display: flex; gap: 8px; align-items: center; }
+.tlt-spread-auto { font-size: 10px; color: #445; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.tlt-spread-auto input { width: 13px; height: 13px; accent-color: #7c9cbf; }
+
+/* ── Shared Header-Buttons (gilt in allen Panels) ────────────────────────── */
+.hdr-btn {
+  padding: 4px 10px;
+  background: transparent; border: 1px solid currentColor;
+  color: inherit; opacity: .55;
+  border-radius: 4px; font-size: 12px; font-family: inherit;
+  cursor: pointer; white-space: nowrap;
+  transition: opacity .12s; flex-shrink: 0;
+  text-decoration: none; display: inline-flex; align-items: center;
+  line-height: 1.3;
+}
+.hdr-btn:hover { opacity: 1; }
+
+/* ── Header-Layout: Links + Mitte + Rechts ───────────────────────────────── */
+.hdr-left {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+
+.tlt-hdr-right {
+  margin-left: auto; display: flex; align-items: center;
+  gap: 6px; flex-shrink: 0;
+}
+.tlt-user-badge {
+  padding: 3px 8px; background: var(--acc, #7c9cbf); color: #fff;
+  border-radius: 4px; font-size: 11px; font-weight: 600;
+  cursor: default; flex-shrink: 0; letter-spacing: .03em;
+}

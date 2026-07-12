@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="subpath" content="">
+  <title>Kurv – Ofen-Log Auswertung</title>
+  <link rel="stylesheet" href="/static/tul-theme.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #1a1a2e; --bg2: #16213e; --bg3: #0f3460;
+      --acc: #7c9cbf; --border: #2a2a4a;
+      --text: #dde; --muted: #778; --ok: #6abf6a; --err: #bf6a6a;
+    }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+    header {
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      padding: 6px 12px; display: flex; align-items: center; gap: 8px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .hdr-left { display: flex; align-items: center; gap: 6px; }
+    .hdr-btn {
+      background: none; border: 1px solid var(--border); color: var(--text);
+      padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;
+      text-decoration: none; display: inline-block;
+    }
+    .hdr-btn:hover { border-color: var(--acc); color: var(--acc); }
+    h1 { flex: 1; text-align: center; font-size: 14px; font-weight: 600; }
+
+    /* Layout */
+    main { width: 80%; margin: 0 auto; padding: 16px; }
+    @media (max-width: 1000px) { main { width: 100%; } }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+    @media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* Cards */
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+    .card-hdr { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .card-hdr span { flex: 1; }
+    .sub-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+
+    /* Pool */
+    #drop-zone {
+      border: 2px dashed var(--border); border-radius: 6px; padding: 12px;
+      text-align: center; cursor: pointer; color: var(--muted); font-size: 12px; margin-bottom: 8px;
+    }
+    #drop-zone.over { border-color: var(--acc); background: rgba(124,156,191,.06); }
+    #drop-zone input[type=file] { display: none; }
+    #pool-list { margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    @media (max-width: 900px) { #pool-list { grid-template-columns: 1fr; } }
+    button.sml.del { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, var(--border)); }
+    button.sml.del:hover { border-color: var(--err); background: rgba(191,106,106,.12); }
+    .pool-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: var(--bg3); border-radius: 4px; font-size: 12px; font-family: monospace; }
+    .pool-item input[type=checkbox] { accent-color: var(--acc); flex-shrink: 0; }
+    .pool-item .pi-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pool-item .pi-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; }
+    .pool-item .pi-del:hover { color: var(--err); }
+    .pool-empty { font-size: 12px; color: var(--muted); font-style: italic; padding: 6px 0; }
+
+    /* NC-Fetch source bars */
+    .nc-source-bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; margin-bottom: 5px; cursor: pointer; transition: border-color .15s; }
+    .nc-source-bar:hover { border-color: var(--muted); }
+    .nc-source-bar.active { border-color: var(--acc); background: rgba(124,156,191,.1); }
+    .nc-source-bar .nc-bar-label { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nc-fetch-row { display: flex; gap: 6px; margin-top: 8px; }
+    .nc-msg { font-size: 11px; color: var(--muted); margin-top: 4px; min-height: 16px; }
+    .nc-add-row { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; margin-top: 10px; }
+    .nc-add-row input { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 4px; font-size: 13px; width: 100%; }
+
+    /* Options */
+    .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    label.field input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 5px 8px; font-size: 13px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .pill input[type=radio], .pill input[type=checkbox] { display: none; }
+    .pill label { padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--bg3); color: var(--muted); }
+    .pill input[type=radio]:checked + label, .pill input[type=checkbox]:checked + label { background: var(--acc); color: #fff; border-color: var(--acc); }
+    .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 6px; }
+    .check-row input[type=checkbox] { accent-color: var(--acc); }
+    .preset-row { display: flex; gap: 6px; align-items: center; }
+    .preset-sel { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 4px; font-size: 13px; }
+    .preset-name-inp { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 4px; font-size: 13px; }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button.pri { padding: 7px 20px; background: var(--acc); color: #fff; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    button.pri:hover { filter: brightness(1.15); }
+    button.pri:disabled { opacity: .4; cursor: default; }
+    button.sec { padding: 7px 14px; background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 5px; font-size: 13px; cursor: pointer; }
+    button.sec:hover { border-color: var(--muted); }
+    button.sec:disabled { opacity: .4; cursor: default; }
+    button.sml { padding: 4px 10px; background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; font-size: 11px; cursor: pointer; }
+    button.sml:hover { border-color: var(--acc); color: var(--acc); }
+
+    /* Terminal */
+    #log-box { background: #0a0a14; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 12px; font-family: monospace; color: #9ab; max-height: 220px; overflow-y: auto; white-space: pre-wrap; display: none; margin-top: 10px; }
+    .log-ok  { color: var(--ok); }
+    .log-err { color: var(--err); }
+    #status { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    /* Preview panels */
+    .preview-panel { border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); margin-top: 14px; overflow: hidden; }
+    .preview-hdr { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg3); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .preview-hdr span { flex: 1; }
+    .preview-chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .out-chip { padding: 3px 10px; border-radius: 4px; font-size: 11px; font-family: monospace; border: 1px solid var(--border); background: var(--bg3); color: var(--text); cursor: pointer; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .out-chip:hover { border-color: var(--acc); }
+    .out-chip.active { border-color: var(--acc); background: rgba(124,156,191,.15); color: var(--acc); }
+    .preview-frame-wrap { width: 100%; }
+    .preview-frame-wrap iframe,
+    .preview-frame-wrap object { width: 100%; border: none; display: block; }
+    .kwh-log-box { padding: 10px 12px; font-size: 11px; font-family: monospace; color: #9ab; background: #0a0a14; max-height: 240px; overflow-y: auto; white-space: pre; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-left">
+    <a href="/" class="hdr-btn">← Panel</a>
+  </div>
+  <h1>Kurv</h1>
+</header>
+
+<main>
+<div class="two-col">
+
+<!-- ── Linke Spalte: Config ── -->
+<div class="col-config">
+
+<!-- 1 · Dateien holen -->
+<div class="card">
+  <div class="card-hdr"><span>1 · Dateien holen</span></div>
+
+  <div class="sub-lbl">Von Nextcloud</div>
+  <div id="nc-source-bars"></div>
+  <div class="nc-fetch-row">
+    <button class="sec" style="flex:1" onclick="doFetch()">↓ Holen</button>
+  </div>
+  <div class="nc-msg" id="nc-fetch-msg"></div>
+  <details style="margin-top:12px">
+    <summary style="font-size:12px;color:var(--muted);cursor:pointer">+ Fetch-Quelle hinzufügen</summary>
+    <div class="nc-add-row" style="margin-top:8px">
+      <input type="text" id="nc-f-label" placeholder="Label">
+      <input type="text" id="nc-f-url"   placeholder="https://nc.example.org/s/TOKEN">
+    </div>
+    <div class="btn-row" style="margin-top:6px">
+      <button class="sml" onclick="addFetchTarget()">Speichern</button>
+    </div>
+    <div class="nc-msg" id="nc-add-msg"></div>
+  </details>
+
+  <div class="sub-lbl" style="margin-top:14px">Hochladen</div>
+  <div id="drop-zone"
+       onclick="document.getElementById('file-input').click()"
+       ondragover="event.preventDefault();this.classList.add('over')"
+       ondragleave="this.classList.remove('over')"
+       ondrop="handleDrop(event)">
+    CSV ziehen oder klicken
+    <input type="file" id="file-input" accept=".csv" multiple onchange="uploadFiles(this.files)">
+  </div>
+</div>
+
+<!-- 2 · Optionen -->
+<div class="card">
+  <div class="card-hdr"><span>2 · Optionen</span></div>
+
+  <div class="preset-row" style="margin-bottom:12px">
+    <select class="preset-sel" id="preset-sel" onchange="loadPreset()">
+      <option value="">– Preset laden –</option>
+    </select>
+    <input class="preset-name-inp" type="text" id="preset-name" placeholder="Preset-Name">
+    <button class="sml" onclick="savePreset()">Speichern</button>
+    <button class="sml" onclick="deletePreset()">✕</button>
+  </div>
+
+  <div class="opt-grid" style="margin-bottom:12px">
+    <label class="field">Ofenname
+      <input type="text" id="ofen-name" value="chaud">
+    </label>
+    <label class="field">Ofenleistung (kW)
+      <input type="number" id="ofen-kw" value="27.14" step="0.01" min="1" max="100">
+    </label>
+    <label class="field">Testbrände ausschl. unter kWh (0=alle)
+      <input type="number" id="test-threshold" value="20" step="1" min="0">
+    </label>
+    <label class="field">Zeitfenster (Stunden)
+      <input type="number" id="window-h" value="16" step="0.5" min="1" max="72">
+    </label>
+    <label class="field">Align-Temp. °C (0 = aus)
+      <input type="number" id="align-temp" value="120" step="1" min="0" max="1400">
+    </label>
+    <label class="field">Align-Offset (Stunden)
+      <input type="number" id="align-offset" value="1.5" step="0.5" min="0" max="24">
+    </label>
+    <label class="field">Von (leer = alle)
+      <input type="date" id="date-from">
+    </label>
+    <label class="field">Bis (leer = alle)
+      <input type="date" id="date-to">
+    </label>
+  </div>
+
+  <div style="margin-bottom:10px">
+    <div class="sub-lbl">Farbthema</div>
+    <div class="pills">
+      <span class="pill"><input type="radio" name="theme" id="th-dark"  value="dark"  checked><label for="th-dark">Dark</label></span>
+      <span class="pill"><input type="radio" name="theme" id="th-light" value="light"><label for="th-light">Light</label></span>
+      <span class="pill"><input type="radio" name="theme" id="th-both"  value="both"><label for="th-both">Beide</label></span>
+    </div>
+  </div>
+
+  <div style="margin-bottom:10px; display:flex; align-items:flex-end; gap:16px">
+    <div style="flex:1">
+      <div class="sub-lbl">Ausgabeformat</div>
+      <div class="pills">
+        <span class="pill"><input type="radio" name="fmt" id="fmt-pdf"  value="pdf"  checked><label for="fmt-pdf">PDF</label></span>
+        <span class="pill"><input type="radio" name="fmt" id="fmt-htm"  value="htm"><label for="fmt-htm">HTML</label></span>
+        <span class="pill"><input type="radio" name="fmt" id="fmt-both" value="both"><label for="fmt-both">Beide</label></span>
+      </div>
+    </div>
+    <div style="flex-shrink:0; padding-bottom:3px">
+      <span class="pill"><input type="checkbox" id="kwh-only"><label for="kwh-only">Nur kWh</label></span>
+    </div>
+  </div>
+
+  <div class="check-row">
+    <input type="checkbox" id="einzel-batch">
+    <label for="einzel-batch">Einzelne Kombi-Ausgaben pro Brand</label>
+  </div>
+</div>
+
+<!-- 3 · Log-Pool -->
+<div class="card">
+  <div class="card-hdr">
+    <span>3 · Log-Pool</span>
+    <button class="sml" onclick="loadPool()">⟳</button>
+    <button class="sml" onclick="selectAll(true)">Alle</button>
+    <button class="sml" onclick="selectAll(false)">Keine</button>
+    <button class="sml" onclick="toggleSelection()">Toggle</button>
+    <button class="sml del" onclick="clearSelected()">Auswahl löschen</button>
+    <button class="sml del" onclick="clearAll()">Alle löschen</button>
+  </div>
+  <div id="pool-list"></div>
+</div>
+
+</div><!-- /col-config -->
+
+<!-- ── Rechte Spalte: Ausgabe ── -->
+<div class="col-output">
+
+<!-- 4 · Starten -->
+<div class="card">
+  <div class="card-hdr"><span>4 · Starten</span></div>
+  <div class="btn-row">
+    <button class="pri" id="run-btn" onclick="startRun()">Auswertung starten</button>
+  </div>
+  <div id="status"></div>
+  <div id="log-box"></div>
+</div>
+
+<!-- Vorschau: HTML -->
+<div class="preview-panel" id="pnl-html" style="display:none">
+  <div class="preview-hdr">
+    <span>HTML-Auswertung</span>
+    <button class="sml" onclick="navHtml(-1)">◀</button>
+    <button class="sml" onclick="navHtml(1)">▶</button>
+    <button class="sml" onclick="openHtmlOverlay()">⤢</button>
+  </div>
+  <div class="preview-chips" id="html-chips"></div>
+  <div class="preview-frame-wrap">
+    <iframe id="html-frame" src="about:blank" style="height:480px"></iframe>
+  </div>
+</div>
+
+<!-- Vorschau: Bericht-PDFs -->
+<div class="preview-panel" id="pnl-report" style="display:none">
+  <div class="preview-hdr">
+    <span>Bericht-PDF</span>
+    <button class="sml" onclick="navReport(-1)">◀</button>
+    <button class="sml" onclick="navReport(1)">▶</button>
+    <button class="sml" onclick="downloadFile(_reportFiles[_reportIdx])">↓</button>
+  </div>
+  <div class="preview-chips" id="report-chips"></div>
+  <div class="preview-frame-wrap">
+    <iframe id="report-frame" src="about:blank" style="height:520px"></iframe>
+  </div>
+</div>
+
+<!-- Vorschau: kWh-Plot -->
+<div class="preview-panel" id="pnl-kwh" style="display:none">
+  <div class="preview-hdr">
+    <span>kWh-Plot</span>
+    <button class="sml" onclick="navKwh(-1)">◀</button>
+    <button class="sml" onclick="navKwh(1)">▶</button>
+    <button class="sml" onclick="downloadFile(_kwhFiles[_kwhIdx])">↓</button>
+  </div>
+  <div class="preview-chips" id="kwh-chips"></div>
+  <div class="preview-frame-wrap">
+    <iframe id="kwh-frame" src="about:blank" style="height:520px"></iframe>
+  </div>
+</div>
+
+<!-- Vorschau: kWh.log -->
+<div class="preview-panel" id="pnl-log" style="display:none">
+  <div class="preview-hdr"><span>kWh.log</span></div>
+  <div class="kwh-log-box" id="kwh-log-box"></div>
+</div>
+
+</div><!-- /col-output -->
+</div><!-- /two-col -->
+</main>
+
+<!-- HTML Vollbild-Overlay -->
+<div id="html-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:#000;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
+    <button class="sml" onclick="navHtml(-1)">◀ Voriger</button>
+    <span id="html-overlay-title" style="flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <button class="sml" onclick="navHtml(1)">Nächster ▶</button>
+    <button class="sml" onclick="closeHtmlOverlay()">✕ Schließen</button>
+  </div>
+  <iframe id="html-overlay-frame" src="about:blank" style="flex:1;border:none;background:#fff"></iframe>
+</div>
+
+<script>
+const _B = (document.querySelector('meta[name=subpath]') || {}).content || '';
+
+let _pool   = [];
+let _jid    = null;
+let _ncFetchTargets = [];
+let _selectedFetchTarget = null;
+
+let _htmlFiles   = []; let _htmlIdx   = 0;
+let _reportFiles = []; let _reportIdx = 0;
+let _kwhFiles    = []; let _kwhIdx    = 0;
+let _kwhLogFile  = null;
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Pool ──────────────────────────────────────────────────────────────────────
+
+async function loadPool() {
+  try {
+    const r = await fetch(_B + '/files?category=input&all=1');
+    const data = await r.json();
+    const seen = new Set();
+    _pool = data.filter(f => /\.csv$/i.test(f.filename) && !seen.has(f.filename) && seen.add(f.filename));
+    renderPool();
+  } catch(e) { console.error('Pool-Ladefehler:', e); }
+}
+
+function renderPool() {
+  const el = document.getElementById('pool-list');
+  if (!_pool.length) {
+    el.innerHTML = '<div class="pool-empty">Pool leer.</div>';
+    return;
+  }
+  el.innerHTML = _pool.map(f => `
+    <div class="pool-item" data-id="${esc(f.id)}">
+      <input type="checkbox" checked>
+      <span class="pi-name" title="${esc(f.filename)}">${esc(f.filename)}</span>
+      <button class="pi-del" onclick="removeFromPool('${esc(f.id)}')" title="Entfernen">✕</button>
+    </div>`).join('');
+}
+
+async function uploadFiles(flist) {
+  if (!flist || !flist.length) return;
+  setStatus('Hochladen …');
+  const fd = new FormData();
+  for (const f of flist) fd.append('files', f);
+  try {
+    const r = await fetch(_B + '/upload', {method:'POST', body:fd});
+    const d = await r.json();
+    if (!d.ok) { setStatus('Fehler: ' + d.error); return; }
+    setStatus(`${d.n} Datei(en) hochgeladen.`);
+    loadPool();
+  } catch(e) { setStatus('Upload fehlgeschlagen: ' + e); }
+}
+
+function handleDrop(ev) {
+  ev.preventDefault();
+  document.getElementById('drop-zone').classList.remove('over');
+  uploadFiles(ev.dataTransfer.files);
+}
+
+function selectAll(state) {
+  document.querySelectorAll('#pool-list input[type=checkbox]').forEach(cb => cb.checked = state);
+}
+
+function toggleSelection() {
+  document.querySelectorAll('#pool-list input[type=checkbox]').forEach(cb => cb.checked = !cb.checked);
+}
+
+function selectedFiles() {
+  return [...document.querySelectorAll('#pool-list .pool-item')]
+    .filter(el => el.querySelector('input').checked)
+    .map(el => _pool.find(f => f.id === el.dataset.id)?.filename)
+    .filter(Boolean);
+}
+
+async function clearSelected() {
+  const items = [...document.querySelectorAll('#pool-list .pool-item')]
+    .filter(el => el.querySelector('input').checked);
+  if (!items.length) return;
+  if (!confirm(`${items.length} Datei(en) dauerhaft löschen?`)) return;
+  await Promise.all(items.map(el =>
+    fetch(_B + '/files/' + el.dataset.id, {method:'DELETE'}).catch(()=>{})
+  ));
+  loadPool();
+}
+
+async function clearAll() {
+  if (!_pool.length) return;
+  if (!confirm(`Alle ${_pool.length} Dateien im Pool dauerhaft löschen?`)) return;
+  await Promise.all(_pool.map(f =>
+    fetch(_B + '/files/' + f.id, {method:'DELETE'}).catch(()=>{})
+  ));
+  loadPool();
+}
+
+async function removeFromPool(id) {
+  await fetch(_B + '/files/' + id, {method:'DELETE'}).catch(()=>{});
+  loadPool();
+}
+
+// ── NC-Fetch ──────────────────────────────────────────────────────────────────
+
+async function loadNcFetchTargets() {
+  try {
+    const r = await fetch(_B + '/nc-targets?direction=fetch');
+    _ncFetchTargets = await r.json();
+    if (_ncFetchTargets.length) {
+      const saved = localStorage.getItem('kurv-fetch-sel');
+      _selectedFetchTarget = (_ncFetchTargets.find(t => t.id === saved) ? saved : null)
+        || (_ncFetchTargets.length === 1 ? _ncFetchTargets[0].id : null);
+    }
+    renderNcFetchTargets();
+  } catch(e) { console.error(e); }
+}
+
+function renderNcFetchTargets() {
+  const bars = document.getElementById('nc-source-bars');
+  if (!_ncFetchTargets.length) {
+    bars.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Keine Quellen konfiguriert.</div>';
+    return;
+  }
+  bars.innerHTML = _ncFetchTargets.map(t => `
+    <div class="nc-source-bar${_selectedFetchTarget === t.id ? ' active' : ''}"
+         onclick="selectFetchSource('${esc(t.id)}')">
+      <span class="nc-bar-label" title="${esc(t.url)}">${esc(t.label)}</span>
+      <button class="sml" onclick="event.stopPropagation();deleteFetchTarget('${esc(t.id)}','${esc(t.label)}')">✕</button>
+    </div>`).join('');
+}
+
+function selectFetchSource(id) {
+  _selectedFetchTarget = id;
+  try { localStorage.setItem('kurv-fetch-sel', id); } catch {}
+  renderNcFetchTargets();
+}
+
+async function addFetchTarget() {
+  const label = document.getElementById('nc-f-label').value.trim();
+  const url   = document.getElementById('nc-f-url').value.trim();
+  const msg   = document.getElementById('nc-add-msg');
+  if (!label || !url) { msg.textContent = 'Label und URL erforderlich.'; return; }
+  try {
+    const r = await fetch(_B + '/nc-targets', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({label, url, direction:'fetch', tool:'kurv'})
+    });
+    const d = await r.json();
+    if (d.error) { msg.textContent = d.error; return; }
+    msg.textContent = 'Gespeichert.';
+    document.getElementById('nc-f-label').value = '';
+    document.getElementById('nc-f-url').value   = '';
+    loadNcFetchTargets();
+  } catch(e) { msg.textContent = 'Fehler: ' + e; }
+}
+
+async function deleteFetchTarget(id, label) {
+  if (!confirm(`Quelle „${label}" löschen?`)) return;
+  await fetch(_B + '/nc-targets/' + id, {method:'DELETE'});
+  if (_selectedFetchTarget === id) _selectedFetchTarget = null;
+  loadNcFetchTargets();
+}
+
+async function doFetch() {
+  const msg = document.getElementById('nc-fetch-msg');
+  if (!_selectedFetchTarget) { msg.textContent = 'Bitte Quelle auswählen.'; return; }
+  msg.textContent = 'Verbinde …';
+  try {
+    const r = await fetch(_B + '/nc-fetch', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({target_id: _selectedFetchTarget})
+    });
+    const d = await r.json();
+    if (d.error) { msg.textContent = 'Fehler: ' + d.error; return; }
+    msg.textContent = `${d.fetched} neu geholt, ${d.skipped} bereits vorhanden.`;
+    loadPool();
+  } catch(e) { msg.textContent = 'Fehler: ' + e; }
+}
+
+// ── Presets ───────────────────────────────────────────────────────────────────
+
+async function loadPresets() {
+  try {
+    const r = await fetch(_B + '/presets');
+    const presets = await r.json();
+    const sel = document.getElementById('preset-sel');
+    sel.innerHTML = '<option value="">– Preset laden –</option>';
+    presets.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.name; o.textContent = p.name;
+      sel.appendChild(o);
+    });
+    sel._presets = presets;
+  } catch(e) { console.error(e); }
+}
+
+function loadPreset() {
+  const sel = document.getElementById('preset-sel');
+  const p   = (sel._presets || []).find(x => x.name === sel.value);
+  if (!p) return;
+  const cfg = p.config;
+  if (cfg.ofen_name)              document.getElementById('ofen-name').value       = cfg.ofen_name;
+  if (cfg.ofen_kw)                document.getElementById('ofen-kw').value          = cfg.ofen_kw;
+  if (cfg.test_threshold != null) document.getElementById('test-threshold').value   = cfg.test_threshold;
+  if (cfg.window_h)               document.getElementById('window-h').value         = cfg.window_h;
+  if (cfg.theme)                  document.querySelector(`input[name=theme][value="${cfg.theme}"]`)?.click();
+  if (cfg.out_fmt)                document.querySelector(`input[name=fmt][value="${cfg.out_fmt}"]`)?.click();
+  if (cfg.einzel_batch != null)   document.getElementById('einzel-batch').checked   = cfg.einzel_batch;
+  if (cfg.align_temp != null)     document.getElementById('align-temp').value       = cfg.align_temp;
+  if (cfg.align_offset_h != null) document.getElementById('align-offset').value     = cfg.align_offset_h;
+  if (cfg.date_from != null)      document.getElementById('date-from').value         = cfg.date_from;
+  if (cfg.date_to   != null)      document.getElementById('date-to').value           = cfg.date_to;
+  if (cfg.kwh_only  != null)      document.getElementById('kwh-only').checked        = cfg.kwh_only;
+}
+
+function currentConfig() {
+  return {
+    ofen_name:      document.getElementById('ofen-name').value.trim() || 'chaud',
+    ofen_kw:        parseFloat(document.getElementById('ofen-kw').value) || 27.14,
+    test_threshold: parseFloat(document.getElementById('test-threshold').value) || 0,
+    window_h:       parseFloat(document.getElementById('window-h').value) || 16,
+    theme:          document.querySelector('input[name=theme]:checked').value,
+    out_fmt:        document.querySelector('input[name=fmt]:checked').value,
+    einzel_batch:   document.getElementById('einzel-batch').checked,
+    align_temp:     parseFloat(document.getElementById('align-temp').value) || 0,
+    align_offset_h: parseFloat(document.getElementById('align-offset').value) || 1.5,
+    date_from:      document.getElementById('date-from').value || '',
+    date_to:        document.getElementById('date-to').value   || '',
+    kwh_only:       document.getElementById('kwh-only').checked,
+  };
+}
+
+async function savePreset() {
+  const name = document.getElementById('preset-name').value.trim();
+  if (!name) { alert('Preset-Name angeben.'); return; }
+  await fetch(_B + '/presets', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, config: currentConfig()})
+  });
+  document.getElementById('preset-name').value = '';
+  loadPresets();
+}
+
+async function deletePreset() {
+  const name = document.getElementById('preset-sel').value;
+  if (!name) return;
+  if (!confirm(`Preset „${name}" löschen?`)) return;
+  await fetch(_B + '/presets/' + encodeURIComponent(name), {method:'DELETE'});
+  loadPresets();
+}
+
+// ── Run ───────────────────────────────────────────────────────────────────────
+
+async function startRun() {
+  const cfg = currentConfig();
+  const sel = selectedFiles();
+  if (sel.length) cfg.selected_files = sel;
+
+  setStatus('Startet …');
+  document.getElementById('run-btn').disabled = true;
+  const logBox = document.getElementById('log-box');
+  logBox.innerHTML = ''; logBox.style.display = 'block';
+  ['pnl-html','pnl-report','pnl-kwh','pnl-log'].forEach(id =>
+    document.getElementById(id).style.display = 'none');
+
+  let r;
+  try {
+    r = await fetch(_B + '/run', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(cfg)
+    });
+  } catch(e) { setStatus('Start fehlgeschlagen: ' + e); _enableBtns(); return; }
+
+  const d = await r.json();
+  if (!d.ok) { setStatus('Fehler: ' + (d.error||'?')); _enableBtns(); return; }
+  _jid = d.jid;
+  setStatus('Verarbeitung läuft …');
+
+  const es = new EventSource(_B + '/stream/' + _jid);
+  es.onmessage = ev => {
+    if (ev.data.startsWith('[DONE')) {
+      es.close(); setStatus('Fertig.'); _enableBtns();
+      const m = ev.data.match(/\[DONE:(.+)\]/);
+      if (m && m[1]) loadOutputFiles(m[1]);
+      return;
+    }
+    const line = document.createElement('div');
+    line.className = ev.data.includes('FEHLER') ? 'log-err' : ev.data.includes('✓') ? 'log-ok' : '';
+    line.innerHTML = ev.data;
+    logBox.appendChild(line);
+    logBox.scrollTop = logBox.scrollHeight;
+  };
+  es.onerror = () => { es.close(); setStatus('Verbindung unterbrochen.'); _enableBtns(); };
+}
+
+function _enableBtns() {
+  document.getElementById('run-btn').disabled = false;
+}
+
+// ── Ausgabe-Vorschau ──────────────────────────────────────────────────────────
+
+async function loadOutputFiles(grp) {
+  try {
+    const r = await fetch(_B + '/files?category=output');
+    const files = await r.json();
+    const gf = files.filter(f => f.grp === grp);
+    _htmlFiles   = gf.filter(f => f.file_type === 'burn-report-html');
+    _reportFiles = gf.filter(f => f.file_type === 'burn-report');
+    _kwhFiles    = gf.filter(f => f.file_type === 'burn-report-kwh');
+    _kwhLogFile  = gf.find(f => f.file_type === 'kwh-log') || null;
+    _htmlIdx = _reportIdx = _kwhIdx = 0;
+    renderPreviews();
+  } catch(e) { console.error('Ausgaben laden:', e); }
+}
+
+function inlineUrl(f) { return _B + '/files/' + f.id + '/inline'; }
+
+function renderPreviews() {
+  // HTML
+  const pHtml = document.getElementById('pnl-html');
+  if (_htmlFiles.length) {
+    pHtml.style.display = '';
+    document.getElementById('html-chips').innerHTML = _htmlFiles.map((f,i) =>
+      `<div class="out-chip${i===_htmlIdx?' active':''}" onclick="setHtmlIdx(${i})">${esc(f.filename)}</div>`).join('');
+    document.getElementById('html-frame').src = inlineUrl(_htmlFiles[_htmlIdx]);
+  } else { pHtml.style.display = 'none'; }
+
+  // Bericht-PDFs
+  const pReport = document.getElementById('pnl-report');
+  if (_reportFiles.length) {
+    pReport.style.display = '';
+    document.getElementById('report-chips').innerHTML = _reportFiles.map((f,i) =>
+      `<div class="out-chip${i===_reportIdx?' active':''}" onclick="setReportIdx(${i})">${esc(f.filename)}</div>`).join('');
+    document.getElementById('report-frame').src = inlineUrl(_reportFiles[_reportIdx]);
+  } else { pReport.style.display = 'none'; }
+
+  // kWh-PDFs
+  const pKwh = document.getElementById('pnl-kwh');
+  if (_kwhFiles.length) {
+    pKwh.style.display = '';
+    document.getElementById('kwh-chips').innerHTML = _kwhFiles.map((f,i) =>
+      `<div class="out-chip${i===_kwhIdx?' active':''}" onclick="setKwhIdx(${i})">${esc(f.filename)}</div>`).join('');
+    document.getElementById('kwh-frame').src = inlineUrl(_kwhFiles[_kwhIdx]);
+  } else { pKwh.style.display = 'none'; }
+
+  // kWh.log
+  const pLog = document.getElementById('pnl-log');
+  if (_kwhLogFile) {
+    pLog.style.display = '';
+    fetch(_B + '/files/' + _kwhLogFile.id + '/content')
+      .then(r => r.text())
+      .then(t => { document.getElementById('kwh-log-box').textContent = t; })
+      .catch(() => {});
+  } else { pLog.style.display = 'none'; }
+}
+
+function setHtmlIdx(i) {
+  _htmlIdx = Math.max(0, Math.min(i, _htmlFiles.length - 1));
+  renderPreviews();
+}
+function setReportIdx(i) {
+  _reportIdx = Math.max(0, Math.min(i, _reportFiles.length - 1));
+  renderPreviews();
+}
+function setKwhIdx(i) {
+  _kwhIdx = Math.max(0, Math.min(i, _kwhFiles.length - 1));
+  renderPreviews();
+}
+
+function navHtml(dir)   { setHtmlIdx(_htmlIdx + dir);     if (document.getElementById('html-overlay').style.display !== 'none') openHtmlOverlay(); }
+function navReport(dir) { setReportIdx(_reportIdx + dir); }
+function navKwh(dir)    { setKwhIdx(_kwhIdx + dir);       }
+
+function downloadFile(f) { if (f) window.open(_B + '/files/' + f.id + '/download', '_blank'); }
+
+// HTML Vollbild
+function openHtmlOverlay() {
+  if (!_htmlFiles.length) return;
+  const f = _htmlFiles[_htmlIdx];
+  const ov = document.getElementById('html-overlay');
+  ov.style.display = 'flex';
+  document.getElementById('html-overlay-frame').src = inlineUrl(f);
+  document.getElementById('html-overlay-title').textContent = f.filename;
+}
+function closeHtmlOverlay() {
+  document.getElementById('html-overlay').style.display = 'none';
+  document.getElementById('html-overlay-frame').src = 'about:blank';
+}
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadPool();
+loadNcFetchTargets();
+loadPresets();
+</script>
+
+<script src="/static/tul-theme.js"></script>
+<script>
+window.TUL_HELP = {
+  title: 'kurv – Ofen-Log Auswertung',
+  sections: [
+    {
+      heading: 'NC-Quellen',
+      items: [
+        'Nextcloud-Share-Links als Fetch-Quellen hinterlegen (Label + URL).',
+        'Aktive Quelle per Klick auf die Quell-Leiste auswählen.',
+        '<strong>↓ Holen</strong> lädt die Log-Datei von der ausgewählten Quelle herunter.',
+      ]
+    },
+    {
+      heading: 'Kurven & Darstellung',
+      items: [
+        'Geladene Log-Daten werden sofort als Temperatur-Zeitkurven dargestellt.',
+        'Einzelne Kanäle ein-/ausblenden über die Kanal-Checkboxen.',
+        'Nur-kWh-Toggle: Energieverbrauch isoliert anzeigen.',
+      ]
+    },
+    {
+      heading: 'Datei-Verwaltung (DV)',
+      steps: [
+        '<strong>DV</strong>-Button (Kopfzeile) öffnet das Datei-Verwaltungs-Modal.',
+        '"Eigene" – im Tool gespeicherte Log-Dateien verwalten.',
+        '"NC" – Ausgabe direkt in einen Nextcloud-Share hochladen.',
+        'mkan-Karten-Tabs: Dateien aus freigegebenen mkan-Karten beziehen.',
+      ]
+    },
+  ]
+};
+tulTheme.init({ subpath: _B, preset: tulTheme.PRESETS.kurv });
+</script>
+<script src="/static/tul-files.js"></script>
+<script>tulFiles.init({ subpath: _B, tool: 'kurv', ncEnabled: true });</script>
+</body>
+</html>

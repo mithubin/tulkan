@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lernkarten Panel</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="/static/tul-theme.css">
+</head>
+<body class="page-{{ active }}">
+  <nav>
+    <div class="hdr-left">
+      <a href="/" style="text-decoration:none">← Panel</a>
+      <a href="{{ _base }}/viewer" class="{% if active == 'viewer' %}active{% endif %}" style="text-decoration:none">Viewer</a>
+      <a href="{{ _base }}/print"  class="{% if active == 'print'  %}active{% endif %}" style="text-decoration:none">Drucken</a>
+      <a href="{{ _base }}/create" class="{% if active == 'create' %}active{% endif %}" style="text-decoration:none">Erstellen</a>
+    </div>
+    <div class="nav-right">
+      <button class="nav-help" onclick="openHelp()" title="Bedienungsanleitung">?</button>
+      <button class="nav-help nav-cl" onclick="openLicense()" title="Lizenz">CL</button>
+    </div>
+  </nav>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── Anleitung-Modal ──────────────────────────────────────────────────── -->
+  <div id="help-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeHelp()">
+    <div class="modal-box" style="max-width:660px">
+      <div class="modal-header">
+        <span>Bedienungsanleitung</span>
+        <button class="modal-close" onclick="closeHelp()">×</button>
+      </div>
+      <div class="modal-body" style="line-height:1.7">
+
+        <h3>Verzeichnisstruktur</h3>
+        <pre style="font-size:12px; background:#12121e; padding:10px; border-radius:5px">lernkarten_panel/
+├── csv/                 ← Eingabe: CSV-Dateien ablegen
+├── bilder/              ← Hintergrundbilder für Karten
+├── fonts/               ← TTF-Schriften
+├── karten-pdfs/         ← Ausgabe: fertige Karten-PDFs
+│   └── scores/          ← Viewer-Lernfortschritt-Logs
+├── druck_pdf/           ← Ausgabe: Druckraster-PDFs
+└── _tech/               ← Technische Dateien (nicht direkt bearbeiten)</pre>
+
+        <h3>Abhängigkeiten (einmalig installieren)</h3>
+        <pre style="font-size:12px; background:#12121e; padding:10px; border-radius:5px">pip install flask pymupdf pillow</pre>
+
+        <h3>Übersicht</h3>
+        <p>Das Panel hat drei Bereiche: <strong>Viewer</strong> listet alle Karten-PDFs, zeigt sie im Browser-Vollbild und bietet Download. <strong>Drucken</strong> erzeugt ein druckfertiges Raster-PDF. <strong>Erstellen</strong> lädt CSV-Daten und rendert Lernkarten.</p>
+
+        <h3>Viewer</h3>
+        <p>PDF wählen → Level konfigurieren (Auto-Erkennung aus <code>=lev:</code>-Markern oder manuell) → Level-Filter, Reihenfolge und Modus wählen → starten:</p>
+        <ul style="margin:6px 0 6px 18px; font-size:13px">
+          <li><strong>▶ Starten</strong> — Browser-Player im Vollbild (neuer Tab, PNG-Rendering)</li>
+          <li><strong>tk-view</strong> — Tkinter-Fenster mit nativem PDF-Rendering (schärfer, empfohlen). DPI-Feld daneben bestimmt die Auflösung.</li>
+        </ul>
+        <p style="margin-top:6px; font-size:12px; color:var(--muted)">Autopilot-Timing-Default: Frage 10–16 s, Antwort 12–20 s (zufällig im Bereich). Level-Filter, Reihenfolge und Timing gelten für beide Player.</p>
+        <p style="margin-top:8px"><strong>Tastatur (beide Player):</strong></p>
+        <table style="font-size:12px; margin-top:4px">
+          <tr><td style="padding:2px 10px 2px 0; color:var(--muted)">Space / →</td><td>Frage → Antwort → nächste Karte</td></tr>
+          <tr><td style="padding:2px 10px 2px 0; color:var(--muted)">←</td><td>zurück</td></tr>
+          <tr><td style="padding:2px 10px 2px 0; color:var(--muted)">j / +</td><td>richtig (und weiter)</td></tr>
+          <tr><td style="padding:2px 10px 2px 0; color:var(--muted)">n / −</td><td>falsch (und weiter)</td></tr>
+          <tr><td style="padding:2px 10px 2px 0; color:var(--muted)">0</td><td>neutral (und weiter)</td></tr>
+          <tr><td style="padding:2px 10px 2px 0; color:var(--muted)">P</td><td>Autopilot Pause / Weiter</td></tr>
+          <tr><td style="padding:2px 10px 2px 0; color:var(--muted)">T</td><td>Autopilot ↔ Manuell wechseln</td></tr>
+          <tr><td style="padding:2px 10px 2px 0; color:var(--muted)">Q / Esc</td><td>beenden → Score-Overlay</td></tr>
+        </table>
+
+        <h3>Erstellen – Ablauf</h3>
+        <ol>
+          <li><strong>CSV laden:</strong> Datei hochladen oder aus <code>csv/</code> wählen und „aus csv/" klicken. Pflicht-Spalten: <code>LEVEL;THEMA;FRAGE;ANTWORT</code> (Semikolon-getrennt). Level-Wechsel: <code>=lev: Name</code> in der LEVEL-Spalte.</li>
+          <li><strong>Template:</strong> Vorgabe laden oder Parameter anpassen. „Speichern" überschreibt das aktive Template, „Als neu…" legt ein neues an.</li>
+          <li><strong>Kartenmaße:</strong> Breite/Höhe in mm, Rand, Themafeld-Breite, Zeilenabstände.</li>
+          <li><strong>Fragekarte / Antwortkarte:</strong> Hintergrundbild aus <code>bilder/</code>, Schriftgröße, Font (TTF aus <code>fonts/</code>), Textfarbe, optionaler Schatten. <strong>Hintergrundfarbe + Deckkraft</strong> pro Textfeld (Thema, Frage, Antwort, Wiederholung) – Deckkraft 0 = unsichtbar. ✎ öffnet den Bildeditor.</li>
+          <li><strong>PDF erstellen:</strong> Dateiname eingeben (oder automatisch aus CSV-Name), „PDF erstellen". Das PDF landet in <code>karten-pdfs/</code> und erscheint sofort in der Übersicht.</li>
+        </ol>
+
+        <h3>Drucken</h3>
+        <p>PDF aus der Übersicht wählen. Vorlage (z. B. A4 quer 3×5) oder Parameter manuell setzen. Innenabstand in mm. „Druck-PDF erzeugen" → herunterladen → Drucker: <strong>Duplex, lange Kante</strong> → ausschneiden. Druckdateien landen in <code>druck_pdf/</code>.</p>
+
+        <h3>Bildeditor</h3>
+        <p>Öffnet per ✎ neben der Bildauswahl. Links: Vorschau mit Crop-Rahmen (Kartenratio des aktiven Templates). <em>Ausschnitt-Größe</em> skaliert den Crop-Bereich (kleinere Werte = Zoom-in). X/Y-Versatz verschiebt den Ausschnitt. Rechts: Wertekurven für Gesamt (RGB) und Kanäle (R/G/B) — Punkt ziehen, Doppelklick löscht, Klick auf freie Stelle fügt Punkt hinzu. Gespeichert wird in <code>bilder/</code>.</p>
+
+        <h3>CSV-Format</h3>
+        <pre style="font-size:12px; background:#12121e; padding:10px; border-radius:5px; overflow-x:auto">LEVEL;THEMA;FRAGE;ANTWORT
+=lev: Grundlagen;;;
+;Variablen;Was ist eine Variable?;Ein benannter Speicherplatz.
+;Variablen;Typen in Python?;int, float, str, bool, ...
+=lev: Fortgeschritten;;;
+;Funktionen;Was macht *args?;Beliebig viele Positionsargumente.</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Lizenz-Modal ─────────────────────────────────────────────────────── -->
+  <div id="license-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeLicense()">
+    <div class="modal-box" style="max-width:420px">
+      <div class="modal-header">
+        <span>Lizenz</span>
+        <button class="modal-close" onclick="closeLicense()">×</button>
+      </div>
+      <div class="modal-body" style="line-height:1.7">
+        <p><strong>Lernkarten Panel</strong></p>
+        <p style="margin-top:10px">
+          <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener"
+             style="color:var(--accent)">CC BY-NC-SA 4.0 — Creative Commons</a>
+        </p>
+        <p style="margin-top:10px; color:var(--muted); font-size:12px">
+          Nutzung und Veränderung erlaubt — <strong style="color:var(--text)">nicht für kommerzielle Zwecke</strong>.<br>
+          Abgeleitete Werke müssen unter denselben Bedingungen weitergegeben werden (ShareAlike).<br>
+          Namensnennung erforderlich (Attribution).<br><br>
+          Drittbibliotheken (Flask, PyMuPDF, Pillow) haben eigene Lizenzen.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Bildeditor-Modal ─────────────────────────────────────────────────── -->
+  <div id="ie-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeImageEditor()">
+    <div class="modal-box ie-modal-box">
+      <div class="modal-header">
+        <span>Bild bearbeiten: <span id="ie-title"></span></span>
+        <button class="modal-close" onclick="closeImageEditor()">×</button>
+      </div>
+      <div class="ie-layout">
+
+        <!-- Vorschau + Versatz -->
+        <div class="ie-left">
+          <div class="ie-preview-wrap">
+            <canvas id="ie-preview" width="380" height="260"></canvas>
+          </div>
+          <div class="ie-sliders">
+            <label>Ausschnitt-Größe <span id="ie-crop-scale-val" class="ie-val">100%</span></label>
+            <input type="range" id="ie-crop-scale" min="0.1" max="1" step="0.01" value="1"
+                   oninput="_ieUpdateCropScale(this.value)">
+            <label>X-Versatz <span id="ie-crop-x-val" class="ie-val">0.00</span></label>
+            <input type="range" id="ie-crop-x" min="-1" max="1" step="0.01" value="0"
+                   oninput="_ieUpdateCropX(this.value)">
+            <label>Y-Versatz <span id="ie-crop-y-val" class="ie-val">0.00</span></label>
+            <input type="range" id="ie-crop-y" min="-1" max="1" step="0.01" value="0"
+                   oninput="_ieUpdateCropY(this.value)">
+          </div>
+        </div>
+
+        <!-- Kurven + Sättigung + Speichern -->
+        <div class="ie-right">
+          <div class="ie-tabs">
+            <button id="ie-tab-rgb" class="ie-tab active" onclick="_ieSetChannel('rgb')">RGB</button>
+            <button id="ie-tab-r"   class="ie-tab"        onclick="_ieSetChannel('r')">R</button>
+            <button id="ie-tab-g"   class="ie-tab"        onclick="_ieSetChannel('g')">G</button>
+            <button id="ie-tab-b"   class="ie-tab"        onclick="_ieSetChannel('b')">B</button>
+            <button class="ie-tab ie-reset" onclick="_ieResetCurve()" title="Kanal zurücksetzen">↺</button>
+          </div>
+          <canvas id="ie-curve" width="220" height="220" style="cursor:crosshair"></canvas>
+          <p class="ie-hint">Klick: Punkt hinzufügen · Ziehen: verschieben · Doppelklick: löschen</p>
+
+          <div class="ie-sliders" style="margin-top:10px">
+            <label>Sättigung <span id="ie-sat-val" class="ie-val">1.00</span></label>
+            <input type="range" id="ie-saturation" min="0" max="3" step="0.02" value="1"
+                   oninput="_ieUpdateSaturation(this.value)">
+          </div>
+
+          <div class="ie-save-row">
+            <input type="text" id="ie-save-as" placeholder="dateiname_edit.jpg" style="flex:1; min-width:0">
+            <button onclick="saveImageEdit()">Speichern</button>
+          </div>
+          <span id="ie-save-status" class="muted" style="font-size:12px"></span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>const _BASE = '{{ _base }}';</script>
+  <script src="{{ url_for('static', filename='panel.js') }}"></script>
+  <script src="{{ url_for('static', filename='image_editor.js') }}"></script>
+  <script src="/static/tul-theme.js"></script>
+  <script>tulTheme.init({ subpath: _BASE, preset: tulTheme.PRESETS.lern });</script>
+  <script src="/static/tul-files.js"></script>
+  <script>tulFiles.init({ subpath: _BASE, tool: 'lern' });</script>
+</body>
+</html>

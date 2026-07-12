@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+RUN pip install --no-cache-dir flask PyJWT bcrypt pymupdf
+
+WORKDIR /app
+
+COPY tools_nuc/tul_auth/ tul_auth/
+COPY tools_nuc/buch/panel_server.py .
+COPY tools_nuc/buch/panel.html .
+
+ENV DOCKER=1
+ENV SUBPATH=/buch
+ENV PORT=5011
+
+EXPOSE 5011
+
+CMD ["python3", "panel_server.py", "--no-browser", "--port", "5011"]

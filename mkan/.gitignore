@@ -1,0 +1,15 @@
+server/data/
+data/
+.env
+server/.venv/
+server/__pycache__/
+server/**/__pycache__/
+*.pyc
+*.pyo
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.tar.gz
+*.html.bak*
+server/**/*.bak*
+.claude/

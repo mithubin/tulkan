@@ -1,0 +1,271 @@
+services:
+  trskr:
+    build:
+      context: ..
+      dockerfile: tools_nuc/Dockerfile.trskr
+    container_name: trskr
+    expose:
+      - "5004"
+    volumes:
+      - /mnt/tul/trskr/models:/app/trscrplate_mls
+      - /mnt/tul/trskr/output:/data/output
+      - /mnt/tul/trskr/files:/data/tul_files
+      - /mnt/tul/db:/tul_data/db
+    env_file:
+      - .env
+    environment:
+      - DOCKER=1
+      - SUBPATH=/trskr
+      - PORT=5004
+      - OUTPUT_DIR=/data/output
+      - FILES_ROOT=/data/tul_files
+      - TUL_DB_PATH=/tul_data/db/tul.sqlite
+      - TUL_SECRET=${TUL_SECRET:?TUL_SECRET muss in .env gesetzt sein}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+    networks:
+      - webproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',5004),2); s.close()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  popt:
+    build:
+      context: ..
+      dockerfile: tools_nuc/Dockerfile.popt
+    container_name: popt
+    expose:
+      - "5006"
+    volumes:
+      - /mnt/tul/popt/files:/data/tul_files
+      - /mnt/tul/db:/tul_data/db
+    environment:
+      - DOCKER=1
+      - SUBPATH=/popt
+      - PORT=5006
+      - FILES_ROOT=/data/tul_files
+      - TUL_DB_PATH=/tul_data/db/tul.sqlite
+      - TUL_SECRET=${TUL_SECRET:?TUL_SECRET muss in .env gesetzt sein}
+      - TUL_BRIDGE_SECRET=${TUL_BRIDGE_SECRET:-}
+      - MKAN_URL=http://mkan:8000
+    networks:
+      - webproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',5006),2); s.close()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  bild:
+    build:
+      context: ..
+      dockerfile: tools_nuc/Dockerfile.bild
+    container_name: bild
+    expose:
+      - "5005"
+    volumes:
+      - /mnt/tul/bild/files:/data/tul_files
+      - /mnt/tul/db:/tul_data/db
+    environment:
+      - DOCKER=1
+      - PORT=5005
+      - FILES_ROOT=/data/tul_files
+      - TUL_DB_PATH=/tul_data/db/tul.sqlite
+      - TUL_SECRET=${TUL_SECRET:?TUL_SECRET muss in .env gesetzt sein}
+    networks:
+      - webproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',5005),2); s.close()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  lern:
+    build:
+      context: ..
+      dockerfile: tools_nuc/Dockerfile.lern
+    container_name: lern
+    expose:
+      - "5007"
+    volumes:
+      - /mnt/tul/lern:/data
+      - /mnt/tul/lern/tul_files:/data/tul_files
+      - /mnt/tul/db:/tul_data/db
+    environment:
+      - DOCKER=1
+      - SUBPATH=/lern
+      - PORT=5007
+      - DATA_DIR=/data
+      - FILES_ROOT=/data/tul_files
+      - TUL_DB_PATH=/tul_data/db/tul.sqlite
+      - TUL_SECRET=${TUL_SECRET:?TUL_SECRET muss in .env gesetzt sein}
+    networks:
+      - webproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',5007),2); s.close()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  kurv:
+    build:
+      context: ..
+      dockerfile: tools_nuc/Dockerfile.kurv
+    container_name: kurv
+    expose:
+      - "5008"
+    volumes:
+      - /mnt/tul/kurv/files:/data/tul_files
+      - /mnt/tul/db:/tul_data/db
+    environment:
+      - DOCKER=1
+      - SUBPATH=/kurv
+      - PORT=5008
+      - FILES_ROOT=/data/tul_files
+      - TUL_DB_PATH=/tul_data/db/tul.sqlite
+      - TUL_SECRET=${TUL_SECRET:?TUL_SECRET muss in .env gesetzt sein}
+    networks:
+      - webproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',5008),2); s.close()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  nach:
+    build:
+      context: ..
+      dockerfile: tools_nuc/Dockerfile.nach
+    container_name: nach
+    expose:
+      - "5009"
+    volumes:
+      - /mnt/tul/nach/files:/mnt/tul/nach/files
+      - /mnt/tul/nach/tul_files:/data/tul_files
+      - /mnt/tul/db:/tul_data/db
+    environment:
+      - DOCKER=1
+      - SUBPATH=/nach
+      - PORT=5009
+      - FILES_DIR=/mnt/tul/nach/files
+      - FILES_ROOT=/data/tul_files
+      - TUL_DB_PATH=/tul_data/db/tul.sqlite
+      - TUL_SECRET=${TUL_SECRET:?TUL_SECRET muss in .env gesetzt sein}
+    networks:
+      - webproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',5009),2); s.close()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  kal-trel:
+    build:
+      context: ..
+      dockerfile: tools_nuc/Dockerfile.kal-trel
+    container_name: kal-trel
+    expose:
+      - "5010"
+    volumes:
+      - /mnt/tul/kal-trel/files:/data/tul_files
+      - /mnt/tul/db:/tul_data/db
+    environment:
+      - DOCKER=1
+      - SUBPATH=/kal-trel
+      - PORT=5010
+      - FILES_ROOT=/data/tul_files
+      - TUL_DB_PATH=/tul_data/db/tul.sqlite
+      - TUL_SECRET=${TUL_SECRET:?TUL_SECRET muss in .env gesetzt sein}
+    networks:
+      - webproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',5010),2); s.close()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  buch:
+    build:
+      context: ..
+      dockerfile: tools_nuc/Dockerfile.buch
+    container_name: buch
+    expose:
+      - "5011"
+    volumes:
+      - /mnt/tul/bild/files:/data/bild_files:ro
+      - /mnt/tul/buch/files:/data/tul_files
+      - /mnt/tul/db:/tul_data/db
+    environment:
+      - DOCKER=1
+      - SUBPATH=/buch
+      - PORT=5011
+      - FILES_DIR=/data/tul_files
+      - BILD_FILES_DIR=/data/bild_files
+      - TUL_DB_PATH=/tul_data/db/tul.sqlite
+      - TUL_SECRET=${TUL_SECRET:?TUL_SECRET muss in .env gesetzt sein}
+    networks:
+      - webproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',5011),2); s.close()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  tul-hub:
+    build:
+      context: ..
+      dockerfile: tools_nuc/Dockerfile.hub
+    container_name: tul-hub
+    expose:
+      - "5000"
+    volumes:
+      - /mnt/tul/db:/tul_data/db
+      - /mnt/tul/trskr/output:/mnt/hub/trskr/output
+      - /mnt/tul/trskr/files:/mnt/hub/trskr/files
+      - /mnt/tul/popt/files:/mnt/hub/popt/files
+      - /mnt/tul/bild/files:/mnt/hub/bild/files
+      - /mnt/tul/lern:/mnt/hub/lern
+      - /mnt/tul/lern/tul_files:/mnt/hub/lern/tul_files
+      - /mnt/tul/kurv/files:/mnt/hub/kurv/files
+      - /mnt/tul/nach/files:/mnt/hub/nach/files
+      - /mnt/tul/nach/tul_files:/mnt/hub/nach/tul_files
+      - /mnt/tul/kal-trel/files:/mnt/hub/kal-trel/files
+      - /mnt/tul/buch/files:/mnt/hub/buch/files
+    environment:
+      - DOCKER=1
+      - PORT=5000
+      - TUL_DB_PATH=/tul_data/db/tul.sqlite
+      - TUL_SECRET=${TUL_SECRET:?TUL_SECRET muss in .env gesetzt sein}
+      - TUL_BRIDGE_SECRET=${TUL_BRIDGE_SECRET:-}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - MKAN_URL=http://mkan:8000
+    networks:
+      - webproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('localhost',5000),2); s.close()"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+networks:
+  webproxy:
+    external: true

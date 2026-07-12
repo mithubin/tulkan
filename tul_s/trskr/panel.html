@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whisper Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+<link rel="stylesheet" href="/static/tul-theme.css">
+<style>
+/* ── Theming ─────────────────────────────────────────────────────────────── */
+:root {
+  --bg:      #1e1b18;
+  --bg2:     #28231f;
+  --bg3:     #302820;
+  --acc:     #a07040;
+  --acc2:    #b07840;
+  --blur:    0px;
+  --panel:   var(--bg2);
+  --input:   var(--bg3);
+  --border:  #5a4030;
+  --accent:  var(--acc);
+  --text:    #e8dac8;
+  --muted:   #a08060;
+  --log-bg:  #141210;
+  --error:   #f38ba8;
+  --radius:  5px;
+  --mono:    'JetBrains Mono','Fira Mono',Consolas,monospace;
+  --serif:   Georgia,'Times New Roman',serif;
+  --sans:    -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+header {
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 6px 12px; display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+header h1 { font-size: 13px; font-weight: 600; white-space: nowrap; flex: 1; text-align: center; }
+#sysinfo {
+  font-size: 11px; color: var(--muted);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* ── Sidebar: scrollbarer Inhalt + fixer Fuß ─────────────────────────────── */
+.sidebar {
+  width: 330px; flex-shrink: 0;
+  background: var(--panel); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-scroll {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 8px 8px 4px;
+}
+.sidebar-scroll > * + * { margin-top: 5px; }
+.sidebar-scroll::-webkit-scrollbar { width: 5px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: var(--panel); }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.sidebar-foot {
+  flex-shrink: 0; padding: 8px 8px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 5px;
+}
+
+/* ── Accordion ───────────────────────────────────────────────────────────── */
+details {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+summary {
+  padding: 6px 10px; cursor: pointer; user-select: none;
+  font-size: 12px; font-weight: 500; color: var(--muted); list-style: none;
+  display: flex; align-items: center; gap: 5px;
+}
+summary::before { content: '▶'; font-size: 9px; transition: transform .12s; }
+details[open] summary::before { transform: rotate(90deg); }
+summary:hover { color: var(--text); }
+.db { padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ── Form elements ───────────────────────────────────────────────────────── */
+label.f { font-size: 11px; color: var(--muted); display: block; margin-bottom: 2px; }
+input[type=text], select, textarea.form-ta {
+  width: 100%; background: var(--input); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); padding: 4px 7px;
+  font-size: 13px; font-family: var(--sans); outline: none;
+}
+input[type=text]:focus, select:focus, textarea.form-ta:focus {
+  border-color: var(--accent);
+}
+textarea.form-ta { resize: vertical; min-height: 70px; }
+
+/* ── Pill groups ─────────────────────────────────────────────────────────── */
+.pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.pills label {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; cursor: pointer;
+  background: var(--input); border: 1px solid var(--border);
+  color: var(--muted); padding: 2px 8px; border-radius: 3px; user-select: none;
+}
+.pills label:has(input:checked) {
+  border-color: var(--accent); color: var(--text);
+  background: color-mix(in srgb, var(--accent) 18%, var(--input));
+}
+.pills input { display: none; }
+
+/* ── Two-col grid ────────────────────────────────────────────────────────── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* ── Inline row (label + element side by side) ───────────────────────────── */
+.inline-row { display: flex; align-items: center; gap: 8px; }
+.inline-row label.f { margin-bottom: 0; white-space: nowrap; flex-shrink: 0; }
+
+/* ── Checkbox standalone ─────────────────────────────────────────────────── */
+.chk-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; cursor: pointer; user-select: none; color: var(--text);
+}
+
+/* ── Error + action ──────────────────────────────────────────────────────── */
+.errbox {
+  background: #1e1020; border: 1px solid #703030;
+  color: var(--error); font-size: 12px; padding: 5px 9px;
+  border-radius: var(--radius); white-space: pre-line;
+}
+.hidden { display: none !important; }
+.actions { display: flex; gap: 6px; }
+.btn-start {
+  flex: 1; padding: 9px; background: var(--accent); border: none;
+  border-radius: var(--radius); color: #fff; font-size: 14px; font-weight: 600;
+  cursor: pointer;
+}
+.btn-start:hover { filter: brightness(1.12); }
+.btn-start:disabled { opacity: .45; cursor: default; }
+.btn-stop {
+  padding: 9px 13px; background: #3a1a1a; border: 1px solid #703030;
+  border-radius: var(--radius); color: #e08080; font-size: 13px; cursor: pointer;
+}
+.btn-stop:hover { background: #4a2020; }
+
+/* ── Output pane ─────────────────────────────────────────────────────────── */
+.output {
+  flex: 1; overflow: hidden; padding: 12px;
+  display: flex; flex-direction: column; gap: 10px; min-height: 0;
+}
+.pane-label {
+  font-size: 11px; font-weight: 500; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px;
+}
+#log {
+  width: 100%; height: 25vh; min-height: 80px; resize: vertical; overflow-y: auto;
+  background: var(--log-bg); color: #9aa8c8;
+  font-family: var(--mono); font-size: 13px; line-height: 1.5;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 7px 10px; white-space: pre-wrap; word-break: break-word;
+}
+#transcript {
+  width: 100%; height: calc(72vh - 200px); min-height: 200px;
+  overflow-y: auto; resize: vertical;
+  background: var(--input); color: var(--text);
+  font-family: var(--serif); font-size: 15px; line-height: 1.8;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px;
+  white-space: normal; word-wrap: break-word;
+  cursor: text; user-select: text;
+}
+
+/* ── Modals (Help + PL) ──────────────────────────────────────────────────── */
+.overlay { position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:20px;z-index:200; }
+.overlay.hidden { display:none; }
+.mbox { background:var(--panel);border:1px solid var(--border);border-radius:7px;
+  width:100%;max-width:720px;max-height:92vh;display:flex;flex-direction:column;
+  box-shadow:0 18px 48px rgba(0,0,0,.65); }
+.mhd { padding:14px 18px 10px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border);flex-shrink:0; }
+.mhd-title { flex:1;font-size:16px;font-weight:600;color:var(--text); }
+.mhd button { background:none;border:none;color:var(--muted);cursor:pointer;
+  font-size:15px;padding:4px 9px;border-radius:3px;font-family:var(--sans); }
+.mhd button:hover { color:var(--text);background:var(--input); }
+.mbody { flex:1;min-height:0;overflow-y:auto;padding:14px 18px 18px; }
+.mbody::-webkit-scrollbar { width:4px; }
+.mbody::-webkit-scrollbar-thumb { background:var(--border);border-radius:2px; }
+.mft { padding:10px 18px;border-top:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;gap:6px;flex-shrink:0; }
+/* Chapter grid */
+.ch-grid { display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:2px 0; }
+.ch-card { background:var(--bg);border:1px solid var(--border);border-radius:5px;
+  padding:9px 11px;cursor:pointer;display:flex;flex-direction:column;gap:2px; }
+.ch-card:hover { border-color:var(--accent); }
+.ch-icon { font-size:17px;line-height:1; }
+.ch-title { font-size:13px;font-weight:600;color:var(--text);margin-top:2px; }
+.ch-sub { font-size:11px;color:var(--muted);line-height:1.35; }
+/* Help content */
+.h2 { font-size:13px;font-weight:700;color:var(--text);margin:14px 0 4px;
+  padding-bottom:3px;border-bottom:1px solid var(--border); }
+.h2:first-child { margin-top:2px; }
+.h3 { font-size:12px;font-weight:600;color:var(--text);margin:10px 0 3px; }
+.hp { font-size:12px;color:var(--muted);margin:2px 0 6px;line-height:1.55; }
+.htbl { width:100%;border-collapse:collapse;font-size:11px;margin:4px 0 8px; }
+.htbl th { text-align:left;padding:3px 8px;border-bottom:1px solid var(--border);color:var(--muted);font-weight:600; }
+.htbl td { padding:3px 8px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top; }
+.htbl td:first-child { color:var(--text);font-weight:500;white-space:nowrap; }
+.hkbd { display:inline-block;background:var(--input);border:1px solid var(--border);
+  border-radius:2px;padding:0 4px;font-family:var(--mono);font-size:10px;color:var(--text); }
+/* PL list */
+.pl-item { display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border); }
+.pl-item:last-child { border-bottom:none; }
+.pl-meta { flex:1;min-width:0; }
+.pl-name { font-size:13px;font-weight:500;color:var(--text); }
+.pl-desc { font-size:11px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.pl-empty { font-size:12px;color:var(--muted);text-align:center;padding:24px 0;line-height:1.7; }
+
+/* ── Output tabs ─────────────────────────────────────────────────────────── */
+#file-tabs-area {
+  flex: 1; min-height: 220px; display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+}
+.fv-tabs {
+  display: flex; flex-shrink: 0; overflow-x: auto;
+  border-bottom: 1px solid var(--border); background: var(--panel); padding: 0 4px;
+}
+.fv-tabs::-webkit-scrollbar { height: 3px; }
+.fv-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.fv-tab {
+  font-size: 11px; padding: 7px 12px; border: none; border-bottom: 2px solid transparent;
+  background: none; color: var(--muted); cursor: pointer; white-space: nowrap;
+  font-family: var(--mono); flex-shrink: 0;
+}
+.fv-tab:hover { color: var(--text); }
+.fv-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.fv-body-wrap { flex: 1; min-height: 0; position: relative; }
+.fv-pane { position: absolute; inset: 0; overflow-y: auto; padding: 16px 22px; display: none; font-size: 14px; line-height: 1.7; }
+.fv-pane.active { display: block; }
+.fv-md { font-family: var(--serif); font-size: 14px; line-height: 1.8; color: var(--text); }
+.fv-md h1,.fv-md h2,.fv-md h3,.fv-md h4 { color: var(--text); margin: .9em 0 .3em; font-family: var(--sans); }
+.fv-md h1 { font-size: 1.25em; } .fv-md h2 { font-size: 1.1em; } .fv-md h3 { font-size: 1em; }
+.fv-md p { margin: .4em 0; }
+.fv-md ul,.fv-md ol { padding-left: 1.5em; margin: .3em 0; }
+.fv-md li { margin: .15em 0; }
+.fv-md code { font-family: var(--mono); font-size: .85em; background: var(--input); padding: 1px 4px; border-radius: 2px; }
+.fv-md blockquote { border-left: 3px solid var(--border); padding-left: 10px; color: var(--muted); margin: .5em 0; }
+.fv-md hr { border: none; border-top: 1px solid var(--border); margin: .8em 0; }
+.fv-md a { color: var(--accent); } .fv-md strong { color: var(--text); }
+.fv-pre { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; color: var(--text); }
+/* Summary + TOC */
+.sum-split { display: flex; gap: 14px; align-items: flex-start; }
+.sum-main { flex: 1; min-width: 0; }
+.toc-panel {
+  width: 210px; flex-shrink: 0; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 12px; position: sticky; top: 0;
+}
+.toc-panel-hdr {
+  font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: .05em;
+  text-transform: uppercase; margin-bottom: 6px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+.toc-panel .fv-md { font-family: var(--mono); font-size: 11px; line-height: 1.55; }
+.toc-panel .fv-md h1,.toc-panel .fv-md h2,.toc-panel .fv-md h3 { font-size: 11px; margin: .4em 0 .2em; color: var(--muted); }
+.toc-panel .fv-md p,.toc-panel .fv-md li { font-size: 11px; color: var(--muted); }
+/* Dateien list */
+.file-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.file-item { display: flex; align-items: center; gap: 6px; }
+.fname { flex: 1; font-family: var(--mono); font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fcopy-btn { font-size: 11px; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.fcopy-btn:hover { color: var(--text); border-color: var(--accent); }
+.obs-btn { font-size: 11px; padding: 2px 7px; border-radius: 3px; border: 1px solid #6858a0; color: #9b8dd6; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+.obs-btn:hover { background: rgba(104,88,160,.15); }
+/* Ausgabe Modal */
+.am-tab { font-size: 13px; padding: 6px 14px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer; margin-bottom: -1px; }
+.am-tab:hover { color: var(--text); }
+.am-tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.am-pane { display: flex; flex-direction: column; gap: 8px; }
+.am-pane.hidden { display: none; }
+/* Verwalten-Tab Dirs */
+.alle-dir { border:1px solid var(--border);border-radius:5px;padding:9px 12px;background:var(--input);font-size:13px; }
+.alle-dir-head { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+.alle-dir-name { font-family:var(--mono);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.alle-dir-meta { font-size:12px;color:var(--muted);white-space:nowrap; }
+.alle-dir-btns { display:flex;gap:5px;flex-shrink:0; }
+.alle-dir-btns button { font-size:12px;padding:3px 9px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:none;color:var(--text); }
+.alle-dir-btns .del-btn { color:var(--error,#f38ba8);border-color:var(--error,#f38ba8); }
+.alle-dir-files { margin-top:7px;padding-top:7px;border-top:1px solid var(--border);display:none;flex-wrap:wrap;gap:4px; }
+.alle-dir-files.open { display:flex; }
+.alle-file-chip { font-size:11px;font-family:var(--mono);background:var(--panel);border:1px solid var(--border);border-radius:2px;padding:2px 6px; }
+/* Ausgabe-Buttons */
+.nc-send-btn { font-size: 13px; padding: 5px 14px; background: var(--accent); color: var(--bg); border: none; border-radius: 3px; cursor: pointer; font-weight: 600; white-space: nowrap; }
+.nc-send-btn:disabled { opacity: .4; cursor: default; }
+.nc-send-status { font-size: 12px; color: var(--muted); flex-basis: 100%; }
+.nc-send-status.ok  { color: var(--ok,#a6e3a1); }
+.nc-send-status.err { color: var(--error,#f38ba8); }
+
+/* DV-Wartung Dropdown */
+.dv-dd-wrap { position: relative; display: inline-flex; }
+.dv-dd {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 100;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+  min-width: 130px; padding: 3px 0;
+  box-shadow: 0 6px 18px rgba(0,0,0,.5);
+}
+.dv-dd.open { display: block; }
+.dv-dd button {
+  display: block; width: 100%; text-align: left;
+  padding: 5px 12px; background: none; border: none;
+  color: var(--text); font-size: 12px; cursor: pointer; font-family: var(--sans);
+}
+.dv-dd button:hover { background: var(--input); }
+.dv-dd-status {
+  display: block; padding: 3px 12px 4px;
+  font-size: 11px; color: var(--muted);
+  border-top: 1px solid var(--border); margin-top: 2px;
+}
+.dv-dd-status.ok  { color: var(--ok,#a6e3a1); }
+.dv-dd-status.err { color: var(--error,#f38ba8); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="hdr-left">
+    <a href="/" class="hdr-btn" style="text-decoration:none" title="Zurück zum Panel-Hub">← Panel</a>
+    <div class="dv-dd-wrap" id="dv-dd-wrap">
+      <button class="hdr-btn" onclick="toggleDvDd()" title="DV-Wartung">▾</button>
+      <div class="dv-dd" id="dv-dd">
+        <button id="btn-rescan" onclick="filesRescan()">⟳ Refresh</button>
+        <button id="btn-cleanup" onclick="filesCleanup()">🧹 Clear</button>
+        <span class="dv-dd-status hidden" id="dv-dd-status"></span>
+      </div>
+    </div>
+    <button class="hdr-btn" id="btn-ytupd" onclick="ytUpdate()" title="yt-dlp aktualisieren">↻ yt</button>
+    <span id="ytupd-status" style="font-size:11px;color:var(--muted)"></span>
+    <span id="sysinfo">Lade …</span>
+  </div>
+  <h1>Transkription</h1>
+</header>
+
+<div class="layout">
+
+<!-- Sidebar -->
+<div class="sidebar">
+<div class="sidebar-scroll">
+
+  <!-- Quelle -->
+  <details open>
+    <summary>Quelle</summary>
+    <div class="db">
+      <div class="pills">
+        <label><input type="radio" name="src_type" value="url"    checked onchange="toggleSrc()"> URL</label>
+        <label><input type="radio" name="src_type" value="upload"         onchange="toggleSrc()"> Hochladen</label>
+        <label><input type="radio" name="src_type" value="batch"          onchange="toggleSrc()"> Batch</label>
+        <label style="display:none"><input type="radio" name="src_type" value="local" onchange="toggleSrc()"> Lokale Datei</label>
+      </div>
+      <div id="wrap-url">
+        <label class="f">Video-URL (YouTube, Vimeo …)</label>
+        <input type="text" id="url" placeholder="https://…">
+      </div>
+      <div id="wrap-upload" class="hidden">
+        <label class="f">Audio- oder Videodatei hochladen</label>
+        <input type="file" id="upload-file" accept="video/*,audio/*,.mp4,.mkv,.webm,.mp3,.m4a,.wav,.opus,.flac,.aac" style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:3px;padding:4px 7px;font-size:12px">
+        <div id="upload-status" style="font-size:11px;color:var(--muted);margin-top:3px"></div>
+        <input type="hidden" id="local-path" value="">
+        <input type="hidden" id="tlf-file-id" value="">
+        <div id="wrap-tul-input" style="margin-top:6px">
+          <label class="f">Oder: gespeicherte Eingabe-Datei wählen</label>
+          <div id="tul-input-list" style="display:flex;flex-direction:column;gap:3px;max-height:120px;overflow-y:auto"></div>
+        </div>
+      </div>
+      <div id="wrap-local" class="hidden" style="display:none!important"></div>
+      <div id="wrap-batch" class="hidden">
+        <div class="pills" style="margin-bottom:5px">
+          <label><input type="radio" name="batch_src" value="text" checked onchange="toggleBatchSrc()"> Texteingabe</label>
+          <label><input type="radio" name="batch_src" value="file" onchange="toggleBatchSrc()"> .txt-Datei</label>
+        </div>
+        <div id="batch-wrap-text">
+          <label class="f">Eine URL/Pfad pro Zeile&nbsp; (#&nbsp;=&nbsp;Kommentar)</label>
+          <textarea class="form-ta" id="batch-text" placeholder="https://…&#10;/pfad/datei.mp4"></textarea>
+        </div>
+        <div id="batch-wrap-file" class="hidden">
+          <label class="f">.txt-Datei — eine URL/Pfad pro Zeile</label>
+          <input type="file" id="batch-upload-file" accept=".txt,text/plain" style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:3px;padding:4px 7px;font-size:12px">
+          <div id="batch-upload-status" style="font-size:11px;color:var(--muted);margin-top:3px"></div>
+        </div>
+      </div>
+      <div id="batch-tul-wrap" style="margin-top:6px;display:none">
+        <label class="f">Oder: gespeicherte URL/Batch-Eingabe laden (Batch aktivieren)</label>
+        <div id="batch-tul-list" style="display:flex;flex-direction:column;gap:3px;max-height:100px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Sprache & Aufgabe -->
+  <details open>
+    <summary>Sprache &amp; Aufgabe</summary>
+    <div class="db g2">
+      <div>
+        <label class="f">Videosprache</label>
+        <select id="language">
+          <option>Automatisch</option>
+          <option>Deutsch</option>
+          <option>Englisch</option>
+          <option>Französisch</option>
+          <option>Spanisch</option>
+          <option>Italienisch</option>
+          <option>Russisch</option>
+        </select>
+      </div>
+      <div>
+        <label class="f">Aufgabe</label>
+        <div class="pills">
+          <label><input type="radio" name="task" value="transcribe" checked> Transkribieren</label>
+          <label><input type="radio" name="task" value="translate"> → Englisch</label>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Modell & Qualität — kompakt: alles in einer Sektion -->
+  <details open>
+    <summary>Modell &amp; Akzent</summary>
+    <div class="db">
+      <div class="inline-row">
+        <label class="f">Modell</label>
+        <select id="model" style="flex:1" onchange="checkModel(this)">
+          <option value="tiny">tiny – sehr schnell</option>
+          <option value="base" selected>base – schnell</option>
+          <option value="small">small – ausgewogen</option>
+          <option value="medium">medium – hohe Qualität</option>
+          <option value="large-v3">large-v3 – beste Qualität</option>
+        </select>
+      </div>
+      <div class="inline-row">
+        <label class="f">Akzent</label>
+        <div class="pills" style="flex:1">
+          <label><input type="radio" name="accent" value="Standard" checked> Standard</label>
+          <label><input type="radio" name="accent" value="Mittel"> Mittel</label>
+          <label><input type="radio" name="accent" value="Stark"> Stark</label>
+          <label><input type="radio" name="accent" value="Sehr stark"> Sehr&nbsp;stark</label>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Ausgabe -->
+  <details open>
+    <summary>Ausgabe</summary>
+    <div class="db">
+      <div class="inline-row">
+        <label class="f">Formate</label>
+        <div class="pills">
+          <label><input type="checkbox" name="fmt" value="txt" checked> .txt</label>
+          <label><input type="checkbox" name="fmt" value="srt" checked> .srt</label>
+          <label><input type="checkbox" name="fmt" value="vtt"> .vtt</label>
+        </div>
+      </div>
+      <input type="hidden" id="base-dir" value="">
+      <div class="g2">
+        <div>
+          <label class="f">Quelldatei behalten</label>
+          <select id="keep-src">
+            <option value="">Nein</option>
+            <option value="opus">Audio opus</option>
+            <option value="480p">Video 480p</option>
+            <option value="original">Original</option>
+          </select>
+        </div>
+        <div>
+          <label class="f">&nbsp;</label>
+          <button onclick="openAusgabe()" style="width:100%;padding:6px;background:var(--input);border:1px solid var(--accent);color:var(--accent);border-radius:4px;cursor:pointer;font-size:13px;font-weight:600">⬆ Ausgabe</button>
+        </div>
+      </div>
+      <div class="g2">
+        <div>
+          <label class="f">Beschnitt Von</label>
+          <input type="text" id="trim-start" placeholder="MM:SS">
+        </div>
+        <div>
+          <label class="f">Beschnitt Bis</label>
+          <input type="text" id="trim-end" placeholder="MM:SS">
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Helsinki -->
+  <details>
+    <summary>Übersetzung (Helsinki, offline)</summary>
+    <div class="db">
+      <div class="inline-row">
+        <label class="f">Nachgelagerte Übersetzung →</label>
+        <select id="trans-tgt" style="flex:1">
+          <option value="">Keine</option>
+          <option>Deutsch</option>
+          <option>Englisch</option>
+          <option>Französisch</option>
+          <option>Spanisch</option>
+          <option>Russisch</option>
+        </select>
+      </div>
+    </div>
+  </details>
+
+  <!-- TOC + Zusammenfassung -->
+  <details open>
+    <summary>TOC + Zusammenfassung (API)</summary>
+    <div class="db">
+      <div id="no-api-warn" class="errbox hidden">Kein ANTHROPIC_API_KEY — TOC/Zusammenfassung nicht verfügbar.</div>
+
+      <div class="inline-row">
+        <label class="chk-label">
+          <input type="checkbox" id="do-toc" onchange="toggleTocOpts()">
+          Inhaltsverzeichnis (TOC)
+        </label>
+      </div>
+      <div id="toc-opts" class="hidden g2">
+        <div>
+          <label class="f">TOC-Sprache</label>
+          <select id="toc-lang">
+            <option>wie Transkript</option>
+            <option>Deutsch</option>
+            <option>Englisch</option>
+            <option>Französisch</option>
+            <option>Spanisch</option>
+          </select>
+        </div>
+        <div>
+          <label class="f">Zusätzlich in</label>
+          <select id="toc-also">
+            <option value="">–</option>
+            <option>Deutsch</option>
+            <option>Englisch</option>
+            <option>Französisch</option>
+            <option>Spanisch</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="f">Zusammenfassung – Stufen</label>
+        <div class="pills" id="sum-lvls">
+          <label title="Kernthema, 1–2 Sätze">      <input type="checkbox" value="1"> 1 sehr knapp</label>
+          <label title="Hauptinhalt, 1 Absatz">      <input type="checkbox" value="2"> 2 knapp</label>
+          <label title="Absatz + Stichpunkte">       <input type="checkbox" value="3"> 3 kurz</label>
+          <label title="Ausführliche Stichpunkte">   <input type="checkbox" value="4"> 4 normal</label>
+          <label title="+ offene Punkte, Kontext">   <input type="checkbox" value="5"> 5 tief</label>
+          <label title="Schwerpunkt mit Stichworten"><input type="checkbox" value="6" onchange="toggleFocusKw()"> 6 Schwerpunkte</label>
+          <label title="Vollständige Tiefenanalyse mit Anm."><input type="checkbox" value="7"> 7 Tiefenanalyse</label>
+        </div>
+      </div>
+
+      <div id="focus-kw-wrap" class="hidden">
+        <label class="f">Stichworte für Stufe 6 (kommagetrennt)</label>
+        <input type="text" id="focus-kw" placeholder="Begriff1, Begriff2, …">
+      </div>
+
+      <div id="sum-lang-wrap" class="hidden">
+        <div class="inline-row">
+          <label class="f">Sprache der Zusammenfassung</label>
+          <select id="sum-lang" style="flex:1">
+            <option>wie Transkript</option>
+            <option>Deutsch</option>
+            <option>Englisch</option>
+            <option>Französisch</option>
+            <option>Spanisch</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Nachbearbeitung -->
+  <details>
+    <summary>Nachbearbeitung (bestehende Dateien)</summary>
+    <div class="db">
+      <div id="ph-no-api" class="errbox hidden">Kein ANTHROPIC_API_KEY — TOC/Zusammenfassung nicht verfügbar.</div>
+
+      <!-- Quelle: tul-Datei oder direkter Upload -->
+      <div>
+        <label class="f">Quelle</label>
+        <div class="pills" style="margin-bottom:5px">
+          <label><input type="radio" name="ph_src_type" value="tul" checked onchange="togglePhSrc()"> tul-Datei</label>
+          <label><input type="radio" name="ph_src_type" value="upload"       onchange="togglePhSrc()"> Datei hochladen</label>
+        </div>
+        <div id="ph-wrap-tul">
+          <div id="ph-tul-list" style="font-size:11px;color:var(--muted)">Wird geladen …</div>
+        </div>
+        <div id="ph-wrap-upload" class="hidden">
+          <input type="file" id="ph-upload-file" accept=".txt,.srt,.vtt" style="width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:3px;padding:4px 7px;font-size:12px">
+          <div id="ph-upload-status" style="font-size:11px;color:var(--muted);margin-top:3px"></div>
+        </div>
+      </div>
+
+      <!-- Aufgaben -->
+      <div>
+        <label class="f">Aufgaben</label>
+        <div class="pills" id="ph-types">
+          <label><input type="checkbox" value="translate" onchange="togglePhOps()"> Übersetzen</label>
+          <label><input type="checkbox" value="toc"       onchange="togglePhOps()"> TOC</label>
+          <label><input type="checkbox" value="summary"   onchange="togglePhOps()"> Zusammenfassung</label>
+        </div>
+      </div>
+
+      <!-- Übersetzen-Optionen -->
+      <div id="ph-tr-opts" class="hidden g2">
+        <div>
+          <label class="f">Quellsprache</label>
+          <select id="ph-src">
+            <option>Deutsch</option><option>Englisch</option><option>Französisch</option>
+            <option>Spanisch</option><option>Italienisch</option><option>Russisch</option>
+          </select>
+        </div>
+        <div>
+          <label class="f">Zielsprache</label>
+          <select id="ph-tgt">
+            <option>Englisch</option><option>Deutsch</option><option>Französisch</option>
+            <option>Spanisch</option><option>Italienisch</option><option>Russisch</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- TOC / Zusammenfassung: gemeinsame Sprache -->
+      <div id="ph-api-opts" class="hidden">
+        <div class="inline-row">
+          <label class="f">Sprache</label>
+          <select id="ph-lang" style="flex:1">
+            <option>Deutsch</option><option>Englisch</option>
+            <option>Französisch</option><option>Spanisch</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Zusammenfassung: Stufen -->
+      <div id="ph-sum-opts" class="hidden">
+        <label class="f">Stufen</label>
+        <div class="pills" id="ph-sum-lvls">
+          <label title="Kernthema, 1–2 Sätze">      <input type="checkbox" value="1"> 1 sehr knapp</label>
+          <label title="Hauptinhalt, 1 Absatz">      <input type="checkbox" value="2"> 2 knapp</label>
+          <label title="Absatz + Stichpunkte">       <input type="checkbox" value="3"> 3 kurz</label>
+          <label title="Ausführliche Stichpunkte">   <input type="checkbox" value="4"> 4 normal</label>
+          <label title="+ offene Punkte, Kontext">   <input type="checkbox" value="5"> 5 tief</label>
+          <label title="Schwerpunkt mit Stichworten"><input type="checkbox" value="6" onchange="togglePhFocusKw()"> 6 Schwerpunkte</label>
+          <label title="Vollständige Tiefenanalyse mit Anm."><input type="checkbox" value="7"> 7 Tiefenanalyse</label>
+        </div>
+        <div id="ph-focus-wrap" class="hidden" style="margin-top:4px">
+          <label class="f">Stichworte Stufe 6 (kommagetrennt)</label>
+          <input type="text" id="ph-focus" placeholder="Begriff1, Begriff2, …">
+        </div>
+      </div>
+
+      <button class="btn-start" id="btn-ph-start" onclick="startPosthoc()">▶ Nachbearbeitung starten</button>
+    </div>
+  </details>
+
+</div><!-- /sidebar-scroll -->
+
+<div class="sidebar-foot">
+  <div id="err-box" class="errbox hidden"></div>
+  <div class="actions">
+    <button class="btn-start" id="btn-start" onclick="startJob()">▶ Starten</button>
+    <button class="btn-stop hidden" id="btn-stop" onclick="stopJob()">■ Stop</button>
+    <button class="btn-stop hidden" id="btn-commit" onclick="commitJob()" style="background:#2a4a2a;border-color:#4a8a4a;color:#a6e3a1" title="Stoppt Transkription, verarbeitet bisher gesammelte Segmente weiter">✓ Commit</button>
+  </div>
+</div>
+</div><!-- /sidebar -->
+
+<!-- Output -->
+<div class="output">
+  <div>
+    <div class="pane-label">Log</div>
+    <textarea id="log" readonly></textarea>
+  </div>
+  <div>
+    <div class="pane-label">Transkript (live)</div>
+    <div id="transcript"></div>
+  </div>
+  <div id="file-tabs-area" class="hidden">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <div class="fv-tabs" id="fv-tabs" style="flex:1"></div>
+      <button class="hdr-btn" id="ausgabe-btn" onclick="openAusgabe()" title="Ausgabe verwalten" style="flex-shrink:0">⬆ Ausgabe</button>
+    </div>
+    <div class="fv-body-wrap" id="fv-body-wrap"></div>
+  </div>
+</div>
+
+</div><!-- /layout -->
+
+<!-- ── Ausgabe Modal ───────────────────────────────────────────────────────── -->
+<div class="overlay hidden" id="ausgabeOv" onclick="if(event.target===this)closeAusgabe()">
+  <div class="mbox" style="max-width:540px">
+    <div class="mhd">
+      <span class="mhd-title">Ausgabe</span>
+      <button onclick="closeAusgabe()">✕</button>
+    </div>
+    <div class="mbody" style="display:flex;flex-direction:column;gap:0">
+      <button class="nc-send-btn" id="am-zip-btn" onclick="amZipDownload()" style="width:100%">⬇ Als ZIP herunterladen</button>
+      <div id="am-zip-status" class="nc-send-status" style="margin-top:6px"></div>
+    </div>
+    <div class="mft">
+      <span style="font-size:11px;color:var(--muted)" id="am-job-label"></span>
+      <button class="hdr-btn" onclick="closeAusgabe()">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Help Modal ─────────────────────────────────────────────────────────── -->
+<div class="overlay hidden" id="helpOv" onclick="if(event.target===this)closeHelp()">
+  <div class="mbox">
+    <div class="mhd">
+      <button id="helpBack" class="hidden" onclick="showHelpOv()" style="font-size:12px">← zurück</button>
+      <span class="mhd-title" id="helpTitle">Hilfe</span>
+      <button onclick="closeHelp()">✕</button>
+    </div>
+    <div class="mbody" id="helpChGrid"></div>
+    <div class="mbody hidden" id="helpDetail"></div>
+    <div class="mft">
+      <span style="font-size:11px;color:var(--muted)">Whisper Transkriptions-Panel</span>
+      <button class="hdr-btn" onclick="closeHelp()">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Lizenz Modal ────────────────────────────────────────────────────────── -->
+<div class="overlay hidden" id="plOv" onclick="if(event.target===this)closePL()">
+  <div class="mbox">
+    <div class="mhd">
+      <span class="mhd-title">Lizenz</span>
+      <button onclick="closePL()">✕</button>
+    </div>
+    <div class="mbody" style="font-size:12px;line-height:1.6">
+      <div class="h2" style="margin-bottom:6px">Whisper Transkriptions-Panel</div>
+      <div class="hp">Dieses Programm ist freie Software: Du kannst es unter den Bedingungen der
+        <strong>GNU General Public License</strong>, Version 3, veröffentlicht von der Free Software Foundation,
+        weitergeben und/oder verändern.</div>
+      <div class="hp">Es wird in der Hoffnung bereitgestellt, dass es nützlich ist, aber
+        <strong>ohne jede Gewährleistung</strong>. Siehe die GNU GPL für Details.</div>
+      <div class="hp" style="color:var(--muted);margin-bottom:10px">GNU General Public License v3.0 ·
+        <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener"
+           style="color:var(--accent)">gnu.org/licenses/gpl-3.0</a></div>
+
+      <div class="h2" style="margin-bottom:6px">Verwendete Open-Source-Komponenten</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="color:var(--muted)">
+          <th style="text-align:left;padding:2px 6px 4px 0">Komponente</th>
+          <th style="text-align:left;padding:2px 6px 4px 0">Verwendung</th>
+          <th style="text-align:left;padding:2px 0 4px 0">Lizenz</th>
+        </tr></thead>
+        <tbody style="color:var(--text)">
+          <tr><td style="padding:2px 6px 2px 0">faster-whisper</td><td style="padding:2px 6px 2px 0">Transkription</td><td>MIT</td></tr>
+          <tr><td style="padding:2px 6px 2px 0">OpenAI Whisper</td><td style="padding:2px 6px 2px 0">Modell-Architektur</td><td>MIT</td></tr>
+          <tr><td style="padding:2px 6px 2px 0">yt-dlp</td><td style="padding:2px 6px 2px 0">Video-Download</td><td>Unlicense</td></tr>
+          <tr><td style="padding:2px 6px 2px 0">ffmpeg</td><td style="padding:2px 6px 2px 0">Audio-Extraktion</td><td>LGPL-2.1+</td></tr>
+          <tr><td style="padding:2px 6px 2px 0">Flask</td><td style="padding:2px 6px 2px 0">Web-Backend</td><td>BSD-3-Clause</td></tr>
+          <tr><td style="padding:2px 6px 2px 0">Helsinki-NLP MarianMT</td><td style="padding:2px 6px 2px 0">Offline-Übersetzung</td><td>Apache-2.0</td></tr>
+          <tr><td style="padding:2px 6px 2px 0">Transformers (HuggingFace)</td><td style="padding:2px 6px 2px 0">Modell-Loading</td><td>Apache-2.0</td></tr>
+          <tr><td style="padding:2px 6px 2px 0">Anthropic Python SDK</td><td style="padding:2px 6px 2px 0">TOC &amp; Zusammenfassung</td><td>MIT</td></tr>
+          <tr><td style="padding:2px 6px 2px 0">psutil</td><td style="padding:2px 6px 2px 0">System-Erkennung</td><td>BSD-3-Clause</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="mft">
+      <button class="hdr-btn" onclick="closePL()">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const _B = window._B||'';
+/* ── File Viewer ─────────────────────────────────────────────────────────── */
+const _VIEWABLE = ['md','txt','srt','vtt'];
+const _IMG_EXTS  = ['jpg','jpeg','png','gif','webp','svg'];
+const _fvPanes = {};  // tabId -> {ext, path, btn, pane, content}
+let _tocContent = null;
+
+function _fvTid(name){ return 'fv_'+name.replace(/[^a-zA-Z0-9]/g,'_'); }
+
+function showFvTab(id) {
+  Object.values(_fvPanes).forEach(p => {
+    p.btn.classList.toggle('active', _fvTid(p.btn.textContent) === id || _fvTid(p.btn.dataset.name||'') === id || p.btn.dataset.tid === id);
+    p.pane.classList.toggle('active', p.btn.dataset.tid === id);
+  });
+}
+
+function _fvShowId(id) {
+  Object.values(_fvPanes).forEach(p => {
+    const active = p.btn.dataset.tid === id;
+    p.btn.classList.toggle('active', active);
+    p.pane.classList.toggle('active', active);
+  });
+}
+
+async function _fvLoadContent(id) {
+  const t = _fvPanes[id]; if(!t || t.content !== null) return;
+  if(_IMG_EXTS.includes(t.ext)) { t.content = '__img__'; _fvRender(id); return; }
+  t.pane.innerHTML = '<span style="color:var(--muted);font-size:12px">Lade …</span>';
+  try {
+    const r = await fetch(_B+'/file?path='+encodeURIComponent(t.path));
+    t.content = r.ok ? await r.text() : '(Fehler beim Laden)';
+  } catch(e) { t.content = '(Netzwerkfehler)'; }
+  _fvRender(id);
+}
+
+function _fvRender(id) {
+  const t = _fvPanes[id]; if(!t || t.content === null) return;
+  t.pane.innerHTML = '';
+  if(t.content === '__img__') {
+    const img = document.createElement('img');
+    img.src = _B+'/file?path='+encodeURIComponent(t.path);
+    img.style.cssText = 'max-width:100%;max-height:70vh;object-fit:contain;display:block;margin:0 auto';
+    t.pane.appendChild(img);
+    return;
+  }
+  if(t.ext === 'md') {
+    const isSummary = /(_summary_|_zusammenfassung_)/i.test(t.path);
+    if(isSummary && _tocContent) {
+      const split = document.createElement('div'); split.className = 'sum-split';
+      const main = document.createElement('div'); main.className = 'sum-main fv-md';
+      main.innerHTML = typeof marked !== 'undefined' ? marked.parse(t.content) : '<pre>'+t.content+'</pre>';
+      const tocDiv = document.createElement('div'); tocDiv.className = 'toc-panel';
+      const tocHdr = document.createElement('div'); tocHdr.className = 'toc-panel-hdr'; tocHdr.textContent = 'Inhaltsverzeichnis';
+      const tocBody = document.createElement('div'); tocBody.className = 'fv-md';
+      tocBody.innerHTML = typeof marked !== 'undefined' ? marked.parse(_tocContent) : '<pre>'+_tocContent+'</pre>';
+      tocDiv.append(tocHdr, tocBody);
+      split.append(main, tocDiv);
+      t.pane.appendChild(split);
+    } else {
+      const div = document.createElement('div'); div.className = 'fv-md';
+      div.innerHTML = typeof marked !== 'undefined' ? marked.parse(t.content) : '<pre>'+t.content+'</pre>';
+      t.pane.appendChild(div);
+    }
+  } else {
+    const pre = document.createElement('pre'); pre.className = 'fv-pre'; pre.textContent = t.content;
+    t.pane.appendChild(pre);
+  }
+}
+
+function _fvAddTab(label, tid, path, ext) {
+  const tabs = document.getElementById('fv-tabs');
+  const wrap = document.getElementById('fv-body-wrap');
+  const btn = document.createElement('button'); btn.className = 'fv-tab';
+  btn.textContent = label; btn.dataset.tid = tid; btn.dataset.name = label;
+  btn.onclick = () => { _fvShowId(tid); _fvLoadContent(tid); };
+  tabs.appendChild(btn);
+  const pane = document.createElement('div'); pane.className = 'fv-pane';
+  wrap.appendChild(pane);
+  _fvPanes[tid] = {ext, path, btn, pane, content: null};
+  return tid;
+}
+
+function clearFvTabs() {
+  document.getElementById('fv-tabs').innerHTML = '';
+  document.getElementById('fv-body-wrap').innerHTML = '';
+  Object.keys(_fvPanes).forEach(k => delete _fvPanes[k]);
+  _tocContent = null;
+  document.getElementById('file-tabs-area').classList.add('hidden');
+  document.getElementById('transcript').parentElement.style.display = '';
+}
+
+
+/* ── Sysinfo ────────────────────────────────────────────────────────────── */
+fetch(_B+'/sysinfo').then(r=>r.json()).then(d=>{
+  document.getElementById('sysinfo').textContent =
+    `RAM ${d.ram_avail}/${d.ram_total} GB · CPU ${d.cpu}T · ${d.gpu||'keine GPU → CPU'} · Empf.: ${d.rec_model} (${d.device}/${d.compute})`;
+  if(!d.api_key){
+    document.getElementById('no-api-warn').classList.remove('hidden');
+    document.getElementById('do-toc').disabled=true;
+    document.querySelectorAll('#sum-lvls input').forEach(cb=>cb.disabled=true);
+    document.getElementById('ph-no-api').classList.remove('hidden');
+    document.querySelectorAll('#ph-sum-lvls input').forEach(cb=>cb.disabled=true);
+    ['toc','summary'].forEach(v=>{
+      const r=document.querySelector(`#ph-types input[value="${v}"]`);
+      if(r){r.disabled=true;}
+    });
+  }
+}).catch(()=>{ document.getElementById('sysinfo').textContent='Systeminfo nicht verfügbar'; });
+
+/* ── UI-Toggles ─────────────────────────────────────────────────────────── */
+function toggleSrc(){
+  const v=document.querySelector('input[name=src_type]:checked').value;
+  document.getElementById('wrap-url').classList.toggle('hidden',    v!=='url');
+  document.getElementById('wrap-upload').classList.toggle('hidden', v!=='upload');
+  document.getElementById('wrap-batch').classList.toggle('hidden',  v!=='batch');
+}
+function toggleBatchSrc(){
+  const v=document.querySelector('input[name=batch_src]:checked').value;
+  document.getElementById('batch-wrap-text').classList.toggle('hidden', v==='file');
+  document.getElementById('batch-wrap-file').classList.toggle('hidden', v!=='file');
+}
+function checkModel(sel){
+  if(['medium','large-v3'].includes(sel.value)){
+    if(!confirm('Modell „'+sel.value+'" braucht viel RAM auf dem NUC (5–10 GB).\nWirklich verwenden?'))
+      sel.value='base';
+  }
+}
+async function ytUpdate(){
+  const btn=document.getElementById('btn-ytupd');
+  const st=document.getElementById('ytupd-status');
+  btn.disabled=true; st.textContent='aktualisiere …';
+  try{
+    const r=await fetch(_B+'/yt-update',{method:'POST'});
+    const d=await r.json();
+    st.style.color=d.ok?'var(--green,#a6e3a1)':'var(--red,#f38ba8)';
+    st.textContent=d.msg;
+    setTimeout(()=>{st.textContent='';st.style.color='';},8000);
+  }catch(e){st.textContent='Fehler';st.style.color='var(--red,#f38ba8)';}
+  btn.disabled=false;
+}
+function toggleDvDd(){
+  document.getElementById('dv-dd').classList.toggle('open');
+}
+document.addEventListener('click',e=>{
+  const wrap=document.getElementById('dv-dd-wrap');
+  if(wrap&&!wrap.contains(e.target)) document.getElementById('dv-dd').classList.remove('open');
+});
+function _dvStatus(msg,ok){
+  const st=document.getElementById('dv-dd-status');
+  st.textContent=msg; st.className='dv-dd-status'+(ok?' ok':' err');
+  st.classList.remove('hidden');
+  setTimeout(()=>{st.textContent='';st.classList.add('hidden');},7000);
+}
+async function filesRescan(){
+  const btn=document.getElementById('btn-rescan');
+  btn.disabled=true; _dvStatus('scanne …',true);
+  try{
+    const r=await fetch(_B+'/files/rescan',{method:'POST'});
+    const d=await r.json();
+    _dvStatus(d.msg,d.ok);
+    tulFiles.refresh();
+  }catch(e){_dvStatus('Fehler',false);}
+  btn.disabled=false;
+}
+async function filesCleanup(){
+  const btn=document.getElementById('btn-cleanup');
+  btn.disabled=true; _dvStatus('bereinige …',true);
+  try{
+    const r=await fetch(_B+'/files/cleanup',{method:'POST'});
+    const d=await r.json();
+    _dvStatus(d.msg,d.ok);
+    tulFiles.refresh();
+  }catch(e){_dvStatus('Fehler',false);}
+  btn.disabled=false;
+}
+function togglePhSrc(){
+  const v=document.querySelector('input[name=ph_src_type]:checked').value;
+  document.getElementById('ph-wrap-upload').classList.toggle('hidden', v!=='upload');
+  document.getElementById('ph-wrap-tul').classList.toggle('hidden',    v!=='tul');
+  if(v==='tul') loadPhTulFiles();
+}
+async function loadPhTulFiles(){
+  const el=document.getElementById('ph-tul-list');
+  if(!el)return;
+  el.textContent='Lade …';
+  try{
+    const files=await fetch(_B+'/files?category=input').then(r=>r.json());
+    const txt=files.filter(f=>/\.(txt|srt|vtt)$/i.test(f.filename) && f.file_type !== 'url-ref');
+    if(!txt.length){el.textContent='Keine Textdateien als Eingabe vorhanden. Ausgabedatei im Dateien-Modal recyceln (↥).';return;}
+    el.innerHTML='';
+    txt.forEach(f=>{
+      const lbl=document.createElement('label');
+      lbl.style.cssText='display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:12px';
+      const rb=document.createElement('input');
+      rb.type='radio';rb.name='ph_tul_file';rb.value=f.id;
+      rb.addEventListener('change',()=>{
+        document.querySelectorAll('input[name=ph_tul_file]').forEach(r=>r.dataset.sel='');
+        rb.dataset.sel='1';
+      });
+      rb.addEventListener('click',()=>{
+        if(rb.dataset.sel){rb.checked=false;rb.dataset.sel='';}
+      });
+      const nm=document.createElement('span');nm.textContent=f.filename;nm.style.color='var(--text)';
+      lbl.appendChild(rb);lbl.appendChild(nm);el.appendChild(lbl);
+    });
+  }catch(e){el.textContent='Fehler beim Laden.';}
+}
+
+/* Gespeicherte URL/Batch-Eingaben (url-ref, aus _register_url_input) im Batch-Abschnitt anzeigen */
+async function loadBatchFiles(){
+  const el=document.getElementById('batch-tul-list');
+  const wrap=document.getElementById('batch-tul-wrap');
+  if(!el||!wrap)return;
+  try{
+    const files=await fetch(_B+'/files?category=input').then(r=>r.json()).catch(()=>[]);
+    const txt=files.filter(f=>f.file_type==='url-ref');
+    wrap.style.display=txt.length?'':'none';
+    el.innerHTML='';
+    txt.forEach(f=>{
+      const row=document.createElement('label');
+      row.style.cssText='display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding:2px 0;color:var(--text)';
+      const rb=document.createElement('input');
+      rb.type='radio';rb.name='batch_tul_file';rb.value=f.id;
+      rb.addEventListener('change',async()=>{
+        document.querySelectorAll('input[name=batch_tul_file]').forEach(r=>r.dataset.sel='');
+        rb.dataset.sel='1';
+        const st=document.getElementById('batch-upload-status');
+        st.textContent='Lade …';
+        try{
+          const text=await fetch(_B+'/files/'+f.id+'/content').then(r=>r.text());
+          document.getElementById('batch-text').value=text;
+          const n=text.split('\n').filter(l=>l.trim()&&!l.startsWith('#')).length;
+          st.textContent='✓ '+f.filename+' ('+n+' Einträge)';
+          document.querySelector('input[name=batch_src][value=text]').checked=true;
+          toggleBatchSrc();
+        }catch(e){st.textContent='Fehler beim Laden.';}
+      });
+      rb.addEventListener('click',()=>{
+        if(rb.dataset.sel){rb.checked=false;rb.dataset.sel='';}
+      });
+      const nm=document.createElement('span');
+      nm.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+      nm.textContent=f.filename;
+      row.appendChild(rb);row.appendChild(nm);
+      el.appendChild(row);
+    });
+  }catch(e){}
+}
+
+/* ── File Upload (Quelle) ───────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded',()=>{
+  const uf=document.getElementById('upload-file');
+  if(uf)uf.addEventListener('change',async()=>{
+    const f=uf.files[0]; if(!f)return;
+    const st=document.getElementById('upload-status');
+    st.textContent='Lade hoch … ('+Math.round(f.size/1024)+'kB)';
+    const fd=new FormData();
+    fd.append('file',f);
+    fd.append('category','input');
+    fd.append('retention','task');
+    try{
+      const r=await fetch(_B+'/files/upload',{method:'POST',body:fd});
+      const d=await r.json();
+      if(r.ok){
+        document.getElementById('tlf-file-id').value=d.id;
+        document.getElementById('local-path').value='';
+        // deselect any previously selected radio in tul-input-list
+        document.querySelectorAll('input[name=tul_file]').forEach(i=>i.checked=false);
+        st.textContent='✓ '+d.filename;
+        tulFiles.refresh();
+        loadInputFiles();
+      } else {
+        st.textContent='Fehler: '+(d.error||r.status);
+      }
+    }catch(e){st.textContent='Verbindungsfehler.';}
+  });
+
+  const batchf=document.getElementById('batch-upload-file');
+  if(batchf)batchf.addEventListener('change',()=>{
+    const f=batchf.files[0]; if(!f)return;
+    const st=document.getElementById('batch-upload-status');
+    st.textContent='Lese …';
+    const r=new FileReader();
+    r.onload=e=>{
+      document.getElementById('batch-text').value=e.target.result;
+      const n=e.target.result.split('\n').filter(l=>l.trim()&&!l.startsWith('#')).length;
+      st.textContent='✓ '+f.name+' geladen ('+n+' Einträge)';
+    };
+    r.onerror=()=>{st.textContent='Lesefehler.';};
+    r.readAsText(f);
+  });
+
+  const phuf=document.getElementById('ph-upload-file');
+  if(phuf)phuf.addEventListener('change',async()=>{
+    const f=phuf.files[0]; if(!f)return;
+    const st=document.getElementById('ph-upload-status');
+    st.textContent='Lade hoch …';
+    const fd=new FormData();
+    fd.append('file',f);
+    fd.append('category','input');
+    fd.append('retention','1mo');
+    try{
+      const r=await fetch(_B+'/files/upload',{method:'POST',body:fd});
+      const d=await r.json();
+      if(r.ok){
+        phuf.dataset.fileId=d.id;
+        st.textContent='✓ '+d.filename;
+        tulFiles.refresh();
+      }else{st.textContent='Fehler: '+(d.error||r.status);}
+    }catch(e){st.textContent='Verbindungsfehler.';}
+  });
+});
+function toggleTocOpts(){
+  document.getElementById('toc-opts').classList.toggle('hidden',!document.getElementById('do-toc').checked);
+}
+function toggleFocusKw(){
+  const on=document.querySelector('#sum-lvls input[value="6"]').checked;
+  document.getElementById('focus-kw-wrap').classList.toggle('hidden',!on);
+}
+document.querySelectorAll('#sum-lvls input').forEach(cb=>
+  cb.addEventListener('change',()=>{
+    const any=[...document.querySelectorAll('#sum-lvls input')].some(i=>i.checked);
+    document.getElementById('sum-lang-wrap').classList.toggle('hidden',!any);
+  })
+);
+
+/* ── \r-bewusstes Log-Update ────────────────────────────────────────────── */
+function applyChunk(buf,chunk){
+  chunk=chunk.replace(/\r\n/g,'\n');
+  if(!chunk.includes('\r')) return buf+chunk;
+  const parts=chunk.split('\r');
+  let res=buf+parts[0];
+  for(let i=1;i<parts.length;i++){
+    const nl=res.lastIndexOf('\n');
+    res=(nl>=0?res.substring(0,nl+1):'')+parts[i];
+  }
+  return res;
+}
+
+/* ── Eingabe-Dateiliste (tul-files) ─────────────────────────────────────── */
+async function loadInputFiles(){
+  const files=await fetch(_B+'/files?category=input').then(r=>r.json()).catch(()=>[]);
+  const container=document.getElementById('tul-input-list');
+  if(!container) return;
+  const media=files.filter(f=>/^(audio|video)/i.test(f.mime||''));
+  if(!media.length){
+    container.innerHTML='<div style="font-size:11px;color:var(--muted)">Keine gespeicherten Mediendateien.</div>';
+    return;
+  }
+  const currentId=document.getElementById('tlf-file-id').value;
+  container.innerHTML='';
+  media.forEach(f=>{
+    const row=document.createElement('label');
+    row.style.cssText='display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;padding:2px 0;color:var(--text)';
+    const cb=document.createElement('input');
+    cb.type='radio'; cb.name='tul_file'; cb.value=f.id;
+    if(f.id===currentId){cb.checked=true;cb.dataset.sel='1';}
+    cb.addEventListener('change',()=>{
+      document.querySelectorAll('input[name=tul_file]').forEach(r=>r.dataset.sel='');
+      cb.dataset.sel='1';
+      document.getElementById('tlf-file-id').value=f.id;
+      document.getElementById('local-path').value='';
+      document.getElementById('upload-status').textContent='';
+    });
+    cb.addEventListener('click',()=>{
+      if(cb.dataset.sel){
+        cb.checked=false; cb.dataset.sel='';
+        document.getElementById('tlf-file-id').value='';
+        document.getElementById('local-path').value='';
+        document.getElementById('upload-status').textContent='';
+      }
+    });
+    const nm=document.createElement('span');
+    nm.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+    nm.textContent=f.filename;
+    row.appendChild(cb); row.appendChild(nm);
+    if(f.retention==='task'){
+      const tag=document.createElement('span');
+      tag.style.cssText='font-size:9px;background:var(--border);color:var(--muted);padding:1px 4px;border-radius:2px;flex-shrink:0';
+      tag.textContent='1×';
+      row.appendChild(tag);
+    }
+    container.appendChild(row);
+    if (window.tulFiles?.attachPreview) tulFiles.attachPreview(row, f.id, f.filename, f.mime, false);
+  });
+}
+
+/* ── Job state ──────────────────────────────────────────────────────────── */
+let jobId=null,es=null,txPoll=null,logBuf='',lastTxLen=0;
+
+/* Warnung bei laufendem Job + Reload-Schutz */
+window.addEventListener('beforeunload', e => {
+  if(jobId && document.getElementById('btn-stop') &&
+     !document.getElementById('btn-stop').classList.contains('hidden')){
+    e.preventDefault();
+    e.returnValue='';
+  }
+});
+
+/* Nach Reload: laufenden Job aus sessionStorage wiederherstellen */
+(function(){
+  const saved=sessionStorage.getItem('wt-job');
+  if(!saved) return;
+  const {id}=JSON.parse(saved);
+  fetch(_B+'/status/'+id).then(r=>r.json()).then(d=>{
+    if(d.state==='running'){
+      jobId=id;
+      setBusy(true);
+      /* Bisheriges Log aus Server-Buffer nachladen */
+      fetch(_B+'/log/'+id).then(r=>r.text()).then(t=>{
+        logBuf=t||'[Log leer]\n';
+        const el=document.getElementById('log');
+        el.value=logBuf; el.scrollTop=el.scrollHeight;
+      });
+      startTxPoll(id);
+      openStream(id);   /* SSE für neue Nachrichten wieder verbinden */
+      const check=setInterval(()=>{
+        fetch(_B+'/status/'+id).then(r=>r.json()).then(s=>{
+          if(s.state==='done'){
+            clearInterval(check);
+            if(txPoll){clearInterval(txPoll);txPoll=null;}
+            fetchTx(id);
+            if(s.od) loadFiles(id);
+            setBusy(false);
+            sessionStorage.removeItem('wt-job');
+          }
+        });
+      },2000);
+    } else {
+      sessionStorage.removeItem('wt-job');
+    }
+  }).catch(()=>sessionStorage.removeItem('wt-job'));
+})();
+
+function startJob(){
+  const errs=validateForm();
+  if(errs.length){showErr(errs.join('\n'));return;}
+  showErr('');
+  logBuf=''; lastTxLen=0;
+  document.getElementById('log').value='';
+  document.getElementById('transcript').textContent='';
+  clearFvTabs();
+  setBusy(true);
+
+  fetch(_B+'/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collectForm())})
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.error){showErr(data.error.join('\n'));setBusy(false);return;}
+    jobId=data.job_id;
+    sessionStorage.setItem('wt-job', JSON.stringify({id:jobId}));
+    openStream(jobId); startTxPoll(jobId);
+  })
+  .catch(e=>{showErr('Verbindungsfehler: '+e.message);setBusy(false);});
+}
+function stopJob(){
+  if(jobId) fetch(_B+'/stop/'+jobId,{method:'POST'});
+  if(es){es.close();es=null;}
+  if(txPoll){clearInterval(txPoll);txPoll=null;}
+  setBusy(false);
+  sessionStorage.removeItem('wt-job');
+}
+function commitJob(){
+  if(jobId) fetch(_B+'/soft-stop/'+jobId,{method:'POST'});
+  document.getElementById('btn-commit').classList.add('hidden');
+}
+function setBusy(b){
+  document.getElementById('btn-start').disabled=b;
+  document.getElementById('btn-stop').classList.toggle('hidden',!b);
+  document.getElementById('btn-commit').classList.toggle('hidden',!b);
+  const ph=document.getElementById('btn-ph-start'); if(ph) ph.disabled=b;
+}
+function openStream(id){
+  if(es) es.close();
+  es=new EventSource(_B+'/stream/'+id);
+  es.onmessage=e=>{
+    const d=JSON.parse(e.data);
+    if(d.t==='log'){
+      logBuf=applyChunk(logBuf,d.m);
+      const el=document.getElementById('log');
+      el.value=logBuf; el.scrollTop=el.scrollHeight;
+    } else if(d.t==='done'){
+      es.close(); es=null;
+      if(txPoll){clearInterval(txPoll);txPoll=null;}
+      fetchTx(id);
+      if(d.od) loadFiles(id);
+      setBusy(false);
+      sessionStorage.removeItem('wt-job');
+      loadInputFiles();
+      tulFiles.refresh();
+    }
+  };
+  es.onerror=()=>{if(es){es.close();es=null;} setBusy(false);};
+}
+function startTxPoll(id){
+  if(txPoll) clearInterval(txPoll);
+  txPoll=setInterval(()=>fetchTx(id),700);
+}
+function fetchTx(id){
+  fetch(_B+'/transcript/'+id).then(r=>r.text()).then(t=>{
+    if(t.length!==lastTxLen){
+      lastTxLen=t.length;
+      const el=document.getElementById('transcript');
+      el.textContent=t;
+      el.scrollTop=el.scrollHeight;
+    }
+  });
+}
+async function loadFiles(id){
+  const files = await fetch(_B+'/files/'+id).then(r=>r.json()).catch(()=>[]);
+  if(!files.length) return;
+  _amJobFiles = files;
+  clearFvTabs();
+  document.getElementById('transcript').parentElement.style.display = 'none';
+
+  // Kategorisieren
+  const _LANG_SFX = /_(Deutsch|Englisch|Franz[eé]sisch|Spanisch|Russisch|Italienisch)\.txt$/i;
+  const _ORIG_SFX = /_orig\.(txt)$/i;
+  const txAll    = files.filter(f=>f.ext==='txt');
+  const txFiles  = txAll.filter(f=>!_LANG_SFX.test(f.name)&&!_ORIG_SFX.test(f.name));
+  const origFiles = txAll.filter(f=>_ORIG_SFX.test(f.name));
+  const translFiles = txAll.filter(f=>_LANG_SFX.test(f.name));
+  const srtFiles = files.filter(f=>f.ext==='srt');
+  const vttFiles = files.filter(f=>f.ext==='vtt');
+  const tocFiles   = files.filter(f=>f.ext==='md'&&/_toc/i.test(f.name));
+  const sumFiles   = files.filter(f=>f.ext==='md'&&/_summary_/i.test(f.name));
+  const indexFiles = files.filter(f=>f.ext==='md'&&/_index\.md$/i.test(f.name));
+  const otherMd    = files.filter(f=>f.ext==='md'&&!/_toc/i.test(f.name)&&!/_summary_/i.test(f.name)&&!/_index\.md$/i.test(f.name));
+
+  // TOC-Inhalt vorladen (wird in Summary-Tabs als Sidebar gezeigt)
+  if(tocFiles.length){
+    try{
+      const r=await fetch(_B+'/file?path='+encodeURIComponent(tocFiles[0].path));
+      if(r.ok) _tocContent=await r.text();
+    }catch(e){}
+  }
+
+  // "Dateien"-Tab (Übersicht + Kopieren + Obsidian)
+  const dtid='fv__dateien';
+  const dtabs=document.getElementById('fv-tabs');
+  const dwrap=document.getElementById('fv-body-wrap');
+  const dbtn=document.createElement('button');dbtn.className='fv-tab';
+  dbtn.textContent='Dateien';dbtn.dataset.tid=dtid;
+  dbtn.onclick=()=>_fvShowId(dtid);
+  dtabs.appendChild(dbtn);
+  const dpane=document.createElement('div');dpane.className='fv-pane';
+  const ul=document.createElement('ul');ul.className='file-list';
+  files.forEach(f=>{
+    const li=document.createElement('li');li.className='file-item';
+    const nm=document.createElement('span');nm.className='fname';nm.textContent=f.name;nm.title=f.path;
+    if(_VIEWABLE.includes(f.ext)||_IMG_EXTS.includes(f.ext)){
+      nm.style.cursor='pointer';
+      nm.onclick=()=>{const tid=_fvTid(f.name);_fvShowId(tid);_fvLoadContent(tid);};
+    }
+    li.appendChild(nm);
+    const cp=document.createElement('button');cp.className='fcopy-btn';cp.textContent='⎘ Pfad';
+    cp.onclick=()=>{
+      navigator.clipboard.writeText(f.path)
+        .then(()=>{cp.textContent='✓';setTimeout(()=>{cp.textContent='⎘ Pfad';},1200);})
+        .catch(()=>{});
+    };
+    li.appendChild(cp);
+    if(['md','txt'].includes(f.ext)){
+      const oa=document.createElement('a');
+      oa.href='obsidian://open?path='+encodeURIComponent(f.path);
+      oa.className='obs-btn';oa.textContent='Obsidian';
+      li.appendChild(oa);
+    }
+    ul.appendChild(li);
+  });
+  dpane.appendChild(ul);dwrap.appendChild(dpane);
+  _fvPanes[dtid]={ext:null,path:null,btn:dbtn,pane:dpane,content:true};
+
+  // Datei-Tabs: Transkript → Original → Übersetzungen → SRT → VTT → Zusammenfassungen → andere MD
+  let firstTid=null;
+  if(txFiles.length){
+    const tid=_fvAddTab('Transkript',_fvTid(txFiles[0].name),txFiles[0].path,'txt');
+    if(!firstTid)firstTid=tid;
+  }
+  origFiles.forEach(f=>{
+    const tid=_fvAddTab('Original',_fvTid(f.name),f.path,'txt');
+    if(!firstTid)firstTid=tid;
+  });
+  translFiles.forEach(f=>{
+    const m=f.name.match(_LANG_SFX);
+    const lbl=m?m[1]:'Übersetzung';
+    const tid=_fvAddTab(lbl,_fvTid(f.name),f.path,'txt');
+    if(!firstTid)firstTid=tid;
+  });
+  srtFiles.forEach(f=>{const tid=_fvAddTab('SRT',_fvTid(f.name),f.path,'srt');if(!firstTid)firstTid=tid;});
+  vttFiles.forEach(f=>{const tid=_fvAddTab('VTT',_fvTid(f.name),f.path,'vtt');if(!firstTid)firstTid=tid;});
+  sumFiles.forEach(f=>{
+    const m=f.name.match(/_summary_(L\d+)_([^._]+)/i);
+    const lbl=m?m[1]+' '+m[2]:f.name.replace(/^.*_summary_/,'').replace('.md','');
+    const tid=_fvAddTab(lbl,_fvTid(f.name),f.path,'md');
+    if(!firstTid)firstTid=tid;
+  });
+  otherMd.forEach(f=>{const tid=_fvAddTab(f.name.replace('.md',''),_fvTid(f.name),f.path,'md');if(!firstTid)firstTid=tid;});
+  indexFiles.forEach(f=>{const tid=_fvAddTab('Übersicht',_fvTid(f.name),f.path,'md');if(!firstTid)firstTid=tid;});
+  files.filter(f=>_IMG_EXTS.includes(f.ext)).forEach(f=>{
+    const tid=_fvAddTab(f.name,_fvTid(f.name),f.path,f.ext);if(!firstTid)firstTid=tid;
+  });
+
+  document.getElementById('file-tabs-area').classList.remove('hidden');
+  if(firstTid){_fvShowId(firstTid);_fvLoadContent(firstTid);}
+  else _fvShowId(dtid);
+}
+
+/* ── Ausgabe Modal ──────────────────────────────────────────────────────────── */
+let _amJobId=null, _amJobFiles=[];
+
+/* ── Ausgabe-Verwaltung (alle Dirs) ─────────────────────────────────────── */
+async function openAusgabe(){
+  _amJobId=jobId||null;
+  document.getElementById('am-job-label').textContent=_amJobId?'Job: '+_amJobId:'';
+  document.getElementById('am-zip-status').textContent='';
+  document.getElementById('ausgabeOv').classList.remove('hidden');
+}
+function closeAusgabe(){document.getElementById('ausgabeOv').classList.add('hidden');}
+function amZipDownload(){
+  if(!_amJobId)return;
+  const st=document.getElementById('am-zip-status');
+  st.className='nc-send-status';st.textContent='ZIP wird erstellt …';
+  const a=document.createElement('a');
+  a.href=_B+'/zip/'+_amJobId;
+  a.download=''; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>{st.textContent='';},3000);
+}
+
+/* ── Form ───────────────────────────────────────────────────────────────── */
+function collectForm(){
+  const src_type_raw=document.querySelector('input[name=src_type]:checked').value;
+  const fileId=src_type_raw==='upload'?(document.getElementById('tlf-file-id').value.trim()):'';
+  return{
+    source_type:    src_type_raw==='upload'?'local':src_type_raw,
+    file_id:        fileId,
+    url:            document.getElementById('url').value.trim(),
+    local_path:     fileId?'':(document.getElementById('local-path').value.trim()),
+    batch_text:     document.getElementById('batch-text').value,
+    language:       document.getElementById('language').value,
+    task:           document.querySelector('input[name=task]:checked').value,
+    model:          document.getElementById('model').value,
+    accent:         document.querySelector('input[name=accent]:checked').value,
+    formats:        [...document.querySelectorAll('input[name=fmt]:checked')].map(i=>i.value),
+    keep_source:    document.getElementById('keep-src').value,
+    trim_start:     document.getElementById('trim-start').value.trim(),
+    trim_end:       document.getElementById('trim-end').value.trim(),
+    base_dir:       document.getElementById('base-dir').value.trim(),
+    trans_tgt:      document.getElementById('trans-tgt').value,
+    do_toc:         document.getElementById('do-toc').checked,
+    toc_lang:       document.getElementById('toc-lang').value,
+    toc_also_lang:  document.getElementById('toc-also').value,
+    summary_levels: [...document.querySelectorAll('#sum-lvls input:checked')].map(i=>i.value),
+    focus_kw:       document.getElementById('focus-kw').value.trim(),
+    summary_lang:   document.getElementById('sum-lang').value,
+  };
+}
+function validateForm(){
+  const errs=[];
+  const st=document.querySelector('input[name=src_type]:checked').value;
+  if(st==='url'){
+    const u=document.getElementById('url').value.trim();
+    if(!u) errs.push('URL fehlt.');
+    else if(!/^https?:\/\//.test(u)) errs.push('URL muss mit http(s):// beginnen.');
+  } else if(st==='upload'){
+    const hasLocal=document.getElementById('local-path').value.trim();
+    const hasFileId=document.getElementById('tlf-file-id').value.trim();
+    if(!hasLocal&&!hasFileId) errs.push('Datei hochladen oder aus der Liste wählen.');
+  } else if(st==='local'){
+    if(!document.getElementById('local-path').value.trim()) errs.push('Dateipfad fehlt.');
+  } else if(st==='batch'){
+    const bsrc=document.querySelector('input[name=batch_src]:checked')?.value||'text';
+    if(bsrc==='file'&&!document.getElementById('batch-text').value.trim()) errs.push('Batch: Datei wählen und warten bis sie geladen ist.');
+    else if(bsrc==='text'&&!document.getElementById('batch-text').value.trim()) errs.push('Batch-Eingabe fehlt.');
+  }
+  for(const [id,label] of [['trim-start','Von'],['trim-end','Bis']]){
+    const v=document.getElementById(id).value.trim();
+    if(v&&!/^\d+(:\d{2}){1,2}$/.test(v)) errs.push(`Ungültiger ${label}-Zeitcode: ${v}`);
+  }
+  return errs;
+}
+function showErr(msg){
+  const el=document.getElementById('err-box');
+  el.textContent=msg; el.classList.toggle('hidden',!msg);
+}
+
+/* ── Help ───────────────────────────────────────────────────────────────── */
+const HELP=[
+  {id:'quelle',icon:'📥',title:'Quelle',sub:'URL, lokale Datei, Batch-Modus',html:`
+<div class="h2">URL</div>
+<div class="hp">YouTube, Vimeo und die meisten Videoplattformen — yt-dlp erkennt die Quelle automatisch. Playlist-URLs funktionieren als Einzel-Download (erstes Video); für mehrere Videos → Batch. Die URL wird intern bereinigt (überflüssige Query-Parameter entfernt).</div>
+<div class="h2">Lokale Datei</div>
+<div class="hp">Absoluter Pfad zu einer Video- oder Audiodatei. ffmpeg extrahiert das Audio intern, das Original bleibt unberührt. Unterstützt: mp4, mkv, webm, mp3, m4a, opus, wav u.a.</div>
+<div class="h2">Batch-Modus</div>
+<div class="hp">Eine URL oder ein Pfad pro Zeile. Zeilen mit <span class="hkbd">#</span> werden als Kommentar übersprungen. Das Whisper-Modell wird einmal geladen und für alle Einträge wiederverwendet — spart Zeit bei langen Listen.</div>
+<div class="hp">Ausgabe landet pro Eintrag in einem eigenen Unterordner des Zielverzeichnisses.</div>`},
+
+  {id:'modell',icon:'⚙',title:'Modell & Akzent',sub:'Modellgröße, Qualität, Akzent-Kompensation',html:`
+<div class="h2">Whisper-Modelle</div>
+<table class="htbl">
+  <tr><th>Modell</th><th>RAM</th><th>Geschwindigkeit</th><th>Qualität</th></tr>
+  <tr><td>tiny</td><td>~1 GB</td><td>sehr schnell</td><td>Basis</td></tr>
+  <tr><td>base</td><td>~1 GB</td><td>schnell</td><td>gut</td></tr>
+  <tr><td>small</td><td>~2 GB</td><td>mittel</td><td>sehr gut</td></tr>
+  <tr><td>medium</td><td>~5 GB</td><td>langsamer</td><td>hoch</td></tr>
+  <tr><td>large-v3</td><td>~10 GB</td><td>langsam</td><td>beste</td></tr>
+</table>
+<div class="hp">Das System erkennt den verfügbaren RAM und empfiehlt ein Modell. Die Empfehlung wird automatisch vorgewählt.</div>
+<div class="h2">Akzent-Kompensation</div>
+<div class="hp">Erhöht bei starken Akzenten die Erkennungsgenauigkeit — auf Kosten von Geschwindigkeit.</div>
+<table class="htbl">
+  <tr><th>Modus</th><th>beam_size</th><th>temperature</th><th>Modell-Anhebung</th></tr>
+  <tr><td>Standard</td><td>5</td><td>–</td><td>nein</td></tr>
+  <tr><td>Mittel</td><td>7</td><td>–</td><td>nein</td></tr>
+  <tr><td>Stark</td><td>10</td><td>0</td><td>+1 Stufe</td></tr>
+  <tr><td>Sehr stark</td><td>15</td><td>0</td><td>+2 Stufen</td></tr>
+</table>
+<div class="hp">Bei „Stark" und „Sehr stark" wird das Modell intern automatisch um 1–2 Stufen angehoben (z.B. medium → large-v3). Das gewählte Modell bleibt trotzdem als Ausgangspunkt sichtbar.</div>`},
+
+  {id:'ausgabe',icon:'📄',title:'Ausgabe & Trim',sub:'Formate, Beschnitt, Zielordner, Quelldatei',html:`
+<div class="h2">Formate</div>
+<table class="htbl">
+  <tr><th>Format</th><th>Inhalt</th></tr>
+  <tr><td>.txt</td><td>Fließtext, ein Segment pro Zeile. Wird immer erzeugt (Live-Transkript).</td></tr>
+  <tr><td>.srt</td><td>Untertitel mit Timestamps — für Video-Player und TOC-Generierung bevorzugt.</td></tr>
+  <tr><td>.vtt</td><td>WebVTT — für Browser-Video-Elemente.</td></tr>
+</table>
+<div class="h2">Beschnitt (Von / Bis)</div>
+<div class="hp">Format: <span class="hkbd">MM:SS</span> oder <span class="hkbd">HH:MM:SS</span> oder reine Sekunden. Beide Felder optional — leer = Anfang bzw. Ende. Trim läuft via ffmpeg auf dem extrahierten Audio, die Quelldatei bleibt unverändert.</div>
+<div class="h2">Zielverzeichnis</div>
+<div class="hp">Leer = aktuelles Arbeitsverzeichnis. Pro Transkription wird ein Unterordner angelegt: <span class="hkbd">{slug-titel}-{video-id}/</span>. Darin liegen alle Ausgabedateien und eine <span class="hkbd">*_index.md</span> als Übersicht.</div>
+<div class="h2">Quelldatei behalten</div>
+<div class="hp">Standardmäßig wird nur das temporäre Audio nach der Transkription gelöscht. Mit dieser Option wird eine Kopie im Ausgabeordner gespeichert: als opus (kleiner), 480p-Video oder im Originalformat.</div>`},
+
+  {id:'uebersetzung',icon:'🌐',title:'Übersetzung',sub:'Whisper translate, Helsinki-NLP offline',html:`
+<div class="h2">Whisper → Englisch</div>
+<div class="hp">Aufgabe „→ Englisch" nutzt Whispers eingebaute Übersetzung: Audio direkt zu englischem Text, ohne Zwischenschritt. Schnell, gut für einfache Inhalte. Erzeugt sowohl das Original-Transkript (<span class="hkbd">*_orig.*</span>) als auch die englische Version.</div>
+<div class="h2">Helsinki-NLP (nachgelagert, offline)</div>
+<div class="hp">MarianMT-Modelle von Helsinki-NLP übersetzen das fertige <span class="hkbd">.txt</span>-Transkript. Läuft vollständig lokal — kein API-Call. Modelle werden beim ersten Einsatz automatisch heruntergeladen und in <span class="hkbd">trscrplate_mls/helsinki/</span> gecacht.</div>
+<div class="hp">Verfügbare Sprachpaare (Auszug): de↔en, de→fr/es/ru, en→de/fr/es/ru/zh, fr↔en/de u.a. Hinweis: Helsinki-Qualität ist für allgemeine Texte gut, für Fachvokabular begrenzt.</div>`},
+
+  {id:'api',icon:'✨',title:'TOC & Zusammenfassung',sub:'Anthropic API, Stufen, kombinierter Call',html:`
+<div class="h2">Voraussetzung</div>
+<div class="hp">Umgebungsvariable <span class="hkbd">ANTHROPIC_API_KEY</span> muss gesetzt sein. Ohne Key sind TOC und Zusammenfassung deaktiviert.</div>
+<div class="h2">TOC — Inhaltsverzeichnis</div>
+<div class="hp">Generiert 8–12 Kapitel mit Timestamps aus der SRT-Datei (bevorzugt) oder dem TXT-Transkript. Ausgabe als <span class="hkbd">*_toc_{lang}.md</span>. Sprache wählbar — Standard: erkannte Videosprache.</div>
+<div class="h2">Zusammenfassung — 6 Stufen</div>
+<table class="htbl">
+  <tr><th>Stufe</th><th>Inhalt</th></tr>
+  <tr><td>1 sehr knapp</td><td>Kernthema, 1–2 Sätze</td></tr>
+  <tr><td>2 knapp</td><td>Hauptinhalt, 1 Absatz</td></tr>
+  <tr><td>3 kurz</td><td>Absatz + Stichpunkte</td></tr>
+  <tr><td>4 normal</td><td>Ausführliche Stichpunkte + Details</td></tr>
+  <tr><td>5 tief</td><td>+ offene Punkte, Kontext, Querbezüge</td></tr>
+  <tr><td>6 Schwerpunkte</td><td>Gezielter Abschnitt zu eingegebenen Stichworten</td></tr>
+  <tr><td>7 Tiefenanalyse</td><td>Vollständige Analyse (~2 Seiten): Thematische Abschnitte, alle Argumente/Zahlen/Namen, Anm. bei inhaltlich begründeten Querbezügen. Verwendet Claude Sonnet statt Haiku.</td></tr>
+</table>
+<div class="hp">Mehrere Stufen kombinieren: alle gewählten Stufen einer Sprache landen in einem einzigen API-Call. TOC + Zusammenfassung in derselben Sprache → ebenfalls ein Call (Token-Ersparnis).</div>`},
+
+  {id:'bedienung',icon:'🖥',title:'Bedienung',sub:'Log, Transkript, Dateien, Theme, Reload',html:`
+<div class="h2">Log</div>
+<div class="hp">Zeigt die Ausgabe des Skripts in Echtzeit via Server-Sent Events. ANSI-Codes werden serverseitig entfernt. Download-Fortschrittsbalken (yt-dlp) überschreiben korrekt die letzte Zeile — kein Zeilenregen. Höhe per Drag-Griff unten rechts anpassbar.</div>
+<div class="h2">Transkript (live)</div>
+<div class="hp">Fließender Text — Whisper-Segmente werden gepollt (alle 700 ms), Zeilenumbrüche zwischen Segmenten werden optisch zusammengeführt. Voller Text ist selektierbar und kopierbar.</div>
+<div class="h2">Ausgabe-Dateien</div>
+<div class="hp">Nach Abschluss erscheint die Dateiliste. „öffnen" → <span class="hkbd">file://</span>-Link. „Obsidian" → öffnet direkt im Vault <em>tec_lo</em> (nur .txt/.md).</div>
+<div class="h2">Theme & Farben</div>
+<div class="hp">4 Presets (Dunkel / Warm / Grau / Hell) + zwei Color-Picker für Hintergrund und Akzent. Alle Änderungen werden in <span class="hkbd">localStorage</span> gespeichert und beim nächsten Start wiederhergestellt.</div>
+<div class="h2">F5 / Reload</div>
+<div class="hp">Bei laufendem Job fragt der Browser nach. Nach einem Reload wird der Job automatisch erkannt und das Transkript-Polling fortgesetzt — der Log-Inhalt geht verloren, die Ausgabedateien nicht.</div>
+<div class="h2">Nachbearbeitung</div>
+<div class="hp">Standalone-Zugänge zu Übersetzen (Helsinki-NLP, offline), TOC und Zusammenfassung (API) für bereits vorhandene Transkript-Dateien. Übersetzen erwartet eine .txt-Datei; TOC und Zusammenfassung einen Ordner mit .srt oder .txt. Das Ergebnis landet im gleichen Ordner.</div>`},
+];
+
+function openHelp()  { showHelpOv(); document.getElementById('helpOv').classList.remove('hidden'); }
+function closeHelp() { document.getElementById('helpOv').classList.add('hidden'); }
+
+function showHelpOv() {
+  document.getElementById('helpTitle').textContent='Hilfe';
+  document.getElementById('helpBack').classList.add('hidden');
+  const grid=document.getElementById('helpChGrid');
+  grid.innerHTML=HELP.map(ch=>
+    `<div class="ch-grid" style="grid-template-columns:1fr 1fr"><div class="ch-card" onclick="showHelpCh('${ch.id}')">
+      <div class="ch-icon">${ch.icon}</div>
+      <div class="ch-title">${ch.title}</div>
+      <div class="ch-sub">${ch.sub}</div>
+    </div></div>`
+  ).join('').replace(/<div class="ch-grid"[^>]*>/g,'').replace(/<\/div><\/div>/g,'</div>');
+  // simpler: just render flat, the grid CSS handles columns
+  grid.innerHTML=`<div class="ch-grid">${HELP.map(ch=>
+    `<div class="ch-card" onclick="showHelpCh('${ch.id}')">
+      <div class="ch-icon">${ch.icon}</div>
+      <div class="ch-title">${ch.title}</div>
+      <div class="ch-sub">${ch.sub}</div>
+    </div>`
+  ).join('')}</div>`;
+  grid.classList.remove('hidden');
+  document.getElementById('helpDetail').classList.add('hidden');
+}
+
+function showHelpCh(id) {
+  const ch=HELP.find(c=>c.id===id); if(!ch) return;
+  document.getElementById('helpTitle').textContent=ch.icon+' '+ch.title;
+  document.getElementById('helpBack').classList.remove('hidden');
+  const det=document.getElementById('helpDetail');
+  det.innerHTML=ch.html; det.scrollTop=0;
+  det.classList.remove('hidden');
+  document.getElementById('helpChGrid').classList.add('hidden');
+}
+
+/* ── Lizenz ─────────────────────────────────────────────────────────────── */
+function openPL()  { document.getElementById('plOv').classList.remove('hidden'); }
+function closePL() { document.getElementById('plOv').classList.add('hidden'); }
+
+/* ── Nachbearbeitung ────────────────────────────────────────────────────── */
+function togglePhOps() {
+  const sel=[...document.querySelectorAll('#ph-types input:checked')].map(i=>i.value);
+  document.getElementById('ph-tr-opts').classList.toggle('hidden', !sel.includes('translate'));
+  const hasApi=sel.includes('toc')||sel.includes('summary');
+  document.getElementById('ph-api-opts').classList.toggle('hidden', !hasApi);
+  document.getElementById('ph-sum-opts').classList.toggle('hidden', !sel.includes('summary'));
+}
+function togglePhFocusKw() {
+  const on=document.querySelector('#ph-sum-lvls input[value="6"]').checked;
+  document.getElementById('ph-focus-wrap').classList.toggle('hidden',!on);
+}
+
+function startPosthoc() {
+  const types=[...document.querySelectorAll('#ph-types input:checked')].map(i=>i.value);
+  if(!types.length){showErr('Keine Aufgabe gewählt.');return;}
+  const phSrcType=document.querySelector('input[name=ph_src_type]:checked').value;
+  const data={
+    ph_types: types,
+    ph_src:  document.getElementById('ph-src').value,
+    ph_tgt:  document.getElementById('ph-tgt').value,
+    ph_lang: document.getElementById('ph-lang').value,
+    ph_sum_levels: [...document.querySelectorAll('#ph-sum-lvls input:checked')].map(i=>i.value),
+    ph_focus_kw: document.getElementById('ph-focus').value.trim(),
+  };
+  if(phSrcType==='tul'){
+    const sel=document.querySelector('input[name=ph_tul_file]:checked');
+    if(!sel){showErr('Keine tul-Datei gewählt.');return;}
+    data.file_id=sel.value;
+  } else {
+    const fid=(document.getElementById('ph-upload-file')||{}).dataset?.fileId||'';
+    if(!fid){showErr('Datei hochladen.');return;}
+    data.file_id=fid;
+  }
+  showErr('');
+  logBuf=''; lastTxLen=0;
+  document.getElementById('log').value='';
+  document.getElementById('transcript').textContent='';
+  clearFvTabs();
+  setBusy(true);
+  fetch(_B+'/posthoc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.error){showErr(d.error.join('\n'));setBusy(false);return;}
+    jobId=d.job_id;
+    sessionStorage.setItem('wt-job',JSON.stringify({id:jobId}));
+    openStream(jobId);
+  })
+  .catch(e=>{showErr('Verbindungsfehler: '+e.message);setBusy(false);});
+}
+
+
+/* ── Escape schließt offene Modals ──────────────────────────────────────── */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  if(!document.getElementById('helpOv').classList.contains('hidden')){closeHelp();return;}
+  if(!document.getElementById('plOv').classList.contains('hidden')){closePL();return;}
+});
+</script>
+<script src="/static/tul-theme.js"></script>
+<script>
+window.TUL_HELP = {
+  title: 'trskr – Transkription',
+  sections: [
+    {
+      heading: 'Eingabe',
+      steps: [
+        'Datei per Drag & Drop ins Feld ziehen <em>oder</em> URL in das URL-Feld einfügen.',
+        'Format: mp3, mp4, m4a, wav, mkv, webm u.a. – alles was ffmpeg lesen kann.',
+        'Batch: mehrere URLs zeilenweise einfügen oder eine .txt-Datei mit URLs droppen.',
+      ]
+    },
+    {
+      heading: 'Modell wählen',
+      items: [
+        '<strong>tiny</strong> – sehr schnell, für kurze Clips oder Entwürfe',
+        '<strong>base / small</strong> – gutes Verhältnis Geschwindigkeit/Qualität',
+        '<strong>medium</strong> – empfohlen für Deutsch, Interviews',
+        '<strong>large-v3</strong> – beste Qualität, langsamer, mehr RAM',
+      ]
+    },
+    {
+      heading: 'Transkription starten',
+      steps: [
+        'Sprache auswählen (Auto-Detect funktioniert meistens, Deutsch explizit = sicherer).',
+        '„Transkribieren" klicken – Fortschritt erscheint als Statuszeile.',
+        'Abbruch jederzeit über den Stop-Button möglich.',
+      ]
+    },
+    {
+      heading: 'Ausgabe & Export',
+      items: [
+        '<strong>Text-Tab</strong> – reiner Fließtext, kopierbar',
+        '<strong>SRT-Tab</strong> – Untertitel mit Zeitstempeln',
+        'Download als .txt oder .srt über die Download-Buttons.',
+        'NC-Transfer: Ergebnis direkt in Nextcloud-Share übertragen.',
+      ]
+    },
+    {
+      heading: 'Datei-Verwaltung (DV)',
+      items: [
+        '<strong>DV</strong>-Button (Kopfzeile) öffnet das Datei-Verwaltungs-Modal.',
+        'Tab "Eigene": gespeicherte Eingabe- und Ausgabe-Dateien verwalten.',
+        'Tab "NC": Ausgabe direkt in Nextcloud hochladen.',
+        'mkan-Karten-Tabs: Audio-/Video-Dateien aus freigegebenen mkan-Karten als Eingabe.',
+        'Hover über Dateiname: Vorschau-Popup (Text-Auszug oder PDF-Thumbnail).',
+      ]
+    },
+    {
+      heading: 'Hinweise',
+      warn: '⚠ Lange Dateien (>60 Min.) dauern entsprechend – Seite offen lassen oder NC-Transfer nutzen, der läuft im Hintergrund weiter.'
+    },
+  ]
+};
+
+  window.TUL_PL = openPL;
+  tulTheme.init({
+    subpath: _B,
+    preset:  tulTheme.PRESETS.trskr,
+  });
+</script>
+<script src="/static/tul-files.js"></script>
+<script>
+tulFiles.init({ subpath: _B, tool: 'trskr', ncEnabled: true, onChange: () => {
+  loadInputFiles();
+  loadPhTulFiles();
+  loadBatchFiles();
+}});
+loadInputFiles();
+loadBatchFiles();
+</script>
+</body>
+</html>

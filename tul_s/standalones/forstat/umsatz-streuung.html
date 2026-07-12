@@ -1,0 +1,538 @@
+<title>Umsatz-Streuung über die Jahre</title>
+<style>
+  .viz-root {
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --alt-a:          #eb6834;
+    --alt-a-wash:     rgba(235,104,52,0.18);
+    --alt-b:          #4a3aa7;
+    --alt-b-wash:     rgba(74,58,167,0.18);
+    --zone-low:       #eda100;
+    --zone-median:    #008300;
+    --zone-high:      #2a78d6;
+    --curve-stroke:   #52514e;
+  }
+  @media (prefers-color-scheme: dark) {
+    .viz-root {
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --alt-a:          #d95926;
+      --alt-a-wash:     rgba(217,89,38,0.22);
+      --alt-b:          #9085e9;
+      --alt-b-wash:     rgba(144,133,233,0.22);
+      --zone-low:       #c98500;
+      --zone-median:    #008300;
+      --zone-high:      #3987e5;
+      --curve-stroke:   #c3c2b7;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .viz-root { max-width: 1100px; margin: 0 auto; padding: 24px 20px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.lead { color: var(--text-secondary); margin: 0 0 20px; font-size: 14px; line-height: 1.5; }
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 4px; }
+  .card .hint { color: var(--text-muted); font-size: 12.5px; margin: 0 0 14px; }
+  .dropzone {
+    border: 1.5px dashed var(--baseline);
+    border-radius: 10px;
+    padding: 28px 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    cursor: pointer;
+  }
+  .dropzone.drag { border-color: var(--alt-b); color: var(--alt-b); }
+  .dropzone input { display: none; }
+  #status { font-size: 13px; margin-top: 10px; color: var(--text-secondary); }
+  #status.err { color: #d03b3b; }
+  .scroll-x { overflow-x: auto; }
+  svg { display: block; }
+  svg text { font-family: inherit; }
+  .axis-label { fill: var(--text-muted); font-size: 11px; }
+  .facet-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
+  .grid-line { stroke: var(--grid); stroke-width: 1; }
+  .baseline { stroke: var(--baseline); stroke-width: 1; }
+  .box-fill { fill: var(--box-wash); stroke: var(--box-color); stroke-width: 2; }
+  .whisker { stroke: var(--box-color); stroke-width: 2; }
+  .median-line { stroke: var(--box-color); stroke-width: 2; }
+  .cap { stroke: var(--box-color); stroke-width: 2; }
+  .outlier { fill: var(--surface-1); stroke: var(--box-color); stroke-width: 2; }
+  .hit-rect { fill: transparent; cursor: pointer; }
+  .year-label { fill: var(--text-secondary); font-size: 12px; text-anchor: middle; }
+  .hist-bar.zone-low { fill: var(--zone-low); }
+  .hist-bar.zone-median { fill: var(--zone-median); }
+  .hist-bar.zone-high { fill: var(--zone-high); }
+  .bell-line { fill: none; stroke: var(--curve-stroke); stroke-width: 2; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--text-secondary); margin-top: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+  .swatch.line { width: 14px; height: 2px; border-radius: 0; background: var(--curve-stroke); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; min-width: 640px; }
+  th, td { padding: 6px 10px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; color: var(--text-secondary); }
+  thead th { color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--grid); }
+  tbody tr:nth-child(odd) { background: color-mix(in srgb, var(--grid) 35%, transparent); }
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10;
+    background: var(--text-primary); color: var(--surface-1);
+    font-size: 12px; line-height: 1.5; padding: 8px 10px;
+    border-radius: 6px; opacity: 0; transition: opacity .1s;
+    white-space: nowrap;
+  }
+</style>
+
+<div class="viz-root">
+  <h1>Umsatz-Streuung über die Jahre</h1>
+  <p class="lead">CSV wird nur lokal im Browser gelesen, nichts wird hochgeladen. Die Header-Zeile wird automatisch gesucht (erste der ersten 15 Zeilen mit den meisten Spaltenköpfen, die mit "FR" beginnen). Datenspalten sind alle Spalten mit "FR"-Kopf (Rest beliebig), Werte darunter, Spalten bleiben in CSV-Reihenfolge. Leerzellen und nicht-numerische Werte (z. B. "x") werden ignoriert, mehrere Werteblöcke je Spalte werden zusammengefasst.</p>
+
+  <div class="card">
+    <div class="dropzone" id="dropzone">
+      CSV-Datei hierher ziehen oder klicken zum Auswählen
+      <input type="file" id="fileInput" accept=".csv,text/csv">
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" id="overviewCard" style="display:none">
+    <h2>Boxplot je Jahr</h2>
+    <p class="hint">Box = mittlere 50 % (Q1–Q3), Strich = Median, Linien = Whisker bis zum letzten Wert innerhalb 1,5×IQR, Punkte = Ausreißer. Farben wechseln pro Jahr nur zur besseren Abgrenzung, ohne inhaltliche Bedeutung.</p>
+    <div><svg id="boxplot"></svg></div>
+  </div>
+
+  <div class="card" id="tableCard" style="display:none">
+    <h2>Kennzahlen je Jahr</h2>
+    <div class="scroll-x"><table id="statsTable"></table></div>
+  </div>
+
+  <div class="card" id="detailCard" style="display:none">
+    <h2>Verteilung im Detail</h2>
+    <p class="hint">Alle Jahre gestapelt auf gemeinsamer, kalibrierter Werteachse, in 300-€-Sektionen. Je Jahr eingefärbt relativ zum eigenen Median: die Sektion mit dem Median grün, darunter gelb, darüber blau.</p>
+    <div><svg id="histogram"></svg></div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--zone-low)"></span>Unterhalb Median</span>
+      <span><span class="swatch" style="background:var(--zone-median)"></span>Median-Sektion</span>
+      <span><span class="swatch" style="background:var(--zone-high)"></span>Oberhalb Median</span>
+      <span><span class="swatch line"></span>Normalverteilung (Modell)</span>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+const SVGNS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, parent = null) => {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) if (attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+
+function parseCSV(text) {
+  const sample = text.split(/\r\n|\n/).slice(0, 5).join('\n');
+  const semi = (sample.match(/;/g) || []).length;
+  const comma = (sample.match(/,/g) || []).length;
+  const delim = semi >= comma ? ';' : ',';
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === delim) { row.push(field); field = ''; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (c === '\r') { /* skip */ }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function parseGermanNumber(raw) {
+  if (raw == null) return null;
+  const m = String(raw).trim().match(/-?[\d.,]+/);
+  if (!m) return null;
+  let num = m[0];
+  const hasComma = num.includes(','), hasDot = num.includes('.');
+  if (hasComma && hasDot) num = num.replace(/\./g, '').replace(',', '.');
+  else if (hasComma) num = num.replace(',', '.');
+  else if (hasDot && /^\d{1,3}(\.\d{3})+$/.test(num)) num = num.replace(/\./g, '');
+  const val = parseFloat(num);
+  return Number.isFinite(val) ? val : null;
+}
+
+function quantile(sorted, p) {
+  const n = sorted.length;
+  const idx = p * (n - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+function mode(arr) {
+  const freq = new Map();
+  arr.forEach(v => freq.set(v, (freq.get(v) || 0) + 1));
+  let max = 1, val = null;
+  freq.forEach((c, v) => { if (c > max || (c === max && (val === null || v < val))) { max = c; val = v; } });
+  return val;
+}
+
+function skewness(arr, mean, sd) {
+  const n = arr.length;
+  if (n < 3 || sd === 0) return null;
+  const s = arr.reduce((a, x) => a + Math.pow((x - mean) / sd, 3), 0);
+  return (n / ((n - 1) * (n - 2))) * s;
+}
+
+function kurtosis(arr, mean, sd) {
+  const n = arr.length;
+  if (n < 4 || sd === 0) return null;
+  const s = arr.reduce((a, x) => a + Math.pow((x - mean) / sd, 4), 0);
+  const t1 = (n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3)) * s;
+  const t2 = (3 * Math.pow(n - 1, 2)) / ((n - 2) * (n - 3));
+  return t1 - t2;
+}
+
+function computeStats(label, values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const n = sorted.length;
+  const sum = sorted.reduce((a, b) => a + b, 0);
+  const mean = sum / n;
+  const variance = n > 1 ? sorted.reduce((a, x) => a + Math.pow(x - mean, 2), 0) / (n - 1) : 0;
+  const sd = Math.sqrt(variance);
+  const se = n > 0 ? sd / Math.sqrt(n) : 0;
+  const median = quantile(sorted, 0.5);
+  const q1 = quantile(sorted, 0.25);
+  const q3 = quantile(sorted, 0.75);
+  const iqr = q3 - q1;
+  const fenceLow = q1 - 1.5 * iqr;
+  const fenceHigh = q3 + 1.5 * iqr;
+  const inFence = sorted.filter(v => v >= fenceLow && v <= fenceHigh);
+  const whiskerLow = inFence.length ? inFence[0] : sorted[0];
+  const whiskerHigh = inFence.length ? inFence[inFence.length - 1] : sorted[n - 1];
+  const outliers = sorted.filter(v => v < fenceLow || v > fenceHigh);
+  return {
+    label, values: sorted, n, sum, mean, variance, sd, se,
+    median, mode: mode(sorted), q1, q3, iqr, range: sorted[n - 1] - sorted[0],
+    min: sorted[0], max: sorted[n - 1],
+    skew: skewness(sorted, mean, sd), kurt: kurtosis(sorted, mean, sd),
+    fenceLow, fenceHigh, whiskerLow, whiskerHigh, outliers
+  };
+}
+
+function niceNum(range, round) {
+  const exp = Math.floor(Math.log10(range));
+  const frac = range / Math.pow(10, exp);
+  let nf;
+  if (round) nf = frac < 1.5 ? 1 : frac < 3 ? 2 : frac < 7 ? 5 : 10;
+  else nf = frac <= 1 ? 1 : frac <= 2 ? 2 : frac <= 5 ? 5 : 10;
+  return nf * Math.pow(10, exp);
+}
+
+// Ticks that fall inside [min,max] without stretching the domain to match the outermost tick.
+function ticksInDomain(min, max, count = 6) {
+  const step = niceNum((max - min) / Math.max(count - 1, 1) || 1, true);
+  const ticks = [];
+  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) ticks.push(Math.round(v * 1000) / 1000);
+  if (!ticks.length) ticks.push(min);
+  return ticks;
+}
+
+const fmtMoney = v => v == null ? '–' : v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const fmtNum = (v, dec = 2) => v == null ? '–' : v.toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const fmtInt = v => v == null ? '–' : v.toLocaleString('de-DE');
+
+const tooltip = document.getElementById('tooltip');
+function showTooltip(html, x, y) {
+  tooltip.innerHTML = html;
+  tooltip.style.left = (x + 14) + 'px';
+  tooltip.style.top = (y + 14) + 'px';
+  tooltip.style.opacity = 1;
+}
+function hideTooltip() { tooltip.style.opacity = 0; }
+
+let allStats = [];
+const DETAIL_BIN_WIDTH = 300;
+
+function renderBoxplot(stats) {
+  const svg = document.getElementById('boxplot');
+  svg.innerHTML = '';
+  const margin = { top: 16, right: 20, bottom: 54, left: 64 };
+  const containerWidth = svg.parentElement.clientWidth || 800;
+  const plotWidth = Math.max(containerWidth - margin.left - margin.right, 200);
+  const bandWidth = plotWidth / stats.length;
+  const boxWidth = Math.min(34, Math.max(8, bandWidth * 0.55));
+  const rotateLabels = bandWidth < 42;
+  const plotHeight = 300;
+  const width = margin.left + margin.right + plotWidth;
+  const height = margin.top + margin.bottom + plotHeight;
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+  let yMin = Infinity, yMax = -Infinity;
+  stats.forEach(s => {
+    yMin = Math.min(yMin, s.min);
+    yMax = Math.max(yMax, s.max);
+  });
+  const pad = (yMax - yMin) * 0.04 || 1;
+  const domainMin = Math.max(0, yMin - pad);
+  const domainMax = yMax + pad;
+  const ticks = ticksInDomain(domainMin, domainMax, 6);
+
+  const yScale = v => margin.top + (1 - (v - domainMin) / (domainMax - domainMin)) * plotHeight;
+  const xScale = i => margin.left + i * bandWidth + bandWidth / 2;
+
+  ticks.forEach(t => {
+    const y = yScale(t);
+    el('line', { class: 'grid-line', x1: margin.left, x2: margin.left + plotWidth, y1: y, y2: y }, svg);
+    const label = el('text', { class: 'axis-label', x: margin.left - 10, y: y + 4, 'text-anchor': 'end' }, svg);
+    label.textContent = fmtInt(Math.round(t)) + ' €';
+  });
+  el('line', { class: 'baseline', x1: margin.left, x2: margin.left, y1: margin.top, y2: margin.top + plotHeight }, svg);
+
+  stats.forEach((s, i) => {
+    const cx = xScale(i);
+    const g = el('g', { style: i % 2 === 0 ? '--box-color:var(--alt-a);--box-wash:var(--alt-a-wash)' : '--box-color:var(--alt-b);--box-wash:var(--alt-b-wash)' }, svg);
+
+    el('line', { class: 'whisker', x1: cx, x2: cx, y1: yScale(s.whiskerLow), y2: yScale(s.q1) }, g);
+    el('line', { class: 'whisker', x1: cx, x2: cx, y1: yScale(s.q3), y2: yScale(s.whiskerHigh) }, g);
+    const capHalf = Math.min(10, boxWidth / 2);
+    el('line', { class: 'cap', x1: cx - capHalf, x2: cx + capHalf, y1: yScale(s.whiskerLow), y2: yScale(s.whiskerLow) }, g);
+    el('line', { class: 'cap', x1: cx - capHalf, x2: cx + capHalf, y1: yScale(s.whiskerHigh), y2: yScale(s.whiskerHigh) }, g);
+
+    el('rect', {
+      class: 'box-fill', x: cx - boxWidth / 2, y: yScale(s.q3),
+      width: boxWidth, height: Math.max(1, yScale(s.q1) - yScale(s.q3)), rx: 3
+    }, g);
+    el('line', { class: 'median-line', x1: cx - boxWidth / 2, x2: cx + boxWidth / 2, y1: yScale(s.median), y2: yScale(s.median) }, g);
+
+    const k = s.outliers.length;
+    const spread = Math.min(boxWidth * 1.4, bandWidth * 0.6);
+    s.outliers.forEach((v, oi) => {
+      const ox = k > 1 ? cx - spread / 2 + (spread / (k - 1)) * oi : cx;
+      const dot = el('circle', { class: 'outlier', cx: ox, cy: yScale(v), r: 4 }, g);
+      dot.addEventListener('mousemove', e => showTooltip(`${s.label}<br>${fmtMoney(v)}`, e.clientX, e.clientY));
+      dot.addEventListener('mouseleave', hideTooltip);
+    });
+
+    const labelY = margin.top + plotHeight + (rotateLabels ? 14 : 22);
+    const labelAttrs = { class: 'year-label', x: cx, y: labelY };
+    if (rotateLabels) {
+      labelAttrs['text-anchor'] = 'end';
+      labelAttrs.transform = `rotate(-40 ${cx} ${labelY})`;
+    }
+    const label = el('text', labelAttrs, svg);
+    label.textContent = s.label;
+
+    const hit = el('rect', {
+      class: 'hit-rect', x: cx - bandWidth / 2, y: margin.top,
+      width: bandWidth, height: plotHeight
+    }, g);
+    hit.addEventListener('mousemove', e => {
+      showTooltip(
+        `<strong>${s.label}</strong><br>Max ${fmtMoney(s.max)}<br>Q3 ${fmtMoney(s.q3)}<br>Median ${fmtMoney(s.median)}<br>Q1 ${fmtMoney(s.q1)}<br>Min ${fmtMoney(s.min)}<br>n = ${s.n}${k ? `<br>Ausreißer: ${k}` : ''}`,
+        e.clientX, e.clientY
+      );
+    });
+    hit.addEventListener('mouseleave', hideTooltip);
+  });
+}
+
+function renderTable(stats) {
+  const table = document.getElementById('statsTable');
+  const rows = [
+    ['Anzahl', s => fmtInt(s.n)],
+    ['Summe', s => fmtMoney(s.sum)],
+    ['Mittelwert', s => fmtMoney(s.mean)],
+    ['Standardfehler', s => fmtMoney(s.se)],
+    ['Modus', s => s.mode == null ? '–' : fmtMoney(s.mode)],
+    ['Median', s => fmtMoney(s.median)],
+    ['Erstes Quartil', s => fmtMoney(s.q1)],
+    ['Drittes Quartil', s => fmtMoney(s.q3)],
+    ['Varianz', s => fmtNum(s.variance, 0)],
+    ['Standardabweichung', s => fmtMoney(s.sd)],
+    ['Variationskoeffizient', s => s.mean ? fmtNum(100 * s.sd / s.mean, 1) + ' %' : '–'],
+    ['Schräge', s => s.skew == null ? '–' : fmtNum(s.skew)],
+    ['Wölbung', s => s.kurt == null ? '–' : fmtNum(s.kurt)],
+    ['Bereich', s => fmtMoney(s.range)],
+    ['Minimum', s => fmtMoney(s.min)],
+    ['Maximum', s => fmtMoney(s.max)],
+    ['Ausreißer (n)', s => fmtInt(s.outliers.length)]
+  ];
+  const thead = `<thead><tr><th></th>${stats.map(s => `<th>${s.label}</th>`).join('')}</tr></thead>`;
+  const tbody = `<tbody>${rows.map(([name, fn]) =>
+    `<tr><td>${name}</td>${stats.map(s => `<td>${fn(s)}</td>`).join('')}</tr>`
+  ).join('')}</tbody>`;
+  table.innerHTML = thead + tbody;
+}
+
+function renderAllDetail(stats) {
+  const svg = document.getElementById('histogram');
+  svg.innerHTML = '';
+  if (!stats.length) return;
+
+  let gMin = Infinity, gMax = -Infinity;
+  stats.forEach(s => { gMin = Math.min(gMin, s.min); gMax = Math.max(gMax, s.max); });
+  const domainMin = Math.floor(gMin / DETAIL_BIN_WIDTH) * DETAIL_BIN_WIDTH;
+  const domainMax = Math.ceil(gMax / DETAIL_BIN_WIDTH) * DETAIL_BIN_WIDTH;
+  const binCount = Math.max(1, Math.round((domainMax - domainMin) / DETAIL_BIN_WIDTH));
+
+  const margin = { top: 10, right: 20, bottom: 30, left: 56 };
+  const rowHeight = 96, rowGap = 6;
+  const containerWidth = svg.parentElement.clientWidth || 620;
+  const plotWidth = Math.max(containerWidth - margin.left - margin.right, 200);
+  const stackHeight = stats.length * rowHeight;
+  const width = margin.left + margin.right + plotWidth;
+  const height = margin.top + stackHeight + margin.bottom;
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+  const xScale = v => margin.left + ((v - domainMin) / (domainMax - domainMin || 1)) * plotWidth;
+  const bottomY = margin.top + stackHeight;
+
+  const xTicks = ticksInDomain(domainMin, domainMax, 6);
+  xTicks.forEach(t => {
+    const x = xScale(t);
+    el('line', { class: 'grid-line', x1: x, x2: x, y1: margin.top, y2: bottomY }, svg);
+  });
+
+  stats.forEach((s, rowIdx) => {
+    const rowTop = margin.top + rowIdx * rowHeight;
+    const plotH = rowHeight - rowGap - 14;
+    const baseY = rowTop + plotH;
+
+    const bins = new Array(binCount).fill(0);
+    s.values.forEach(v => {
+      let bi = Math.floor((v - domainMin) / DETAIL_BIN_WIDTH);
+      if (bi >= binCount) bi = binCount - 1;
+      if (bi < 0) bi = 0;
+      bins[bi]++;
+    });
+    const maxCount = Math.max(...bins, 1);
+    const yScale = c => baseY - (c / maxCount) * plotH;
+    const medianBin = Math.min(binCount - 1, Math.max(0, Math.floor((s.median - domainMin) / DETAIL_BIN_WIDTH)));
+
+    el('text', { class: 'facet-label', x: margin.left, y: rowTop - 1 }, svg).textContent = `${s.label} (n=${s.n})`;
+    el('line', { class: 'baseline', x1: margin.left, x2: margin.left + plotWidth, y1: baseY, y2: baseY }, svg);
+
+    bins.forEach((count, i) => {
+      const x0 = domainMin + i * DETAIL_BIN_WIDTH, x1 = x0 + DETAIL_BIN_WIDTH;
+      const barX = xScale(x0) + 1, barW = Math.max(0, xScale(x1) - xScale(x0) - 2);
+      const barY = yScale(count);
+      const zoneClass = i === medianBin ? 'zone-median' : (i < medianBin ? 'zone-low' : 'zone-high');
+      const bar = el('rect', {
+        class: `hist-bar ${zoneClass}`, x: barX, y: barY, width: barW, height: Math.max(0, baseY - barY), rx: 2
+      }, svg);
+      bar.addEventListener('mousemove', e => showTooltip(
+        `${s.label}<br>${fmtMoney(x0)} – ${fmtMoney(x1)}<br>${count} Wert${count === 1 ? '' : 'e'}`, e.clientX, e.clientY
+      ));
+      bar.addEventListener('mouseleave', hideTooltip);
+    });
+
+    const stepCount = 80;
+    let pts = [];
+    for (let i = 0; i <= stepCount; i++) {
+      const x = domainMin + (i / stepCount) * (domainMax - domainMin);
+      const density = s.sd > 0 ? (1 / (s.sd * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - s.mean) / s.sd, 2)) : 0;
+      const expected = density * s.n * DETAIL_BIN_WIDTH;
+      pts.push(`${xScale(x)},${yScale(expected)}`);
+    }
+    el('polyline', { class: 'bell-line', points: pts.join(' ') }, svg);
+  });
+
+  xTicks.forEach(t => {
+    const x = xScale(t);
+    const lab = el('text', { class: 'axis-label', x, y: bottomY + 18, 'text-anchor': 'middle' }, svg);
+    lab.textContent = fmtInt(Math.round(t));
+  });
+}
+
+function handleFile(file) {
+  const status = document.getElementById('status');
+  status.className = ''; status.textContent = 'Lese Datei…';
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const rows = parseCSV(reader.result);
+      if (!rows.length) throw new Error('Datei ist leer.');
+      let headerIdx = -1, bestCount = 0;
+      rows.slice(0, 15).forEach((r, i) => {
+        const count = r.filter(h => h && h.trim().startsWith('FR')).length;
+        if (count > bestCount) { bestCount = count; headerIdx = i; }
+      });
+      if (headerIdx === -1) throw new Error('Keine Zeile mit Spaltenkopf "FR…" gefunden (durchsucht die ersten 15 Zeilen).');
+      const header = rows[headerIdx];
+      const colIndices = [];
+      header.forEach((h, i) => { if (h && h.trim().startsWith('FR')) colIndices.push(i); });
+      const dataRows = rows.slice(headerIdx + 1);
+      allStats = colIndices.map(ci => {
+        const label = header[ci].trim();
+        const values = dataRows.map(r => parseGermanNumber(r[ci])).filter(v => v != null);
+        return computeStats(label, values);
+      }).filter(s => s.n > 0);
+
+      status.textContent = `${allStats.length} Spalte(n) erkannt: ${allStats.map(s => s.label + ' (n=' + s.n + ')').join(', ')}`;
+
+      document.getElementById('overviewCard').style.display = '';
+      document.getElementById('tableCard').style.display = '';
+      document.getElementById('detailCard').style.display = '';
+      renderBoxplot(allStats);
+      renderTable(allStats);
+      renderAllDetail(allStats);
+    } catch (err) {
+      status.className = 'err';
+      status.textContent = 'Fehler: ' + err.message;
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+['dragenter', 'dragover'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+dropzone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (!allStats.length) return;
+    renderBoxplot(allStats);
+    renderAllDetail(allStats);
+  }, 150);
+});
+</script>

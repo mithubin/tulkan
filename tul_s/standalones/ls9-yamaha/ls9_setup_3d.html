@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LS9-32 Setup – Interaktives Signal-Routing</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #13131f;
+  --surface: #1a1a2e;
+  --border:  #2a2a4a;
+  --text:    #dde;
+  --muted:   #778;
+  --green:   #6abf6a;
+  --blue:    #7c9cbf;
+  --orange:  #e0a060;
+  --purple:  #b07cc0;
+  --red:     #bf6a6a;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 16px 60px;
+}
+
+h1 { font-size: 20px; color: var(--blue); margin-bottom: 4px; }
+.subtitle { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+
+/* ── Legend ─────────────────────────────────────── */
+.legend {
+  display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+  margin-bottom: 18px; font-size: 12px; color: var(--muted);
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ── Hint ────────────────────────────────────────── */
+.hint {
+  font-size: 12px; color: var(--muted); margin-bottom: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 14px;
+}
+
+/* ── Visualization Container ─────────────────────── */
+#vis {
+  position: relative;
+  width: 860px;
+  max-width: 100%;
+  /* reserve enough height for the 3D planes plus perspective foreshortening */
+  height: 560px;
+}
+
+/* ── 3D Stage ────────────────────────────────────── */
+.stage {
+  position: absolute; inset: 0;
+  perspective: 1000px;
+  perspective-origin: 50% -15%;
+}
+.world {
+  position: absolute; inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(34deg);
+}
+
+/* ── Planes ──────────────────────────────────────── */
+.plane {
+  position: absolute;
+  left: 0; right: 0;
+  height: 108px;
+  border-radius: 10px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 14px;
+  transition: box-shadow .2s;
+}
+.plane-label {
+  position: absolute;
+  top: -20px; left: 14px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.plane-input    { top:   6px; background: #0e1810; border-color: #2a5a2a; }
+.plane-input    .plane-label { color: var(--green); }
+.plane-routing  { top: 216px; background: #0e1320; border-color: #2a4a6a; }
+.plane-routing  .plane-label { color: var(--blue); }
+.plane-output   { top: 426px; background: #1a1020; border-color: #4a2a6a; }
+.plane-output   .plane-label { color: var(--purple); }
+
+/* ── Nodes ───────────────────────────────────────── */
+.node {
+  width: 88px; height: 70px;
+  border-radius: 8px;
+  border: 1.5px solid;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: box-shadow .18s, opacity .18s, transform .12s;
+  position: relative;
+  user-select: none;
+}
+.node:hover { transform: scale(1.04); }
+.node-label { font-size: 12px; font-weight: 700; line-height: 1; }
+.node-sub   { font-size: 10px; color: var(--muted); line-height: 1; text-align: center; padding: 0 4px; }
+.node-icons { font-size: 10px; letter-spacing: 2px; }
+
+/* output nodes wider */
+.plane-output .node { width: 138px; height: 70px; }
+
+/* type colors */
+.node-mic     { background: #111e11; border-color: #3a6a3a; }
+.node-stereo  { background: #111520; border-color: #2a4a6a; }
+.node-komm    { background: #1e1508; border-color: #5a3a10; }
+.node-master  { background: #101e12; border-color: #3a7a3a; }
+.node-monitor { background: #101520; border-color: #2a4a7a; }
+
+/* dim state */
+.vis-dimmed .node:not(.node-lit) {
+  opacity: .12;
+  pointer-events: none;
+}
+.node-lit {
+  box-shadow: 0 0 14px 2px currentColor;
+}
+
+/* ── SVG overlay ─────────────────────────────────── */
+#linesSvg {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.route-line {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-opacity: .45;
+  transition: stroke-opacity .18s, stroke-width .18s;
+}
+.route-line.lit {
+  stroke-opacity: 1;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+.vis-dimmed .route-line:not(.lit) {
+  stroke-opacity: .04;
+}
+
+/* ── Modal ───────────────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.72);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: #1a1a2e;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px 28px;
+  max-width: 580px;
+  width: 94vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 48px rgba(0,0,0,.7);
+}
+.modal-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none;
+  color: var(--muted); font-size: 20px;
+  cursor: pointer; line-height: 1;
+  transition: color .15s;
+}
+.modal-close:hover { color: #fff; }
+
+.modal-title { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
+.modal-type  { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+
+.chain { display: flex; flex-direction: column; gap: 10px; }
+.chain-item {
+  display: grid; grid-template-columns: 100px 1fr;
+  gap: 0 12px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: #13131f;
+  font-size: 13px;
+}
+.chain-item.inactive { opacity: .4; }
+.chain-name {
+  font-weight: 600;
+  display: flex; align-items: center; gap: 6px;
+}
+.chain-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.chain-params { color: #b0c0b0; line-height: 1.55; }
+.chain-warn { color: var(--red); font-weight: 600; font-size: 11px; margin-top: 3px; }
+
+.routing-section { margin-top: 16px; }
+.routing-section h4 {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted);
+  margin-bottom: 8px;
+}
+.route-badge {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #13131f; margin-bottom: 6px;
+  font-size: 12px;
+}
+.route-badge-bus { font-weight: 700; min-width: 90px; }
+.route-badge-mode {
+  font-size: 10px; background: #222240;
+  padding: 2px 8px; border-radius: 10px; color: var(--muted);
+}
+.route-badge-dest { color: var(--muted); }
+.route-badge.warn { border-color: #6a2a2a; background: #200e0e; }
+.route-badge.warn .route-badge-bus { color: var(--red); }
+
+/* back link */
+.back-link {
+  display: inline-block; margin-bottom: 18px;
+  color: var(--blue); font-size: 13px; text-decoration: none;
+}
+.back-link:hover { color: #fff; }
+
+/* ── Guide Section ───────────────────────────────── */
+.guide-section {
+  width: 860px; max-width: 100%;
+  margin-top: 32px;
+}
+.guide-section-title {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.guide-cards {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+}
+@media (max-width: 640px) { .guide-cards { grid-template-columns: 1fr; } }
+
+.guide-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color .18s, box-shadow .18s, transform .12s;
+  user-select: none;
+}
+.guide-card:hover {
+  border-color: var(--blue);
+  box-shadow: 0 0 12px rgba(124,156,191,.18);
+  transform: translateY(-2px);
+}
+.guide-card-icon { font-size: 22px; margin-bottom: 8px; }
+.guide-card-title { font-size: 13px; font-weight: 700; color: var(--blue); margin-bottom: 4px; }
+.guide-card-sub   { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+/* ── Step Modal ──────────────────────────────────── */
+.sc-steps { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+.sc-step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 0 12px;
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+.sc-step:last-child { border-bottom: none; }
+.sc-step.sc-warn  { background: #1e140a; border-radius: 6px; padding: 10px 12px; border: 1px solid #5a3a10; margin-bottom: 2px; }
+.sc-step.sc-crit  { background: #1a0e0e; border-radius: 6px; padding: 10px 12px; border: 1px solid #6a2a2a; margin-bottom: 2px; }
+
+.sc-num {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  background: #1e2040; border: 1px solid var(--border);
+  color: var(--blue); flex-shrink: 0; margin-top: 1px;
+}
+.sc-step.sc-warn  .sc-num { background: #2a1a08; border-color: #5a3a10; color: var(--orange); }
+.sc-step.sc-crit  .sc-num { background: #2a0e0e; border-color: #6a2a2a; color: var(--red); }
+
+.sc-body { font-size: 13px; line-height: 1.55; }
+.sc-body strong { color: var(--text); }
+.sc-body .sc-detail { color: var(--muted); font-size: 12px; margin-top: 3px; }
+
+/* ── Symptom Table (EQ modal) ───────────────────── */
+.symp-table { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.symp-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+  padding: 9px 12px;
+  background: #13131f;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  align-items: start;
+}
+.symp-if   { color: var(--muted); font-style: italic; }
+.symp-then { color: var(--text); }
+.symp-then strong { color: var(--orange); }
+
+.eq-rules {
+  margin-top: 16px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.eq-rule {
+  padding: 8px 12px;
+  background: #13131f; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 12px; color: var(--muted);
+  line-height: 1.5;
+}
+.eq-rule strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<a href="ls9_erklaert.html" class="back-link">← Zurück zur Erklärung</a>
+
+<h1>LS9-32 · Interaktives Setup-Routing</h1>
+<p class="subtitle">Hover: Signalweg hervorheben &nbsp;·&nbsp; Klick auf Mittelplane: Einstellungen anzeigen</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot" style="background:#6abf6a"></div> Bühnenmikrofon (dynamisch)</div>
+  <div class="legend-item"><div class="dot" style="background:#7c9cbf"></div> Stereo-Eingang (Notebook)</div>
+  <div class="legend-item"><div class="dot" style="background:#e0a060"></div> Kommunikation</div>
+  <div class="legend-item"><div class="dot" style="background:#b07cc0"></div> Ausgang / Bus</div>
+</div>
+
+<div class="hint">Hover über Input / Routing / Output → Signalpfad leuchtet auf &nbsp;|&nbsp; Klick auf <strong>Mittelplane</strong> (LS9 Processing) → Einstellungs-Modal</div>
+
+<div id="vis">
+  <div class="stage">
+    <div class="world">
+
+      <div class="plane plane-input" id="plane-input">
+        <span class="plane-label">Eingänge (Quellen)</span>
+      </div>
+
+      <div class="plane plane-routing" id="plane-routing">
+        <span class="plane-label">LS9-32 Processing</span>
+      </div>
+
+      <div class="plane plane-output" id="plane-output">
+        <span class="plane-label">Ausgänge (Busse)</span>
+      </div>
+
+    </div>
+  </div>
+  <svg id="linesSvg"></svg>
+</div>
+
+<!-- Guide Section -->
+<div class="guide-section">
+  <div class="guide-section-title">Soundcheck – Anleitungen</div>
+  <div class="guide-cards">
+    <div class="guide-card" onclick="openGuideModal('ablauf')">
+      <div class="guide-card-icon">📋</div>
+      <div class="guide-card-title">Soundcheck-Ablauf</div>
+      <div class="guide-card-sub">Schritt für Schritt vom Einschalten bis zur gespeicherten Scene</div>
+    </div>
+    <div class="guide-card" onclick="openGuideModal('mikro')">
+      <div class="guide-card-icon">🎙</div>
+      <div class="guide-card-title">Mikrofon auspeilen</div>
+      <div class="guide-card-sub">Gain, HPF, Gate, Kompressor – allgemeine Vorgehensweise</div>
+    </div>
+    <div class="guide-card" onclick="openGuideModal('eq')">
+      <div class="guide-card-icon">🎛</div>
+      <div class="guide-card-title">EQ auf Person einmessen</div>
+      <div class="guide-card-sub">Symptome erkennen und gezielt korrigieren</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════════ */
+const INPUTS = [
+  { id:'ch1', label:'CH 1', sub:'Moderation', type:'mic', col:'#6abf6a' },
+  { id:'ch2', label:'CH 2', sub:'Redner', type:'mic', col:'#6abf6a' },
+  { id:'ch3', label:'CH 3', sub:'Redner', type:'mic', col:'#6abf6a' },
+  { id:'ch4', label:'CH 4', sub:'Reserve', type:'mic', col:'#5aaf5a' },
+  { id:'st1', label:'ST IN 1', sub:'Notebook', type:'stereo', col:'#7c9cbf' },
+  { id:'st2', label:'ST IN 2', sub:'Backup', type:'stereo', col:'#5a7a9f' },
+  { id:'ch5', label:'CH 5', sub:'Mikro Tech', type:'komm', col:'#e0a060' },
+  { id:'ch6', label:'CH 6', sub:'Mikro Kabine', type:'komm', col:'#e0a060' },
+];
+
+const PROCESSING = [
+  { id:'ch1', label:'CH 1', sub:'Moderation', type:'mic', col:'#6abf6a', icons:'🎙 ⫧ ⊘ ≈',
+    modal:{
+      title:'CH 1 – Moderation', type:'Dynamisches Mikrofon · XLR In 1',
+      chain:[
+        { name:'Preamp', on:true,  col:'#6abf6a', params:'Gain: Ziel −18 bis −12 dBFS\nPhantom Power: AUS (dynamisches Mikrofon)' },
+        { name:'HPF',    on:true,  col:'#7c9cbf', params:'120 Hz · EIN\nEntfernt Trittschall, Kabelrumpeln, Nahbesprechungseffekt' },
+        { name:'Gate',   on:true,  col:'#e0a060', params:'Threshold: −35 dBFS · Range: 50 dB\nAttack: 5 ms · Hold: 300 ms · Decay: 200 ms' },
+        { name:'EQ',     on:true,  col:'#b07cc0', params:'250 Hz: −2 dB (wenn mulmig/boxig)\n3 kHz: +1–2 dB (Präsenz, Verständlichkeit)\nsonst flat; EQ subtraktiv einsetzen' },
+        { name:'Kompressor', on:true, col:'#bf6a6a', params:'Threshold: −18 dBFS · Ratio: 3:1\nAttack: 20 ms · Release: 200 ms\nMakeup-Gain: anpassen bis Ausgangspegel = Eingangspegel bei Normal' },
+      ],
+      routes:[
+        { bus:'Stereo-Master', mode:'Post-Fader', dest:'PA · XLR Out 1/2', warn:false },
+        { bus:'MIX 1',         mode:'Pre-Fader',  dest:'Technik-Monitor · XLR Out 3/4', warn:false },
+      ]
+    }
+  },
+  { id:'ch2', label:'CH 2', sub:'Redner', type:'mic', col:'#6abf6a', icons:'🎙 ⫧ ⊘ ≈',
+    modal:{
+      title:'CH 2 – Redner', type:'Dynamisches Mikrofon · XLR In 2',
+      chain:[
+        { name:'Preamp', on:true, col:'#6abf6a', params:'Gain: Ziel −18 bis −12 dBFS · Phantom Power: AUS' },
+        { name:'HPF',    on:true, col:'#7c9cbf', params:'120 Hz · EIN' },
+        { name:'Gate',   on:true, col:'#e0a060', params:'Threshold: −35 dBFS · Range: 50 dB · Attack: 5 ms · Hold: 300 ms · Decay: 200 ms' },
+        { name:'EQ',     on:true, col:'#b07cc0', params:'Wie CH 1 – individuell nach Stimme des Sprechers anpassen' },
+        { name:'Kompressor', on:true, col:'#bf6a6a', params:'Threshold: −18 dBFS · Ratio: 3:1 · Attack: 20 ms · Release: 200 ms' },
+      ],
+      routes:[
+        { bus:'Stereo-Master', mode:'Post-Fader', dest:'PA · XLR Out 1/2', warn:false },
+        { bus:'MIX 1', mode:'Pre-Fader', dest:'Technik-Monitor', warn:false },
+      ]
+    }
+  },
+  { id:'ch3', label:'CH 3', sub:'Redner', type:'mic', col:'#6abf6a', icons:'🎙 ⫧ ⊘ ≈',
+    modal:{
+      title:'CH 3 – Redner', type:'Dynamisches Mikrofon · XLR In 3',
+      chain:[
+        { name:'Preamp', on:true, col:'#6abf6a', params:'Gain: Ziel −18 bis −12 dBFS · Phantom Power: AUS' },
+        { name:'HPF',    on:true, col:'#7c9cbf', params:'120 Hz · EIN' },
+        { name:'Gate',   on:true, col:'#e0a060', params:'Threshold: −35 dBFS · Range: 50 dB · Attack: 5 ms · Hold: 300 ms · Decay: 200 ms' },
+        { name:'EQ',     on:true, col:'#b07cc0', params:'Nach Klang der Stimme individuell – HP, Tiefmitten, Präsenz' },
+        { name:'Kompressor', on:true, col:'#bf6a6a', params:'Threshold: −18 dBFS · Ratio: 3:1 · Attack: 20 ms · Release: 200 ms' },
+      ],
+      routes:[
+        { bus:'Stereo-Master', mode:'Post-Fader', dest:'PA · XLR Out 1/2', warn:false },
+        { bus:'MIX 1', mode:'Pre-Fader', dest:'Technik-Monitor', warn:false },
+      ]
+    }
+  },
+  { id:'ch4', label:'CH 4', sub:'Reserve', type:'mic', col:'#5aaf5a', icons:'🎙 ⫧ ⊘ ≈',
+    modal:{
+      title:'CH 4 – Reserve-Mikrofon', type:'Dynamisches Mikrofon · XLR In 4',
+      chain:[
+        { name:'Preamp', on:true,  col:'#6abf6a', params:'Gain: Ziel −18 bis −12 dBFS · Phantom Power: AUS' },
+        { name:'HPF',    on:true,  col:'#7c9cbf', params:'120 Hz · EIN' },
+        { name:'Gate',   on:true,  col:'#e0a060', params:'Threshold: −35 dBFS · Range: 50 dB · Attack: 5 ms · Hold: 300 ms' },
+        { name:'EQ',     on:true,  col:'#b07cc0', params:'Flat als Ausgangspunkt' },
+        { name:'Kompressor', on:true, col:'#bf6a6a', params:'Threshold: −18 dBFS · Ratio: 3:1 · Attack: 20 ms · Release: 200 ms' },
+      ],
+      routes:[
+        { bus:'Stereo-Master', mode:'Post-Fader', dest:'PA · XLR Out 1/2', warn:false },
+        { bus:'MIX 1', mode:'Pre-Fader', dest:'Technik-Monitor', warn:false },
+      ],
+      note:'Fader zunächst auf 0 halten. Reserve-Mikrofon: erst hochziehen wenn CH 1–3 ausfällt oder ein weiterer Sprecher das Pult betritt.'
+    }
+  },
+  { id:'st1', label:'ST IN 1', sub:'Notebook', type:'stereo', col:'#7c9cbf', icons:'💻 ≈',
+    modal:{
+      title:'ST IN 1 – Notebook Präsentation', type:'Stereo-Eingang · XLR In 7/8',
+      chain:[
+        { name:'Preamp', on:true,  col:'#6abf6a', params:'Gain: Ziel −18 bis −12 dBFS · Phantom Power: AUS' },
+        { name:'HPF',    on:false, col:'#7c9cbf', params:'AUS – Musik/Playback soll vollständig übertragen werden' },
+        { name:'Gate',   on:false, col:'#e0a060', params:'AUS – kein unerwartetes Abschneiden von Playback' },
+        { name:'EQ',     on:true,  col:'#b07cc0', params:'Flat – Präsentation ist bereits mastered/gemischt' },
+        { name:'Kompressor', on:false, col:'#bf6a6a', params:'AUS – Playback hat eigene Dynamik, keine Doppelkompression' },
+      ],
+      routes:[
+        { bus:'Stereo-Master', mode:'Post-Fader', dest:'PA · XLR Out 1/2', warn:false },
+        { bus:'MIX 1', mode:'Pre-Fader', dest:'Technik-Monitor', warn:false },
+      ]
+    }
+  },
+  { id:'st2', label:'ST IN 2', sub:'Backup', type:'stereo', col:'#5a7a9f', icons:'💻 ≈',
+    modal:{
+      title:'ST IN 2 – Notebook Backup', type:'Stereo-Eingang · XLR In 9/10',
+      chain:[
+        { name:'Preamp', on:true,  col:'#6abf6a', params:'Gain: Ziel −18 bis −12 dBFS · Phantom Power: AUS\nGleiche Einstellungen wie ST IN 1 vornehmen' },
+        { name:'HPF',    on:false, col:'#7c9cbf', params:'AUS' },
+        { name:'Gate',   on:false, col:'#e0a060', params:'AUS' },
+        { name:'EQ',     on:true,  col:'#b07cc0', params:'Flat' },
+        { name:'Kompressor', on:false, col:'#bf6a6a', params:'AUS' },
+      ],
+      routes:[
+        { bus:'Stereo-Master', mode:'Post-Fader', dest:'PA · XLR Out 1/2', warn:false },
+        { bus:'MIX 1', mode:'Pre-Fader', dest:'Technik-Monitor', warn:false },
+      ],
+      note:'Fader zunächst auf Null. ON-Taste aktiv lassen – so kann bei Ausfall von ST IN 1 sofort hochgezogen werden.'
+    }
+  },
+  { id:'ch5', label:'CH 5', sub:'Tech-Posten', type:'komm', col:'#e0a060', icons:'🎙 ⫧ ⊘',
+    modal:{
+      title:'CH 5 – Mikrofon Tech-Posten', type:'Dynamisches Mikrofon · XLR In 5',
+      chain:[
+        { name:'Preamp', on:true, col:'#6abf6a', params:'Gain: Ziel −18 bis −12 dBFS · Phantom Power: AUS' },
+        { name:'HPF',    on:true, col:'#7c9cbf', params:'150 Hz · EIN\nKleine Monitorboxen haben keinen Tiefbass – HPF höher ansetzen' },
+        { name:'Gate',   on:true, col:'#e0a060', params:'Threshold: −30 dBFS · Range: 40 dB\nAttack: 5 ms · Hold: 200 ms · Decay: 150 ms' },
+        { name:'EQ',     on:true, col:'#b07cc0', params:'Präsenz 2–4 kHz leicht anheben für Verständlichkeit auf kleiner Box' },
+        { name:'Kompressor', on:true, col:'#bf6a6a', params:'Threshold: −18 dBFS · Ratio: 4:1 (stärker als Bühnenmiks)\nPegel soll sehr konstant sein – Technik redet unterschiedlich laut' },
+      ],
+      routes:[
+        { bus:'MIX 2', mode:'Pre-Fader', dest:'Monitorbox Kabine · XLR Out 5', warn:false },
+        { bus:'Stereo-Master', mode:'—', dest:'KEIN Send – nicht in PA!', warn:true },
+        { bus:'MIX 1', mode:'—', dest:'Kein Send (Technik sitzt am Mikrofon)', warn:false },
+      ]
+    }
+  },
+  { id:'ch6', label:'CH 6', sub:'Kabine', type:'komm', col:'#e0a060', icons:'🎙 ⫧ ⊘',
+    modal:{
+      title:'CH 6 – Mikrofon Kabine', type:'Dynamisches Mikrofon · XLR In 6',
+      chain:[
+        { name:'Preamp', on:true, col:'#6abf6a', params:'Gain: Ziel −18 bis −12 dBFS · Phantom Power: AUS' },
+        { name:'HPF',    on:true, col:'#7c9cbf', params:'150 Hz · EIN' },
+        { name:'Gate',   on:true, col:'#e0a060', params:'Threshold: −30 dBFS · Range: 40 dB · Attack: 5 ms · Hold: 200 ms' },
+        { name:'EQ',     on:true, col:'#b07cc0', params:'Präsenz 2–4 kHz leicht anheben' },
+        { name:'Kompressor', on:true, col:'#bf6a6a', params:'Threshold: −18 dBFS · Ratio: 4:1' },
+      ],
+      routes:[
+        { bus:'MIX 3', mode:'Pre-Fader', dest:'Monitorbox Tech-Posten · XLR Out 6', warn:false },
+        { bus:'Stereo-Master', mode:'—', dest:'KEIN Send – nicht in PA!', warn:true },
+        { bus:'MIX 1', mode:'—', dest:'Kein Send (optional: wenn Technik-Monitor auch Kabine hören soll)', warn:false },
+      ]
+    }
+  },
+];
+
+const OUTPUTS = [
+  { id:'pa',   label:'Stereo-Master', sub:'PA · Out 1/2',          type:'master',  col:'#6abf6a' },
+  { id:'mix1', label:'MIX 1',         sub:'Technik-Monitor · Out 3/4', type:'monitor', col:'#7c9cbf' },
+  { id:'mix2', label:'MIX 2',         sub:'Monitorbox Kabine · Out 5',  type:'komm',    col:'#e0a060' },
+  { id:'mix3', label:'MIX 3',         sub:'Box Tech-Posten · Out 6',    type:'komm',    col:'#e0a060' },
+];
+
+// which output buses each processing channel feeds
+const ROUTE_MAP = {
+  ch1:  ['pa','mix1'],
+  ch2:  ['pa','mix1'],
+  ch3:  ['pa','mix1'],
+  ch4:  ['pa','mix1'],
+  st1:  ['pa','mix1'],
+  st2:  ['pa','mix1'],
+  ch5:  ['mix2'],
+  ch6:  ['mix3'],
+};
+
+// line colors per destination
+const BUS_COL = { pa:'#6abf6a', mix1:'#7c9cbf', mix2:'#e0a060', mix3:'#e0a060' };
+
+/* ═══════════════════════════════════════════════════
+   BUILD DOM
+═══════════════════════════════════════════════════ */
+function makeNode(item, planeId, isProcessing) {
+  const el = document.createElement('div');
+  el.className = `node node-${item.type}`;
+  el.id = `${planeId}-${item.id}`;
+  el.dataset.id = item.id;
+  el.dataset.plane = planeId;
+  el.style.color = item.col;
+  el.style.borderColor = item.col + '88';
+
+  el.innerHTML = `
+    <div class="node-label" style="color:${item.col}">${item.label}</div>
+    <div class="node-sub">${item.sub}</div>
+    ${isProcessing && item.icons ? `<div class="node-icons" style="color:${item.col}66">${item.icons}</div>` : ''}
+  `;
+  return el;
+}
+
+const planeInput   = document.getElementById('plane-input');
+const planeRouting = document.getElementById('plane-routing');
+const planeOutput  = document.getElementById('plane-output');
+
+INPUTS.forEach(item => planeInput.appendChild(makeNode(item, 'in', false)));
+PROCESSING.forEach(item => planeRouting.appendChild(makeNode(item, 'pr', true)));
+OUTPUTS.forEach(item => planeOutput.appendChild(makeNode(item, 'out', false)));
+
+/* ═══════════════════════════════════════════════════
+   SVG LINES
+═══════════════════════════════════════════════════ */
+const svg = document.getElementById('linesSvg');
+const vis = document.getElementById('vis');
+
+const lines = []; // { el, fromId, toId }
+
+function screenCenter(el) {
+  const r = el.getBoundingClientRect();
+  const vr = vis.getBoundingClientRect();
+  return { x: r.left + r.width/2 - vr.left, y: r.top + r.height/2 - vr.top };
+}
+
+function makeLine(fromEl, toEl, col, fromId, toId) {
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.classList.add('route-line');
+  path.style.stroke = col;
+  path.dataset.fromId = fromId;
+  path.dataset.toId = toId;
+  svg.appendChild(path);
+  lines.push({ path, fromEl, toEl, fromId, toId, col });
+  return path;
+}
+
+function drawLines() {
+  svg.setAttribute('width', vis.offsetWidth);
+  svg.setAttribute('height', vis.offsetHeight);
+
+  INPUTS.forEach(inp => {
+    const fromEl = document.getElementById(`in-${inp.id}`);
+    const toEl   = document.getElementById(`pr-${inp.id}`);
+    if (!fromEl || !toEl) return;
+    const f = screenCenter(fromEl);
+    const t = screenCenter(toEl);
+    const existing = lines.find(l => l.fromId===`in-${inp.id}` && l.toId===`pr-${inp.id}`);
+    const cpY = (f.y + t.y) / 2;
+    const d = `M${f.x},${f.y} C${f.x},${cpY} ${t.x},${cpY} ${t.x},${t.y}`;
+    if (existing) {
+      existing.path.setAttribute('d', d);
+    } else {
+      const path = makeLine(fromEl, toEl, inp.col + 'bb', `in-${inp.id}`, `pr-${inp.id}`);
+      path.setAttribute('d', d);
+    }
+  });
+
+  PROCESSING.forEach(pr => {
+    const fromEl = document.getElementById(`pr-${pr.id}`);
+    (ROUTE_MAP[pr.id] || []).forEach(outId => {
+      const toEl = document.getElementById(`out-${outId}`);
+      if (!fromEl || !toEl) return;
+      const f = screenCenter(fromEl);
+      const t = screenCenter(toEl);
+      const existing = lines.find(l => l.fromId===`pr-${pr.id}` && l.toId===`out-${outId}`);
+      const cpY = (f.y + t.y) / 2;
+      const d = `M${f.x},${f.y} C${f.x},${cpY} ${t.x},${cpY} ${t.x},${t.y}`;
+      const col = BUS_COL[outId] || '#aaa';
+      if (existing) {
+        existing.path.setAttribute('d', d);
+        existing.path.style.stroke = col + 'bb';
+      } else {
+        const path = makeLine(fromEl, toEl, col + 'bb', `pr-${pr.id}`, `out-${outId}`);
+        path.setAttribute('d', d);
+      }
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   HOVER / PATH HIGHLIGHTING
+═══════════════════════════════════════════════════ */
+
+// collect all node IDs reachable from a given node (both directions)
+function getConnectedIds(nodeId) {
+  const [plane, id] = nodeId.split(/-(.+)/);  // 'in', 'ch1'  or 'pr', 'ch1'  or 'out', 'pa'
+  const connected = new Set([nodeId]);
+
+  if (plane === 'in') {
+    // in → pr
+    connected.add(`pr-${id}`);
+    // pr → out
+    (ROUTE_MAP[id] || []).forEach(o => connected.add(`out-${o}`));
+  } else if (plane === 'pr') {
+    // pr → in
+    connected.add(`in-${id}`);
+    // pr → out
+    (ROUTE_MAP[id] || []).forEach(o => connected.add(`out-${o}`));
+  } else if (plane === 'out') {
+    // out → which pr feeds it?
+    Object.entries(ROUTE_MAP).forEach(([prId, outs]) => {
+      if (outs.includes(id)) {
+        connected.add(`pr-${prId}`);
+        connected.add(`in-${prId}`);
+      }
+    });
+  }
+  return connected;
+}
+
+function getConnectedLines(nodeId) {
+  const connected = getConnectedIds(nodeId);
+  return lines.filter(l => connected.has(l.fromId) && connected.has(l.toId));
+}
+
+function highlight(nodeId) {
+  const vis = document.getElementById('vis');
+  vis.classList.add('vis-dimmed');
+
+  const connectedIds = getConnectedIds(nodeId);
+  document.querySelectorAll('.node').forEach(n => {
+    if (connectedIds.has(n.id)) n.classList.add('node-lit');
+  });
+
+  getConnectedLines(nodeId).forEach(l => {
+    l.path.classList.add('lit');
+    l.path.style.stroke = l.col.slice(0,-2); // full opacity color
+  });
+}
+
+function clearHighlight() {
+  document.getElementById('vis').classList.remove('vis-dimmed');
+  document.querySelectorAll('.node-lit').forEach(n => n.classList.remove('node-lit'));
+  lines.forEach(l => {
+    l.path.classList.remove('lit');
+    l.path.style.stroke = l.col;
+  });
+}
+
+document.querySelectorAll('.node').forEach(node => {
+  node.addEventListener('mouseenter', () => highlight(node.id));
+  node.addEventListener('mouseleave', clearHighlight);
+});
+
+/* ═══════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════ */
+function openModal(data) {
+  const chain = data.chain.map(c => `
+    <div class="chain-item ${c.on ? '' : 'inactive'}">
+      <div class="chain-name">
+        <span class="chain-dot" style="background:${c.col}"></span>
+        ${c.name}${c.on ? '' : ' <span style="color:#556;font-size:10px;font-weight:400">(aus)</span>'}
+      </div>
+      <div class="chain-params">${c.params.replace(/\n/g,'<br>')}</div>
+    </div>
+  `).join('');
+
+  const routes = data.routes.map(r => `
+    <div class="route-badge ${r.warn ? 'warn' : ''}">
+      <span class="route-badge-bus">${r.bus}</span>
+      ${r.mode !== '—' ? `<span class="route-badge-mode">${r.mode}</span>` : ''}
+      <span class="route-badge-dest">${r.dest}</span>
+    </div>
+  `).join('');
+
+  const noteHtml = data.note ? `<div style="margin-top:14px;padding:10px 12px;background:#131318;border:1px solid #3a3a5a;border-radius:7px;font-size:12px;color:#aab;line-height:1.55">${data.note}</div>` : '';
+
+  document.getElementById('modalContent').innerHTML = `
+    <div class="modal-title" style="color:${getColorForModal(data.title)}">${data.title}</div>
+    <div class="modal-type">${data.type}</div>
+    <div class="chain">${chain}</div>
+    <div class="routing-section">
+      <h4>Bus-Routing</h4>
+      ${routes}
+    </div>
+    ${noteHtml}
+  `;
+
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function getColorForModal(title) {
+  if (title.includes('ST IN')) return '#7c9cbf';
+  if (title.includes('CH 5') || title.includes('CH 6')) return '#e0a060';
+  return '#6abf6a';
+}
+
+document.querySelectorAll('#plane-routing .node').forEach(node => {
+  node.addEventListener('click', e => {
+    e.stopPropagation();
+    const pr = PROCESSING.find(p => p.id === node.dataset.id);
+    if (pr && pr.modal) openModal(pr.modal);
+  });
+});
+
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.remove('open');
+});
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('modalOverlay').classList.remove('open');
+});
+
+/* ═══════════════════════════════════════════════════
+   GUIDE MODALS
+═══════════════════════════════════════════════════ */
+const GUIDE_DATA = {
+
+  ablauf: {
+    title: 'Soundcheck – genereller Ablauf',
+    color: '#7c9cbf',
+    steps: [
+      { warn:false, title:'Einschaltreihenfolge',
+        text:'<strong>Quellen → Pult → Endstufen/Aktivboxen.</strong>',
+        detail:'Nie umgekehrt – der Einschaltknacks einer Endstufe zerstört im schlimmsten Fall Hochtöner. Beim Ausschalten: Aktivboxen zuerst aus.' },
+      { warn:false, title:'Alles stumm schalten',
+        text:'Alle Fader auf Null, alle ON-Tasten aus. Master-Fader auf −∞, dann auf 0 dB setzen.',
+        detail:'Saubere Ausgangslage vor dem Einpegeln.' },
+      { warn:true,  title:'Patch kontrollieren',
+        text:'<strong>PATCH → Input Patch:</strong> XLR In 1–4 → CH 1–4 · XLR In 5 → CH 5 · XLR In 6 → CH 6 · XLR In 7/8 → ST IN 1 · XLR In 9/10 → ST IN 2',
+        detail:'Auch Output Patch prüfen: Stereo-Master → Out 1/2 · MIX 1 → Out 3/4 · MIX 2 → Out 5 · MIX 3 → Out 6' },
+      { warn:true,  title:'Komm-Routing prüfen',
+        text:'CH 5 und CH 6 dürfen <strong>keinen Send auf den Stereo-Master</strong> haben.',
+        detail:'SCENE → MIX SEND für CH 5 und CH 6 aufrufen. Stereo-Master-Send = 0. Nur MIX 2 bzw. MIX 3 aufgedreht.' },
+      { warn:false, title:'Bühnenmikros einzeln einpegeln',
+        text:'CH 1, dann 2, 3, 4 – nacheinander. Für jeden Kanal: Gain, HPF, Gate, Kompressor.',
+        detail:'Sprecher bitte normal sprechen lassen – kein "Eins, zwei, drei"-Geflüster. Kanal danach ON, Fader auf 0 dB.' },
+      { warn:false, title:'Notebook-Eingänge testen',
+        text:'ST IN 1: Playback kurz abspielen, Gain auf −18 bis −12 dBFS. Dynamics aus.',
+        detail:'ST IN 2 (Backup) gleich einpegeln, Fader dann auf Null lassen – bereit für Notfall.' },
+      { warn:false, title:'Monitor MIX 1 einrichten',
+        text:'MIX 1 drücken → Sends aller PA-Kanäle (CH 1–4, ST IN 1/2) aufdrehen.',
+        detail:'Pre-Fader für alle Sends sicherstellen. MIX-1-Fader auf 0 dB. Technik-Monitor kurz abhören.' },
+      { warn:false, title:'Komm-System testen',
+        text:'CH 5 ON, Sprechen → Monitorbox Kabine sollte antworten. CH 6 ON, Sprechen → Monitorbox Tech-Posten.',
+        detail:'MIX 2- und MIX 3-Fader auf 0 dB. Gegensprechen testen. Pegel der Monitorboxen über MIX-Bus-Fader anpassen.' },
+      { warn:false, title:'Gesamtbild abhören',
+        text:'Alle Kanäle auf, alle Sprecher sprechen lassen. Pegelverhältnisse hören, EQ feinabstimmen.',
+        detail:'Sitzt eine Stimme zu laut? Fader zurück. Zu wenig Präsenz? EQ-Eingriff. Hier ist Zeit für Details.' },
+      { warn:false, title:'Custom Layer belegen',
+        text:'Fader 1–4 = CH 1–4 · Fader 5–6 = CH 5/6 · Fader 8–9 = ST IN 1/2 · Fader 11–13 = MIX 1–3',
+        detail:'USER DEFINED → Custom Fader Layer → Fader auswählen → Quelle zuweisen → Store' },
+      { warn:false, title:'Scene speichern',
+        text:'<strong>SCENE → Store → Scene 1 → "Soundcheck" → Enter.</strong> Nach letzten Anpassungen: Scene 2 → "Show Start".',
+        detail:'Mehrere Programmpunkte mit unterschiedlichen Anforderungen? Je eine weitere Scene anlegen.' },
+      { warn:true,  title:'HA Gain Recall Safe setzen',
+        text:'<strong>SCENE → Recall Safe → HA GAIN für alle Eingangskanäle aktivieren.</strong>',
+        detail:'Schützt den manuell eingestellten Gain vor Scene-Recall. Ohne das überschreibt jeder Scene-Wechsel die Gain-Einstellung.' },
+    ]
+  },
+
+  mikro: {
+    title: 'Mikrofon auspeilen – allgemein',
+    color: '#6abf6a',
+    steps: [
+      { warn:false, title:'Kanal auswählen',
+        text:'<strong>SEL-Taste</strong> am Fader des Kanals drücken → Kanal leuchtet auf, alle Regler rechts vom Display beziehen sich jetzt auf ihn.',
+        detail:'Fader auf 0 dB, ON-Taste drücken (leuchtet = aktiv).' },
+      { warn:false, title:'Sprecher bitten: normal sprechen',
+        text:'Nicht "Hallo, eins zwei drei" flüstern – <strong>in echter Veranstaltungslautstärke</strong> reden lassen.',
+        detail:'Testinhalt egal, aber Abstand zum Mikrofon und Lautstärke sollen dem echten Einsatz entsprechen. Wer später sehr laut spricht: jetzt auch laut sprechen lassen.' },
+      { warn:false, title:'Gain anlegen',
+        text:'<strong>Gain-Regler</strong> (rechts vom Display) drehen, Peakmeter des Kanals beobachten.',
+        detail:'Ziel: −18 bis −12 dBFS im normalen Redefluss. Gelegentliche Peaks bis −6 dBFS sind ok. Mehr Headroom = mehr Sicherheit.' },
+      { warn:true,  title:'Clip-Kontrolle',
+        text:'Die rote <strong>Clip-LED darf nicht leuchten</strong>. Leuchtet sie kurz auf: Gain etwas zurück.',
+        detail:'Digitales Clipping klingt hart und ist nicht im Nachhinein zu korrigieren. Lieber 3 dB weniger als zu viel.' },
+      { warn:false, title:'HPF einschalten',
+        text:'Display-Access: <strong>EQ</strong> → HPF-Schalter → EIN → Frequenz: 120 Hz (Handmikrofon).',
+        detail:'Entfernt Trittschall, Kabelrumpeln, Nahbesprechungseffekt. Für Kommunikations-Mikrofone: 150 Hz.' },
+      { warn:false, title:'Gate einstellen',
+        text:'Sprecher <em>verstummt</em> – beobachten ob Gate schließt. Threshold so wählen dass bei Stille Gate zu, bei normaler Sprache Gate offen ist.',
+        detail:'Hold ca. 300 ms (verhindert Pumpen bei kurzen Sprechpausen). Vorsicht: Threshold nicht zu aggressiv – lieber etwas tiefer und Wortanfänge bleiben erhalten.' },
+      { warn:false, title:'Kompressor aktivieren',
+        text:'Threshold: −18 dBFS · Ratio: 3:1 · Attack: 20 ms · Release: 200 ms.',
+        detail:'Gain-Reduction-Anzeige beobachten: 3–6 dB GR bei lauten Momenten = gut. Mehr als 10 dB GR: Threshold zu niedrig, höher setzen.' },
+      { warn:false, title:'Auf Monitor schicken',
+        text:'MIX 1 drücken → Send für diesen Kanal aufdrehen → <strong>Pre-Fader</strong> sicherstellen.',
+        detail:'Im Technik-Monitor kurz abhören: klingt es klar? Pegel angemessen? Gate zieht nicht zu früh an?' },
+      { warn:false, title:'Im Gesamtmix prüfen',
+        text:'Alle anderen Kanäle aufmachen. Passt der Pegel im Verhältnis? Setzt sich die Stimme durch?',
+        detail:'Pegelbalance über Fader, nicht über Gain. Gain bleibt möglichst stabil, Fader ist das Arbeitswerkzeug.' },
+    ]
+  },
+
+  eq: {
+    title: 'EQ auf Person einmessen',
+    color: '#b07cc0',
+    intro: 'Setzt voraus: Gain eingestellt, HPF aktiv. Sprecher soll 2–3 Minuten normal reden – nicht vorlesen, sondern frei sprechen. Aufmerksam zuhören, dann handeln.',
+    symptoms: [
+      { sif:'Klingt mulmig / boxig / wie Kloß im Hals',   then:'<strong>200–350 Hz</strong> senken: −2 bis −4 dB, Q mittel' },
+      { sif:'Näselnd / schnarrend / nervig',               then:'<strong>500–1000 Hz</strong> senken: −2 dB, Q mittel-schmal' },
+      { sif:'Undeutlich / verschluckt / hinter Vorhang',  then:'<strong>2–4 kHz</strong> anheben: +1–2 dB, Q breit' },
+      { sif:'Zischend / grell / auf Dauer ermüdend',       then:'<strong>6–10 kHz</strong> senken: −1 bis −2 dB' },
+      { sif:'Zu viel Bass / dröhnt / wummert',             then:'<strong>HPF höher setzen</strong> (130–150 Hz) oder Low-Shelf ab 150 Hz senken' },
+      { sif:'Flach / leblos / nüchtern',                   then:'<strong>3–5 kHz</strong> sanft anheben: +1–2 dB, Q breit – nicht übertreiben' },
+      { sif:'Popplaute (P, B) / Atemgeräusche',            then:'<strong>HPF ggf. höher</strong> (bis 150 Hz) · Abstand zum Mikrofon vergrößern · Gate hilft kaum' },
+    ],
+    rules: [
+      { text:'<strong>Subtraktiv arbeiten:</strong> lieber wegnehmen was stört, als anheben was fehlt.' },
+      { text:'<strong>Ein Band gleichzeitig:</strong> ändern, hören, urteilen – dann erst das nächste.' },
+      { text:'<strong>Bypass-Test:</strong> EQ kurz deaktivieren. Hört es sich besser ohne aus? Dann alles zurücknehmen.' },
+      { text:'<strong>Maximaleingriff:</strong> ±4 dB pro Band reicht fast immer. Mehr deutet auf ein anderes Problem hin (Gain zu hoch, falsches Mikrofon, Raumakustik).' },
+      { text:'<strong>Gate danach nochmals prüfen:</strong> EQ-Änderungen können den wahrgenommenen Threshold-Pegel verschieben.' },
+    ]
+  }
+};
+
+function openGuideModal(id) {
+  const g = GUIDE_DATA[id];
+  if (!g) return;
+
+  let html = `<div class="modal-title" style="color:${g.color}">${g.title}</div>`;
+
+  if (id === 'eq') {
+    html += `<div class="modal-type" style="margin-bottom:14px;line-height:1.55">${g.intro}</div>`;
+    html += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Symptom → Maßnahme</div>`;
+    html += `<div class="symp-table">`;
+    g.symptoms.forEach(s => {
+      html += `<div class="symp-row"><div class="symp-if">${s.sif}</div><div class="symp-then">→ ${s.then}</div></div>`;
+    });
+    html += `</div>`;
+    html += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 8px">Arbeitsregeln</div>`;
+    html += `<div class="eq-rules">`;
+    g.rules.forEach(r => { html += `<div class="eq-rule">${r.text}</div>`; });
+    html += `</div>`;
+
+  } else {
+    html += `<div class="modal-type" style="margin-bottom:14px">Schritt für Schritt</div>`;
+    html += `<div class="sc-steps">`;
+    g.steps.forEach((s, i) => {
+      const cls = s.warn ? 'sc-step sc-warn' : (s.crit ? 'sc-step sc-crit' : 'sc-step');
+      html += `<div class="${cls}">
+        <div class="sc-num">${i+1}</div>
+        <div class="sc-body">
+          <strong>${s.title}</strong><br>
+          ${s.text}
+          ${s.detail ? `<div class="sc-detail">${s.detail}</div>` : ''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT & RESIZE
+═══════════════════════════════════════════════════ */
+function init() {
+  // short delay to let 3D CSS settle before measuring positions
+  setTimeout(() => {
+    drawLines();
+  }, 80);
+}
+
+window.addEventListener('resize', () => {
+  lines.length = 0;
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  init();
+});
+
+init();
+</script>
+</body>
+</html>

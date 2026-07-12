@@ -1,0 +1,1797 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obertöne · 6-Saiter Bass</title>
+<!--
+  Nutzt Three.js per ESM-CDN (jsdelivr). Bei lokalem Öffnen als file:// blockieren
+  manche Browser ES-Module per CORS — dann im Ordner z.B. `python3 -m http.server`
+  starten und über http://localhost:8000/harmonics.html öffnen.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root {
+    --surface: rgba(26,26,25,0.86);
+    --ink: #ffffff;
+    --ink2: #c3c2b7;
+    --muted: #898781;
+    --border: rgba(255,255,255,0.12);
+    --grid: #2c2c2a;
+    --scene-bg: #111110;
+    --scene-fog: #111110;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --surface: rgba(252,252,251,0.90);
+      --ink: #0b0b0b;
+      --ink2: #52514e;
+      --muted: #898781;
+      --border: rgba(11,11,11,0.12);
+      --grid: #e1e0d9;
+      --scene-bg: #eceae4;
+      --scene-fog: #eceae4;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; overflow:hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
+  #scene { position:fixed; inset:0; }
+  #scene canvas { display:block; }
+
+  .panel {
+    position:fixed; background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; backdrop-filter: blur(10px); box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    padding:14px 16px; color:var(--ink);
+  }
+  h1 {
+    position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    margin:0; font-size:15px; font-weight:600; letter-spacing:.02em;
+    color:var(--ink); background:var(--surface); border:1px solid var(--border);
+    padding:8px 18px; border-radius:999px; pointer-events:none;
+  }
+  h1 small { display:block; font-weight:400; font-size:11px; color:var(--muted); text-align:center; margin-top:1px; }
+
+  #controls { top:64px; left:14px; width:250px; max-height:calc(100vh - 100px); overflow-y:auto; }
+  #controls.hidden-panel { display:none; }
+  #pins { top:64px; right:14px; width:290px; max-height:calc(100vh - 100px); overflow-y:auto; }
+  #hint {
+    position:fixed; bottom:12px; left:50%; transform:translateX(-50%);
+    font-size:11px; color:var(--muted); background:var(--surface); border:1px solid var(--border);
+    padding:6px 14px; border-radius:999px; pointer-events:none;
+  }
+
+  .sec-title { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:12px 0 6px; }
+  .sec-title:first-child { margin-top:0; }
+  .presets { display:flex; gap:6px; flex-wrap:wrap; }
+  button.preset {
+    font-size:11px; background:transparent; border:1px solid var(--border); color:var(--ink2);
+    padding:4px 9px; border-radius:7px; cursor:pointer;
+  }
+  button.preset:hover { border-color: var(--ink2); color: var(--ink); }
+
+  .krow { display:flex; align-items:center; gap:7px; font-size:12.5px; padding:2.5px 0; cursor:pointer; user-select:none; }
+  .krow input { accent-color:#3987e5; cursor:pointer; }
+  .swatch { width:10px; height:10px; border-radius:3px; flex:none; }
+  .kname { color:var(--ink2); }
+  .kname b { color:var(--ink); font-weight:600; }
+
+  .tune-row { display:flex; align-items:center; gap:6px; font-size:12px; margin:3px 0; }
+  .tune-row label { width:58px; color:var(--muted); }
+  .tune-row input { width:64px; background:transparent; border:1px solid var(--border); color:var(--ink);
+    border-radius:6px; padding:3px 6px; font-size:12px; font-family:inherit; }
+
+  .toggle-row { display:flex; align-items:center; gap:7px; font-size:12.5px; margin-top:8px; cursor:pointer; }
+  .toggle-row input { accent-color:#3987e5; }
+
+  #pins-empty { font-size:12px; color:var(--muted); line-height:1.5; }
+  .pin-card { border:1px solid var(--border); border-radius:9px; padding:9px 10px; margin-bottom:9px; position:relative; }
+  .pin-head { display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; margin-bottom:6px; }
+  .pin-close { position:absolute; top:6px; right:8px; cursor:pointer; color:var(--muted); font-size:14px; line-height:1; background:none; border:none; }
+  .pin-close:hover { color:var(--ink); }
+  .pin-row { font-size:11.5px; color:var(--ink2); margin:3px 0; line-height:1.45; }
+  .pin-row b { color:var(--ink); font-weight:600; }
+  .pin-lbl { color:var(--muted); }
+  .clear-all { font-size:11px; color:var(--muted); background:none; border:none; cursor:pointer; float:right; }
+  .clear-all:hover { color:var(--ink); }
+
+  #hoverTip {
+    position:fixed; pointer-events:none; background:var(--surface); border:1px solid var(--border);
+    border-radius:7px; padding:4px 8px; font-size:11.5px; color:var(--ink); display:none; z-index:20;
+    white-space:nowrap;
+  }
+
+  /* pitchLegend bleibt eigenständig zentriert; toleranceBar und stringSwitches
+     werden per JS (positionBottomBar()) links/rechts danebengesetzt – die Legende
+     existiert nur im Tonhöhen-Modus, toleranceBar+stringSwitches sind stetig sichtbar
+     und rücken dann zu einem zentrierten Paar zusammen. */
+  #pitchLegend {
+    position:fixed; bottom:46px; left:50%; transform:translateX(-50%);
+    display:none; gap:5px; padding:9px 11px; z-index:15;
+  }
+  #pitchLegend .legend-sw {
+    width:32px; height:32px; border-radius:8px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; font-size:10.5px; font-weight:700;
+    color:rgba(0,0,0,0.78); border:1px solid rgba(0,0,0,0.15); transition:opacity .15s;
+  }
+  #pitchLegend .legend-sw.dim { opacity: var(--legend-dim, 0.15); }
+  #pitchLegend .legend-sw.root { outline:2px solid var(--ink); outline-offset:2px; }
+  #pitchLegend .legend-cap { font-size:9px; font-weight:400; opacity:.75; margin-top:1px; }
+
+  #toleranceBar {
+    position:fixed; bottom:46px; width:150px; z-index:15;
+  }
+  #stringSwitches {
+    position:fixed; bottom:46px; left:50%; transform:translateX(-50%);
+    display:flex; gap:5px; padding:9px 11px; z-index:15;
+  }
+  .str-sw {
+    width:32px; height:32px; border-radius:8px; display:flex; align-items:center;
+    justify-content:center; font-size:10px; font-weight:700; cursor:pointer;
+    background:transparent; border:1px solid var(--border); color:var(--ink2);
+    transition:color .15s, border-color .15s;
+  }
+  .str-sw:hover { border-color:var(--ink2); color:var(--ink); }
+
+  ::-webkit-scrollbar { width:8px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+  .fam-btn { display:block; width:100%; text-align:left; font-size:12px; background:transparent;
+    border:1px solid var(--border); color:var(--ink2); padding:6px 9px; border-radius:8px; margin:4px 0; cursor:pointer; }
+  .fam-btn .fam-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; vertical-align:middle; }
+  .fam-btn:hover:not(:disabled) { border-color: var(--ink2); color:var(--ink); }
+  .fam-btn.active { border-color:#3987e5; color:var(--ink); background:rgba(57,135,229,0.14); }
+  .preset.active { border-color:#3987e5; color:var(--ink); background:rgba(57,135,229,0.14); }
+  .fam-btn:disabled { opacity:0.4; cursor:default; }
+  .fam-hint { font-weight:400; text-transform:none; color:var(--muted); letter-spacing:0; }
+
+  #helpBtn, .corner-btn {
+    position:fixed; top:14px; width:32px; height:32px; border-radius:50%;
+    background:var(--surface); border:1px solid var(--border); color:var(--ink);
+    font-size:14px; cursor:pointer; z-index:30;
+  }
+  #helpBtn { right:14px; }
+  #helpBtn:hover, .corner-btn:hover { border-color:var(--ink2); }
+
+  #helpOverlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none;
+    align-items:center; justify-content:center; z-index:40; padding:20px;
+  }
+  #helpOverlay.open { display:flex; }
+  .helpBox {
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    max-width:560px; width:100%; max-height:82vh; overflow-y:auto; padding:22px 26px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4); position:relative;
+  }
+  .helpBox h2 { font-size:16px; margin:0 0 4px; }
+  .helpBox h3 { font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:20px 0 8px; }
+  .helpBox h3:first-of-type { margin-top:14px; }
+  .helpBox p, .helpBox li { font-size:12.8px; color:var(--ink2); line-height:1.6; }
+  .helpBox ul { margin:4px 0; padding-left:18px; }
+  .helpBox b { color:var(--ink); }
+  .helpClose {
+    position:absolute; top:14px; right:16px; background:none; border:none; color:var(--muted);
+    font-size:20px; cursor:pointer; line-height:1;
+  }
+  .helpClose:hover { color:var(--ink); }
+
+  #melodyModal, #settingsModal, #familyModal {
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none;
+    align-items:center; justify-content:center; z-index:40; padding:20px;
+  }
+  #melodyModal.open, #settingsModal.open, #familyModal.open { display:flex; }
+
+  .mel-row { display:flex; align-items:center; gap:4px; margin:4px 0; }
+  .mel-btn { flex:1; text-align:left; font-size:12px; background:transparent;
+    border:1px solid var(--border); color:var(--ink2); padding:6px 9px; border-radius:8px; cursor:pointer; }
+  .mel-btn:hover { border-color:var(--ink2); color:var(--ink); }
+  .mel-btn.active { border-color:#3987e5; color:var(--ink); background:rgba(57,135,229,0.14); }
+  .mel-del { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:2px 6px; }
+  .mel-del:hover { color:#e66767; }
+  .mel-edit { background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; padding:2px 6px; }
+  .mel-edit:hover { color:#3987e5; }
+
+  #melodyLabels { position:fixed; inset:0; pointer-events:none; z-index:18; }
+  .mel-label-wrap { position:absolute; transform:translate(-50%,-50%); }
+  .mel-label {
+    font-size:11px; font-weight:700;
+    color:#fff; background:rgba(0,0,0,0.65); border-radius:50%; width:20px; height:20px;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px rgba(255,255,255,0.5);
+  }
+  /* gefretteter Ersatzton (kein Naturton-Treffer in Reichweite) — farbinvertiert zur Unterscheidung */
+  .mel-label.fretted {
+    color:#111; background:rgba(255,255,255,0.85); box-shadow:0 0 0 2px rgba(0,0,0,0.5);
+  }
+  /* Tonnamen-Chip am gefretteten Ersatzton — spitze Ecke unten-links "hängt" am Knoten,
+     Rest abgerundet, damit klar ist, welcher Ton tatsächlich gegriffen wird. */
+  .mel-chip {
+    position:absolute; left:13px; top:-19px; background:rgba(255,255,255,0.92); color:#111;
+    font-size:9.5px; font-weight:700; line-height:1; padding:3px 5px; white-space:nowrap;
+    border-radius:2px 6px 6px 6px; box-shadow:0 0 0 1px rgba(0,0,0,0.4);
+  }
+</style>
+</head>
+<body>
+
+<div id="scene"></div>
+<h1>Obertöne auf dem Griffbrett<small>6-Saiter Bass · natürliche Flageolett-Knoten</small></h1>
+<button id="helpBtn" title="Hilfe">?</button>
+<button id="importBtn" class="corner-btn" style="right:56px;" title="Zustand aus JSON-Datei importieren (überschreibt Stimmung, Melodien, Einstellungen)">⬆</button>
+<button id="exportBtn" class="corner-btn" style="right:98px;" title="Gesamten Zustand als JSON-Datei exportieren (Backup)">⬇</button>
+<input type="file" id="importFileInput" accept="application/json" style="display:none;">
+<button id="settingsBtn" class="corner-btn" style="left:14px;" title="Grundeinstellungen">⚙</button>
+<button id="familyBtn" class="corner-btn" style="left:56px;" title="Familien &amp; Skalen">F</button>
+<button id="melodyBtn" class="corner-btn" style="left:98px;" title="Melodien">♪</button>
+<button id="panelToggleBtn" class="corner-btn" style="left:140px;" title="Steuerpanel ein-/ausblenden">☰</button>
+
+<div id="controls" class="panel">
+  <div class="sec-title">Sets</div>
+  <div class="presets" id="setsPresets">
+    <button class="preset" data-preset="2,3,4,5,6">Standard</button>
+    <button class="preset" data-preset="2,3,4,5,6,7,8">Erweitert</button>
+    <button class="preset" data-preset="2,3,4,5,6,7,8,9,10,11,12,13,14,15,16">Voll</button>
+    <button class="preset" data-preset="">Keine</button>
+  </div>
+
+  <div class="sec-title">Obertonordnung (n)</div>
+  <div id="kList"></div>
+
+  <div class="sec-title">Höhe <span class="fam-hint" id="heightScaleVal">×1.0</span></div>
+  <div class="presets" style="margin-bottom:6px;">
+    <button class="preset heightmode-btn" data-mode="harmonic" title="Höhe = Obertonordnung n (unabhängig von der Saite)">Oberton (n)</button>
+    <button class="preset heightmode-btn active" data-mode="pitch" title="Höhe = tatsächlich klingende Tonhöhe – über alle Saiten proportional, macht aufsteigende Läufe sichtbar (Standard)">Tonhöhe</button>
+  </div>
+  <input type="range" id="heightScaleSlider" min="1" max="3" step="0.1" value="1" style="width:100%;accent-color:#3987e5;">
+
+  <div class="sec-title">Kugelgröße</div>
+  <div style="font-size:11px;color:var(--muted);margin:2px 0;">Grundton <span class="fam-hint" id="baseRadiusVal">19%</span></div>
+  <input type="range" id="baseRadiusSlider" min="0" max="100" value="19" style="width:100%;accent-color:#3987e5;" title="Größe des niedrigsten angezeigten Obertons (Referenzpunkt) – gilt in beiden Höhenmodi">
+  <div style="font-size:11px;color:var(--muted);margin:8px 0 2px;">Spreizung <span class="fam-hint" id="octaveSizeVal">40%</span></div>
+  <input type="range" id="octaveSizeSlider" min="0" max="100" value="40" style="width:100%;accent-color:#3987e5;" title="nur im Tonhöhen-Modus aktiv – 0% = alle Kugeln gleich groß, 100% = höchster Ton schrumpft auf Stecknadelkopfgröße">
+
+  <div class="sec-title">Ausblendung <span class="fam-hint" id="dimVal">12%</span></div>
+  <input type="range" id="dimSlider" min="0" max="100" value="12" style="width:100%;accent-color:#3987e5;">
+</div>
+
+<div id="pins" class="panel">
+  <div class="sec-title">Ausgewählte Punkte <button class="clear-all" id="clearPins">alle entfernen</button></div>
+  <div id="pinsEmpty" style="font-size:12px;color:var(--muted);line-height:1.5;">
+    Punkt auf einer Saite anklicken, um Details zu fixieren.
+  </div>
+  <div id="pinsList"></div>
+</div>
+
+<div id="toleranceBar" class="panel">
+  <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Toleranz <span id="scaleTolVal">±50 ct</span></div>
+  <input type="range" id="scaleTolSlider" min="5" max="100" step="5" value="50" style="width:100%;accent-color:#3987e5;" title="wie nah ein Ton am Skalenton liegen muss, um noch als Treffer zu zählen — gilt für Familien, Skalen und Melodien">
+</div>
+<div id="pitchLegend" class="panel"></div>
+<div id="stringSwitches" class="panel" title="Klick: ein/abgeblendet umschalten · Scrollen: Abblendstufe stufenlos regeln"></div>
+<div id="hint">ziehen: drehen · scrollen: zoomen · klick auf Punkt: Details fixieren</div>
+<div id="hoverTip"></div>
+<div id="melodyLabels"></div>
+
+<div id="helpOverlay">
+  <div class="helpBox">
+    <button class="helpClose" id="helpClose">×</button>
+    <h2>Wie diese Ansicht zu lesen ist</h2>
+
+    <h3>Bedienung</h3>
+    <ul>
+      <li>Ziehen dreht die Ansicht, Scrollen zoomt.</li>
+      <li>Klick auf einen schwebenden Punkt fixiert eine Detailkarte rechts.</li>
+      <li>Links: welche Obertonordnungen (n) angezeigt werden, Stimmung, Familien.</li>
+      <li><b>Griffbrett — Linkshänder/Rechtshänder:</b> spiegelt nur die Saitenreihenfolge (Halsrichtung bleibt fix). Das ist bewusst kein Kippen beider Achsen zugleich — das wäre bei unserem vorne/hinten symmetrischen Modell nur eine 180°-Drehung der Ebene und damit exakt das, was freies Orbiten per Maus ohnehin zeigt (Determinante +1). Nur eine Achse zu kippen ergibt eine echte Spiegelung (Determinante −1), die keine Kamerabewegung nachstellen kann.</li>
+    </ul>
+
+    <h3>Cent-Werte</h3>
+    <p>100 Cent = 1 Halbton, 1200 Cent = 1 Oktave — ein logarithmisches Maß, weil Tonhöhenverhältnisse multiplikativ sind, nicht additiv.</p>
+    <p><b>Position (Bundraster):</b> wie weit der physische Berührungspunkt auf der Saite vom nächstgelegenen temperierten Bund entfernt liegt. Rein geometrisch — sagt, wo genau der Finger hin muss, wenn man sich am Bund orientiert.</p>
+    <p><b>Tonhöhe (vs. 12-TET):</b> wie weit der tatsächlich klingende Oberton von der nächsten Note der gleichstufigen Stimmung (Standard, A=440Hz) abweicht. Akustisch — sagt, wie „rein" oder „schräg" der Naturton gegenüber Klavier- bzw. Bundstimmung klingt.</p>
+    <p>Beide Werte sind voneinander unabhängig und können bei höheren Obertönen deutlich auseinanderlaufen — sie beantworten unterschiedliche Fragen: wo greifen vs. wie klingt das Ergebnis wirklich.</p>
+
+    <h3>Höhe &amp; Darstellung</h3>
+    <p><b>Oberton (n):</b> Schwebehöhe nach Obertonordnung, Farbe nach Familienzugehörigkeit (n) — zeigt die Struktur der Naturtonreihe, unabhängig von der Saite.</p>
+    <p><b>Tonhöhe:</b> Schwebehöhe proportional zur tatsächlich klingenden Tonhöhe (log-Frequenz), über alle Saiten auf denselben Nullpunkt bezogen — aufsteigende Läufe, auch saitenübergreifend, bilden dadurch eine sichtbar steigende Punktreihe. Farbe wechselt auf eine 12-stufige Tonklassen-Skala von Dunkelviolett bis Hellrot (OKLCH, perzeptuell gleichmäßig, kein Magenta/Pink), Kugelgröße nach Tonhöhe relativ zum niedrigsten angezeigten Oberton (i.d.R. 1 Oktave über dem Grundton): Regler „Grundton" setzt dessen Größe, Regler „Spreizung" bestimmt wie stark höhere Töne davon ausgehend schrumpfen (0% = alle gleich groß, 100% = höchster Ton auf Stecknadelkopfgröße, ~2%). Der Regler „Höhe" (×1–×3) skaliert den vertikalen Ausschlag in beiden Modi.</p>
+
+    <h3>Familien</h3>
+    <p>Eine Familie fasst Obertöne zusammen, die zueinander besonders gut passen. Ein Klick aktiviert die Familie (ihre Obertonordnungen werden eingeblendet) und graut alle nicht dazugehörigen Punkte stark aus, damit die Familie optisch stehen bleibt. Erneuter Klick hebt die Hervorhebung wieder auf.</p>
+    <ul>
+      <li><b>Grundton/Oktaven:</b> reine Vielfache von 2 — exakt dieselbe Note, nur eine Oktave höher.</li>
+      <li><b>Quinten-Familie:</b> odd-part 3 — reine Quinte (und ihre Oktaven).</li>
+      <li><b>Terzen-Familie:</b> odd-part 5 — reine, leicht tiefere große Terz.</li>
+      <li><b>Naturseptime:</b> odd-part 7 — kleine Septime, deutlich tiefer als die temperierte („Blue Note"-Charakter).</li>
+      <li><b>Sekund-Familie:</b> odd-part 9 — große Sekunde.</li>
+      <li><b>Undezime:</b> odd-part 11 — Mikroton zwischen Quart und Tritonus.</li>
+      <li><b>Naturton-Pentatonik:</b> Partialtöne 8-9-10-12-14 — Grundton, None, Terz und Quinte wie in Dur, der fünfte Ton ist aber die tiefe Naturseptime statt einer Sexte (keine reine Dur-Pentatonik, aber so im Obertongesang verwendet).</li>
+    </ul>
+    <p>Der Regler <b>Ausblendung</b> bestimmt, wie stark nicht zugehörige Punkte gedimmt werden (0% = unsichtbar, 100% = keine Ausblendung).</p>
+
+    <h3>Skalen (Familien-Modal)</h3>
+    <p>Anders als die festen Familien (die nur von der Obertonordnung n abhängen) wertet eine Skala die <b>tatsächlich klingende Tonhöhe</b> jedes Punkts aus — Saite × Oberton zusammen — und vergleicht sie mit den Tönen der gewählten Skala über dem im Panel gewählten Grundton. Neben den zwei Pentatoniken stehen Dur, Moll (Äolisch), Harmonisch Moll, Melodisch Moll, Blues, Ganzton, Vermindert und Übermäßig zur Wahl. Treffer (Toleranz-Regler) leuchten über das ganze Griffbrett verteilt auf, unabhängig davon, auf welcher Saite oder mit welchem Oberton sie erzeugt werden. Die Farblegende unten (Tonhöhen-Modus) ordnet sich dabei immer auf diesen Grundton ganz links.</p>
+
+    <h3>Melodien</h3>
+    <p>Eine Melodie ist eine Liste von Halbton-Intervallen relativ zum Grundton (Skalen-Familie-Auswahl), in der gespielten Reihenfolge — z.B. <code>0,2,4,7,9,12</code> für einen aufsteigenden Dur-Lauf über eine Oktave. Beim Anzeigen sucht sich jeder Intervall-Schritt den nächstgelegenen tatsächlich vorhandenen Naturton (über alle Saiten, inklusive der leeren Saite als Grundton), lagenweise am vorigen Ton ausgerichtet, damit die Melodie spielbar bleibt statt übers ganze Griffbrett zu springen. Zwei Regler steuern das:</p>
+    <ul style="margin:6px 0 10px;padding-left:18px;font-size:11.5px;">
+      <li><b>Ziel-Lage / Spreizung</b> — der Bundbereich, in dem sich die Melodie konsolidieren soll (Mittelpunkt + Breite, ±0,5 Bünde Kulanz an den Rändern). Nur Töne innerhalb dieses Fensters kommen infrage.</li>
+      <li><b>Oktaven ↑ / ↓</b> — wie viele Oktaven ein Naturton-Treffer über (bzw., zuschaltbar, unter) dem strengen Zielton liegen darf. Bei Obertönen läuft es meist auf höher hinaus, daher ist ↓ standardmäßig aus.</li>
+    </ul>
+    <p>Treffer werden nummeriert (dunkle Marke) und durch eine Linie verbunden. Findet sich innerhalb von Lagenfenster und Oktavrichtung kein Naturton, wird der Zielton stattdessen als gegriffener (gefretteter) Ersatzton auf der jeweils lagenächsten Saite eingesetzt — exakt in der erwarteten Tonhöhe, aber farblich invertiert (helle Marke) von echten Naturtönen unterschieden und zusätzlich mit einem kleinen Tonnamen-Chip (z.B. "F#") versehen, da sich der Ton hier nicht wie beim Naturton aus der Position ablesen lässt. Nur wenn der Zielton auch gefrettet innerhalb des Fensters auf keiner Saite erreichbar ist, entsteht eine Lücke in der Linie. Melodien lassen sich über das Stift-Symbol in der Liste bearbeiten; ⬆/⬇ oben rechts exportieren bzw. importieren den gesamten Zustand (Stimmung, Melodien, Einstellungen) als JSON-Datei.</p>
+  </div>
+</div>
+
+<div id="settingsModal">
+  <div class="helpBox" style="max-width:380px;">
+    <button class="helpClose" id="settingsModalClose">×</button>
+    <h2>Grundeinstellungen</h2>
+
+    <h3>Griffbrett</h3>
+    <div class="presets" style="margin-bottom:6px;">
+      <button class="preset handed-btn" data-hand="left" title="Echte Spiegelung der Saitenreihenfolge – nicht per Kamera nachstellbar">Linkshänder</button>
+      <button class="preset handed-btn active" data-hand="right" title="Aktueller Zustand (Standard): tiefste Saite (unten in der Liste) auf einer festen Seite">Rechtshänder</button>
+    </div>
+    <label class="toggle-row"><input type="checkbox" id="fretMarkers" checked> Bundmarkierungen</label>
+
+    <h3>Stimmung (tief → hoch)</h3>
+    <div id="tuneList"></div>
+  </div>
+</div>
+
+<div id="familyModal">
+  <div class="helpBox" style="max-width:380px;">
+    <button class="helpClose" id="familyModalClose">×</button>
+    <h2>Familien &amp; Skalen</h2>
+
+    <h3>Familien <span class="fam-hint">(Klick hebt hervor)</span></h3>
+    <div id="famList"></div>
+
+    <h3>Skalen <span class="fam-hint">(Grundton &amp; Toleranz siehe Panel)</span></h3>
+    <div id="scaleFamList" style="max-height:260px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<div id="melodyModal">
+  <div class="helpBox" style="max-width:420px;">
+    <button class="helpClose" id="melodyModalClose">×</button>
+    <h2>Melodien</h2>
+    <p style="font-size:11.5px;color:var(--ink2);margin:4px 0 12px;">Zielintervalle relativ zum Grundton (Panel, links) — nächstgelegener Treffer je Ton innerhalb der Lage unten, Details in der Hilfe.</p>
+
+    <div class="tune-row" title="Bundbereich, in dem die Melodie realisiert werden soll — Mittelpunkt und Breite. ±0,5 Bünde Kulanz an den Rändern, damit knapp außerhalb liegende Flageolett-Töne nicht unnötig wegfallen.">
+      <label>Ziel-Lage</label>
+      <input type="number" id="melodyFretCenterInput" min="0" max="24" step="1">
+      <label style="width:auto;margin-left:10px;">Spreizung</label>
+      <input type="number" id="melodyFretSpreadInput" min="1" max="24" step="1">
+    </div>
+    <div class="tune-row" title="Wie viele Oktaven über dem strengen Zielton ein Naturton-Treffer noch akzeptiert wird — bei Obertönen läuft es meist auf höher hinaus.">
+      <label>Oktaven ↑</label>
+      <div class="presets" id="melodyOctaveUpPresets" style="flex:1;">
+        <button class="preset melody-oct-up-btn" data-oct="0">+0</button>
+        <button class="preset melody-oct-up-btn" data-oct="1">+1</button>
+        <button class="preset melody-oct-up-btn" data-oct="2">+2</button>
+      </div>
+    </div>
+    <div class="tune-row">
+      <label class="toggle-row" style="width:auto;margin-top:0;"><input type="checkbox" id="melodyOctaveDownEnabled">auch ↓</label>
+      <div class="presets" id="melodyOctaveDownPresets" style="flex:1;">
+        <button class="preset melody-oct-down-btn" data-oct="1">-1</button>
+        <button class="preset melody-oct-down-btn" data-oct="2">-2</button>
+      </div>
+    </div>
+
+    <div id="melodyList"></div>
+    <div id="melodyMatchInfo" style="font-size:10.5px;color:var(--muted);margin:6px 0 14px;"></div>
+
+    <h3 id="melodyFormTitle">Neue Melodie</h3>
+    <div class="tune-row">
+      <label style="width:70px;">Name</label>
+      <input type="text" id="melodyNameInput" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--ink);border-radius:6px;padding:4px 7px;font-size:12px;font-family:inherit;" placeholder="z.B. Mein Lauf">
+    </div>
+    <div class="tune-row">
+      <label style="width:70px;">Intervalle</label>
+      <input type="text" id="melodyIntervalsInput" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--ink);border-radius:6px;padding:4px 7px;font-size:12px;font-family:inherit;" placeholder="0,2,4,7,9,12">
+    </div>
+    <div style="font-size:10.5px;color:var(--muted);margin:4px 0 14px;">Halbtöne relativ zum Grundton, kommagetrennt, Reihenfolge = Spielreihenfolge. Können über 12 hinausgehen (mehr als 1 Oktave).</div>
+    <div style="display:flex;gap:8px;">
+      <button class="preset" id="melodySaveBtn" style="flex:1;">Speichern</button>
+      <button class="preset" id="melodyCancelEditBtn" style="display:none;">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ---------- Musik-Mathematik ---------- */
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const SEMITONE = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+
+function noteNameToMidi(str) {
+  const m = str.trim().match(/^([A-Ga-g])(#|b)?(-?\d+)$/);
+  if (!m) return null;
+  let s = SEMITONE[m[1].toUpperCase()];
+  if (m[2] === '#') s += 1;
+  if (m[2] === 'b') s -= 1;
+  const oct = parseInt(m[3], 10);
+  return (oct + 1) * 12 + s;
+}
+function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+function freqToExactMidi(freq) { return 69 + 12 * Math.log2(freq / 440); }
+function freqToNoteLabel(freq) {
+  const exact = freqToExactMidi(freq);
+  const rounded = Math.round(exact);
+  const cents = Math.round((exact - rounded) * 100);
+  const name = NOTE_NAMES[((rounded % 12) + 12) % 12];
+  const octave = Math.floor(rounded / 12) - 1;
+  return { text: `${name}${octave}`, cents };
+}
+function pitchClassCents(freq) {
+  const exact = freqToExactMidi(freq) * 100;
+  return ((exact % 1200) + 1200) % 1200;
+}
+function circularCentsDiff(a, b) {
+  const d = Math.abs(a - b) % 1200;
+  return Math.min(d, 1200 - d);
+}
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+/* fret n Position ab Sattel (Bruchteil der Mensur) */
+function fretFrac(n) { return 1 - Math.pow(2, -n / 12); }
+/* Bund-äquivalente Cent-Position einer geometrischen Bruch-Position */
+function fretEquivalent(frac) {
+  const cents = 1200 * Math.log2(1 / (1 - frac));
+  const nearest = Math.round(cents / 100);
+  const offset = Math.round(cents - nearest * 100);
+  return { nearest, offset };
+}
+function fmtCents(c) { return (c > 0 ? '+' : '') + c + ' ct'; }
+
+/* ---------- Persistenz (localStorage) ---------- */
+/* Merkt die Einstellungen über Reloads hinweg. Fehlt ein gespeicherter Stand (erster
+   Aufruf, oder Storage geleert), greifen die Standardwerte unten (Rechtshänder,
+   Tonhöhen-Modus). */
+
+const STORAGE_KEY = 'harmonics-state-v1';
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function currentStateObject() {
+  return {
+    stringNames: STRING_NAMES,
+    activeK: [...activeK],
+    stringDim,
+    mirrorStrings,
+    heightMode,
+    heightScale,
+    octaveSizeStep,
+    baseRadius,
+    dimFactor,
+    scaleRoot,
+    scaleTolerance,
+    fretMarkers: fretMarkersEl.checked,
+    melodies,
+    activeMelodyIdx,
+    melodyFretCenter,
+    melodyFretSpread,
+    melodyOctaveUp,
+    melodyOctaveDownEnabled,
+    melodyOctaveDown,
+  };
+}
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(currentStateObject())); } catch {}
+}
+const _saved = loadState();
+
+/* ---------- Instrument / Zustand ---------- */
+
+const STRING_NAMES = _saved?.stringNames ?? ['B0','E1','A1','D2','G2','C3']; // tief -> hoch
+let tuningMidi = STRING_NAMES.map(noteNameToMidi);
+const STRING_RADIUS = [0.062, 0.052, 0.044, 0.036, 0.029, 0.023];
+const N_STRINGS = STRING_NAMES.length;
+const L = 26;                // Mensur-Darstellungslänge (Einheiten)
+const N_FRETS = 24;
+const Z = STRING_NAMES.map((_, i) => (i - (N_STRINGS - 1) / 2) * 1.35);
+
+const K_MIN = 2, K_MAX = 16;
+const PALETTE = ['#3987e5','#199e70','#c98500','#008300','#9085e9','#e66767','#d55181','#d95926'];
+function colorForK(k) { return PALETTE[(k - K_MIN) % PALETTE.length]; }
+
+let activeK = new Set(_saved?.activeK ?? [2,3,4,5,6]);
+let stringDim = _saved?.stringDim ?? new Array(N_STRINGS).fill(1); // pro Saite stufenlos abblendbar, 1 = voll sichtbar (Regelschalter neben der Farblegende)
+
+/* Oberton-Familien: odd-part-Gruppierung (exakt gleiche Tonklasse über Oktaven)
+   plus eine kuratierte Naturton-Pentatonik. match(d) bekommt die volle Knoten-
+   Userdata {stringIdx,k,j,frac}, die festen Familien werten nur d.k aus. */
+function oddPart(k) { while (k % 2 === 0) k /= 2; return k; }
+const FAMILIES = [
+  { key:'root',       label:'Grundton/Oktaven',   desc:'reine Vielfache von 2 – exakt dieselbe Note, nur höhere Oktave', match:d => oddPart(d.k) === 1 },
+  { key:'fifth',       label:'Quinten-Familie',    desc:'odd-part 3 – reine Quinte (und ihre Oktaven)', match:d => oddPart(d.k) === 3 },
+  { key:'third',       label:'Terzen-Familie',     desc:'odd-part 5 – reine, leicht tiefere große Terz', match:d => oddPart(d.k) === 5 },
+  { key:'seventh',     label:'Naturseptime',       desc:'odd-part 7 – kleine Septime, deutlich tiefer als temperiert', match:d => oddPart(d.k) === 7 },
+  { key:'second',      label:'Sekund-Familie',     desc:'odd-part 9 – große Sekunde', match:d => oddPart(d.k) === 9 },
+  { key:'eleventh',    label:'Undezime',           desc:'odd-part 11 – Mikroton zwischen Quart und Tritonus', match:d => oddPart(d.k) === 11 },
+  { key:'pentatonic',  label:'Naturton-Pentatonik', desc:'Partialtöne 8-9-10-12-14 – Grundton, None, Terz, Quinte wie in Dur, fünfter Ton aber tiefe Naturseptime statt Sexte (Obertongesang)', match:d => [8,9,10,12,14].includes(d.k) },
+];
+let familyFocus = null;
+let savedActiveK = null; // n-Auswahl vor Betreten eines Familien-/Skalen-Fokus, zum Wiederherstellen beim Verlassen
+let dimFactor = _saved?.dimFactor ?? 0.12; // Resthelligkeit ausgeblendeter Punkte (0 = unsichtbar, 1 = keine Ausblendung)
+
+/* Betritt/verlässt einen Familien-, Skalen- oder Melodie-Fokus. Merkt sich die n-Auswahl
+   nur beim allerersten Eintritt (nicht beim direkten Wechsel zwischen zwei Fokussen, und
+   nicht wenn schon ein anderer Fokus-Typ aktiv ist) und stellt sie erst wieder her, wenn
+   wirklich kein Fokus mehr aktiv ist – statt die erzwungenen n-Zusätze dauerhaft
+   angehäkelt zu lassen. */
+function anyFocusActive() { return familyFocus !== null || activeMelodyIdx !== null; }
+function enterFocus(members) {
+  if (!anyFocusActive()) savedActiveK = new Set(activeK);
+  members.forEach(k => activeK.add(k));
+}
+function exitFocus() {
+  if (!anyFocusActive() && savedActiveK) { activeK = new Set(savedActiveK); savedActiveK = null; }
+}
+
+/* Skalen-Familie: Grundton + Dur-/Moll-Pentatonik, ausgewertet über die tatsächlich
+   klingende Tonhöhe jedes Punkts (Saite × Oberton) – tonal, nicht nur harmonisch. */
+const SCALE_DEGREES = {
+  durPenta:   [0,2,4,7,9],
+  mollPenta:  [0,3,5,7,10],
+  dur:        [0,2,4,5,7,9,11],
+  moll:       [0,2,3,5,7,8,10],
+  harmMoll:   [0,2,3,5,7,8,11],
+  melMoll:    [0,2,3,5,7,9,11],
+  blues:      [0,3,5,6,7,10],
+  wholetone:  [0,2,4,6,8,10],
+  diminished: [0,2,3,5,6,8,9,11],
+  augmented:  [0,3,4,7,8,11],
+};
+const SCALE_LABELS = {
+  durPenta:   'Dur-Pentatonik',
+  mollPenta:  'Moll-Pentatonik',
+  dur:        'Dur (Ionisch)',
+  moll:       'Moll (Äolisch)',
+  harmMoll:   'Harmonisch Moll',
+  melMoll:    'Melodisch Moll',
+  blues:      'Blues',
+  wholetone:  'Ganzton',
+  diminished: 'Vermindert',
+  augmented:  'Übermäßig',
+};
+let scaleRoot = _saved?.scaleRoot ?? (((tuningMidi[0] % 12) + 12) % 12); // Default: tiefste Leersaite
+let scaleTolerance = _saved?.scaleTolerance ?? 50; // ct-Toleranz, ab wann ein Ton noch zur Skalen-Familie zählt
+
+function scaleMatcher(mode) {
+  const targets = SCALE_DEGREES[mode].map(deg => ((scaleRoot + deg) % 12) * 100);
+  return (d) => {
+    const freq = midiToFreq(tuningMidi[d.stringIdx]) * d.k;
+    const pc = pitchClassCents(freq);
+    return targets.some(t => circularCentsDiff(pc, t) <= scaleTolerance);
+  };
+}
+function currentMatcher() {
+  if (familyFocus && familyFocus.startsWith('scale:')) return scaleMatcher(familyFocus.split(':')[1]);
+  const fam = FAMILIES.find(f => f.key === familyFocus);
+  return fam ? fam.match : null;
+}
+
+/* Melodien: geordnete Liste von Zielintervallen (Halbtöne relativ zum Grundton der
+   Skalen-Familie, können über 12 hinausgehen). Anders als die Familien/Skalen-Sets
+   (Mengen-Zugehörigkeit, unsortiert) ist eine Melodie eine Sequenz – pro Schritt wird
+   über alle Saiten×Obertöne der nächstgelegene tatsächliche Knoten innerhalb der
+   Skalen-Toleranz gesucht. Nicht jeder Schritt findet zwingend einen Treffer. */
+const DEFAULT_MELODIES = [
+  { name: 'Dur-Lauf (auf)', intervals: [0,2,4,7,9,12] },
+  { name: 'Auf und ab', intervals: [0,2,4,7,9,7,4,2,0] },
+  { name: "C'est si bon (Anfang, angenähert)", intervals: [4,4,4,0,2,4,5,4] },
+];
+let melodies = _saved?.melodies ?? DEFAULT_MELODIES.map(m => ({ ...m }));
+let activeMelodyIdx = _saved?.activeMelodyIdx ?? null;
+// Lagenfenster: Melodie soll sich in einem Bundbereich um melodyFretCenter herum konsolidieren
+// (Breite melodyFretSpread), statt frei übers ganze Griffbrett zu springen. ±0,5 Bünde Kulanz
+// an den Rändern (MELODY_FRET_WINDOW_TOLERANCE), damit knapp außerhalb liegende Flageolett-
+// Töne nicht unnötig wegfallen.
+let melodyFretCenter = _saved?.melodyFretCenter ?? 5;
+let melodyFretSpread = _saved?.melodyFretSpread ?? 12;
+const MELODY_FRET_WINDOW_TOLERANCE = 0.5;
+// Erlaubte Oktavabweichung eines Naturton-Treffers vom strengen Zielton, getrennt nach Richtung:
+// bei Obertönen läuft es strukturell meist auf höher hinaus (+0/+1/+2), tiefer ist die Ausnahme
+// und daher eigens zuschaltbar (-1/-2).
+let melodyOctaveUp = _saved?.melodyOctaveUp ?? 1;
+let melodyOctaveDownEnabled = _saved?.melodyOctaveDownEnabled ?? false;
+let melodyOctaveDown = _saved?.melodyOctaveDown ?? 1;
+
+function anchorMidiForMelody() {
+  // Zielton-Anker: Grundton-Tonklasse (scaleRoot) in der Oktavlage nahe der tiefsten Saite
+  const base = fundamentalRefMidi();
+  const basePc = ((base % 12) + 12) % 12;
+  return base + ((scaleRoot - basePc + 12) % 12);
+}
+function octaveOffsetAllowed(semisOff) {
+  const octaves = Math.round(semisOff / 12);
+  if (octaves > 0) return octaves <= melodyOctaveUp;
+  if (octaves < 0) return melodyOctaveDownEnabled && -octaves <= melodyOctaveDown;
+  return true;
+}
+function melodyFretWindow() {
+  const half = melodyFretSpread / 2;
+  return [melodyFretCenter - half - MELODY_FRET_WINDOW_TOLERANCE, melodyFretCenter + half + MELODY_FRET_WINDOW_TOLERANCE];
+}
+/* Umkehrfunktion von fretFrac(n): virtuelle (nicht ganzzahlige) Bundposition eines
+   Obertonknotens an Bruchposition frac entlang der Saite. */
+function fretPositionFromFrac(frac) { return -12 * Math.log2(1 - frac); }
+/* Bundpositionen aller Knoten eines Obertons k (hängt nur von j/k ab, nicht von der Saite).
+   k=1 = leere Saite, liegt am Sattel (Bund 0). Pro k einmalig berechnet und gecacht. */
+const _fretPosCache = new Map();
+function fretPositionsForK(k) {
+  if (k === 1) return [0];
+  if (_fretPosCache.has(k)) return _fretPosCache.get(k);
+  const out = [];
+  for (let j = 1; j < k; j++) if (gcd(j, k) === 1) out.push(fretPositionFromFrac(j / k));
+  _fretPosCache.set(k, out);
+  return out;
+}
+
+/* Baut die vollständige Melodie-Sequenz: pro Schritt zuerst ein Naturton innerhalb des
+   Lagenfensters (Tonklassen-Toleranz + erlaubte Oktavrichtung), sonst ein gefretteter
+   Ersatzton (exakte Tonhöhe, ebenfalls im Fenster), sonst eine Lücke. Läuft sequentiell,
+   damit jeder Schritt lagenweise am vorigen (oder an der Ziel-Lage, für den ersten Ton)
+   ausgerichtet wird — Kontinuität ist wichtiger als die theoretisch bestmögliche Einzelnote. */
+function buildMelodySequence(melody) {
+  const anchor = anchorMidiForMelody();
+  const ks = [1, ...activeK];
+  const [fretMin, fretMax] = melodyFretWindow();
+  let prevFretPos = null;
+  return melody.intervals.map(interval => {
+    const targetAbs = anchor + interval;
+    const targetPc = ((targetAbs % 12) + 12) % 12 * 100;
+    const ref = prevFretPos === null ? melodyFretCenter : prevFretPos;
+
+    let best = null, bestScore = Infinity;
+    for (let s = 0; s < N_STRINGS; s++) {
+      for (const k of ks) {
+        const exact = freqToExactMidi(midiToFreq(tuningMidi[s]) * k);
+        const pc = ((exact % 12) + 12) % 12 * 100;
+        const pcDiff = circularCentsDiff(pc, targetPc);
+        if (pcDiff > scaleTolerance) continue;
+        if (!octaveOffsetAllowed(exact - targetAbs)) continue;
+        for (const fretPos of fretPositionsForK(k)) {
+          if (fretPos < fretMin || fretPos > fretMax) continue;
+          const score = Math.abs(fretPos - ref);
+          if (score < bestScore) { bestScore = score; best = { type: 'natural', stringIdx: s, k, fretPos, diff: pcDiff }; }
+        }
+      }
+    }
+    if (!best) {
+      let bestScore2 = Infinity;
+      for (let s = 0; s < N_STRINGS; s++) {
+        const fret = Math.round(targetAbs - tuningMidi[s]);
+        if (fret < 0 || fret > N_FRETS || fret < fretMin || fret > fretMax) continue;
+        const score = Math.abs(fret - ref);
+        if (score < bestScore2) { bestScore2 = score; best = { type: 'fretted', stringIdx: s, fret, fretPos: fret }; }
+      }
+    }
+    if (best) prevFretPos = best.fretPos;
+    return best; // null = Lücke (Zielton innerhalb des Fensters auf keiner Saite erreichbar)
+  });
+}
+function findMelodyMatches(melody) {
+  // Nur die Naturton-Treffer (für die Hervorhebung bestehender Oberton-Knoten, s.
+  // activeMelodyMatchKeys) — gefrettete Ersatztöne und Lücken werden hier zu null.
+  return buildMelodySequence(melody).map(m => (m && m.type === 'natural') ? m : null);
+}
+function activeMelodyMatchKeys() {
+  if (activeMelodyIdx === null || !melodies[activeMelodyIdx]) return null;
+  const keys = new Set();
+  for (const m of findMelodyMatches(melodies[activeMelodyIdx])) {
+    if (m) keys.add(m.stringIdx + '_' + m.k);
+  }
+  return keys;
+}
+
+/* Knoten für aktives Set erzeugen: {k, j, frac} je String identisch (geometrisch) */
+function generateNodes() {
+  const nodes = [];
+  for (const k of activeK) {
+    for (let j = 1; j < k; j++) {
+      if (gcd(j, k) === 1) nodes.push({ k, j, frac: j / k });
+    }
+  }
+  return nodes.sort((a,b) => a.frac - b.frac);
+}
+
+/* ---------- Three.js Szene ---------- */
+
+let isLight = matchMedia('(prefers-color-scheme: light)').matches;
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 200);
+camera.position.set(L*0.32, 13, 15);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.getElementById('scene').appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(L*0.42, 0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 6;
+controls.maxDistance = 55;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.update();
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
+scene.add(ambientLight);
+const key = new THREE.DirectionalLight(0xffffff, 1.1);
+key.position.set(10, 18, 12);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x88aaff, 0.35);
+rim.position.set(-10, 6, -10);
+scene.add(rim);
+
+/* Rig: fasst alles Griffbrett-Bezogene zusammen (rein organisatorisch). Halsrichtung
+   (Sattel/Steg-Seite) bleibt fix – Kippen von Saiten UND Halsrichtung gemeinsam wäre
+   nur eine 180°-Rotation der Ebene (Determinante +1), exakt das, was freies Orbiten
+   per Maus ohnehin zeigt. Echte Spiegelung (Determinante −1, kameratechnisch nicht
+   nachstellbar) gibt es nur, wenn genau eine Achse kippt: hier die Saitenreihenfolge. */
+const rig = new THREE.Group();
+scene.add(rig);
+let mirrorStrings = _saved?.mirrorStrings ?? true; // Standard: Rechtshänder
+function zFor(s) { return mirrorStrings ? Z[N_STRINGS - 1 - s] : Z[s]; }
+function applyHandedness() {
+  stringMeshes.forEach((m, s) => { m.position.z = zFor(s); });
+}
+
+/* Hals */
+const neckMat = new THREE.MeshStandardMaterial({ roughness:0.85, metalness:0.05 });
+const neckW = Z[N_STRINGS-1] - Z[0] + 1.6;
+const neck = new THREE.Mesh(new THREE.BoxGeometry(L + 2, 0.18, neckW), neckMat);
+neck.position.set(L/2 - 1, -0.1, 0);
+rig.add(neck);
+
+/* Bünde */
+const fretMat = new THREE.MeshStandardMaterial({ metalness:0.7, roughness:0.35 });
+const fretGroup = new THREE.Group();
+for (let n = 1; n <= N_FRETS; n++) {
+  const x = L * fretFrac(n);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, neckW), fretMat);
+  bar.position.set(x, 0.005, 0);
+  fretGroup.add(bar);
+}
+rig.add(fretGroup);
+/* Sattel + Steg */
+const nutBar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.09, neckW), new THREE.MeshStandardMaterial({color:0xece6d8, roughness:0.6}));
+nutBar.position.set(0, 0.02, 0);
+rig.add(nutBar);
+const bridgeMat = new THREE.MeshStandardMaterial({ metalness:0.6, roughness:0.4 });
+const bridgeBar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.11, neckW), bridgeMat);
+bridgeBar.position.set(L, 0.03, 0);
+rig.add(bridgeBar);
+
+/* Bundmarkierungen (Inlays) */
+const inlayMat = new THREE.MeshStandardMaterial({ roughness:0.5 });
+const inlayGroup = new THREE.Group();
+const inlayFrets = [3,5,7,9,12,15,17,19,21,24];
+for (const n of inlayFrets) {
+  const x = L * (fretFrac(n-1) + fretFrac(n)) / 2;
+  const dotZs = (n % 12 === 0) ? [-0.4, 0.4] : [0];
+  for (const dz of dotZs) {
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.09, 20), inlayMat);
+    dot.rotation.x = -Math.PI/2;
+    dot.position.set(x, 0.011, dz);
+    inlayGroup.add(dot);
+  }
+}
+rig.add(inlayGroup);
+
+/* Saiten */
+const stringMeshes = [];
+const stringMats = [];
+for (let s = 0; s < N_STRINGS; s++) {
+  const mat = new THREE.MeshStandardMaterial({ metalness:0.85, roughness:0.3 });
+  const geo = new THREE.CylinderGeometry(STRING_RADIUS[s], STRING_RADIUS[s], L, 10);
+  const m = new THREE.Mesh(geo, mat);
+  m.rotation.z = Math.PI/2;
+  m.position.set(L/2, 0.05, zFor(s));
+  rig.add(m);
+  stringMeshes.push(m);
+  stringMats.push(mat);
+}
+
+/* Theme (hell/dunkel) auf Szene, Licht und Instrument-Materialien anwenden – reaktiv,
+   damit ein Live-Wechsel des OS-Farbmodus die 3D-Szene mitzieht (die Panel-Farben tun
+   das schon automatisch über die CSS-@media-Regel). */
+function applyTheme(lightNow) {
+  isLight = lightNow;
+  const sceneBg = isLight ? 0xeceae4 : 0x111110;
+  scene.background = new THREE.Color(sceneBg);
+  scene.fog = new THREE.Fog(sceneBg, 28, 70);
+  ambientLight.intensity = isLight ? 0.75 : 0.55;
+  key.intensity = isLight ? 0.9 : 1.1;
+  neckMat.color.setHex(isLight ? 0xcbb18f : 0x3a2a1e);
+  fretMat.color.setHex(isLight ? 0x9a9a9a : 0xbfbfbf);
+  bridgeMat.color.setHex(isLight ? 0x555555 : 0x888888);
+  inlayMat.color.setHex(isLight ? 0xffffff : 0xe8e2d0);
+  stringMats.forEach(m => m.color.setHex(isLight ? 0x8a8f96 : 0xb8bcc2));
+}
+applyTheme(isLight);
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => applyTheme(e.matches));
+
+/* Obertonpunkte */
+const nodesGroup = new THREE.Group();
+rig.add(nodesGroup);
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let hovered = null;
+
+/* Melodie-Pfad: verbindende Linie zwischen getroffenen Knoten + Nummern-Labels (HTML-Overlay,
+   Position wird pro Frame aus der Kamera-Projektion aktualisiert, s. animate()). */
+const melodyPathGroup = new THREE.Group();
+rig.add(melodyPathGroup);
+let melodyLabelPositions = []; // [{pos:THREE.Vector3, num}]
+let melodyLabelEls = [];
+
+let heightMode = _saved?.heightMode ?? 'pitch'; // 'harmonic' = Höhe nach Obertonordnung n, 'pitch' = Höhe nach realer Tonhöhe (Standard)
+let heightScale = _saved?.heightScale ?? 1;
+let octaveSizeStep = _saved?.octaveSizeStep ?? 0.4; // Spreizung 0–1: 0 = alle Kugeln gleich groß, 1 = höchster Ton schrumpft auf SIZE_MIN_FRACTION (nur im 'pitch'-Modus)
+
+/* OKLCH -> sRGB (Referenz: Björn Ottosson, öffentliche Formeln). Perzeptuell
+   gleichmäßig – gleiches L/C sieht bei jedem Hue gleich hell/kräftig aus,
+   anders als HSL (dort wirken Cyan/Magenta bei gleichem S/L heller/blasser). */
+function oklchToRgb(L, C, Hdeg) {
+  const h = Hdeg * Math.PI / 180;
+  const a = Math.cos(h) * C, b = Math.sin(h) * C;
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+  const l = l_ ** 3, m = m_ ** 3, s = s_ ** 3;
+  const r  = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const g  = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const bb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+  const toSrgb = c => { c = Math.max(0, Math.min(1, c)); return c <= 0.0031308 ? 12.92*c : 1.055*Math.pow(c,1/2.4)-0.055; };
+  return [toSrgb(r)*255, toSrgb(g)*255, toSrgb(bb)*255];
+}
+function rgbToHex(rgb) {
+  const h = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return '#' + h(rgb[0]) + h(rgb[1]) + h(rgb[2]);
+}
+
+/* Regenbogen-Farbe je Tonklasse (12 Halbtonschritte), Dunkelviolett (C) -> Hellrot (H) –
+   kein voller Farbkreis (kein Magenta/Pink), OKLCH C=0.20 L=0.68 (per Farbfächer-Test gewählt).
+   Nur im 'pitch'-Modus aktiv, sonst weiter die Familienfarbe nach Obertonordnung (colorForK). */
+const PITCH_HUE_FROM = 265, PITCH_HUE_TO = 0;
+function colorForPitchClass(pc) {
+  const t = (((pc % 12) + 12) % 12) / 11;
+  const hue = PITCH_HUE_FROM + (PITCH_HUE_TO - PITCH_HUE_FROM) * t;
+  return rgbToHex(oklchToRgb(0.68, 0.20, hue));
+}
+function pitchClassIndex(freq) {
+  return ((Math.round(freqToExactMidi(freq)) % 12) + 12) % 12;
+}
+function nodeColor(stringIdx, k) {
+  if (heightMode === 'pitch') return colorForPitchClass(pitchClassIndex(midiToFreq(tuningMidi[stringIdx]) * k));
+  return colorForK(k);
+}
+
+/* 'pitch'-Modus: Höhe proportional zur klingenden Tonhöhe (log2-Frequenz), über alle
+   Saiten hinweg auf denselben Nullpunkt bezogen – dadurch bilden aufsteigende
+   Tonfolgen (auch saitenübergreifend) eine sichtbar steigende Punktreihe.
+   Nullpunkt = tiefster Grundton (tiefste Leersaite), FEST – hängt bewusst nicht von der
+   aktuell aktiven Obertonauswahl ab, sonst würde Umschalten der n-Auswahl auch schon
+   sichtbare Punkte in der Höhe verschieben. */
+function fundamentalRefMidi() { return Math.min(...tuningMidi); }
+/* Größenreferenz (t=0, volle Grundton-Größe): tiefster niedrigster ANGEZEIGTER Oberton
+   (n=K_MIN, i.d.R. 1 Oktave über dem eigentlichen Grundton) – nicht der Grundton selbst,
+   der ja gar nicht als Knoten dargestellt wird. Fest, hängt nur von Stimmung/K_MIN ab. */
+function sizeRefMidi() { return fundamentalRefMidi() + 12 * Math.log2(K_MIN); }
+/* Höchstmöglicher klingender Ton über alle Saiten (Obertonordnung K_MAX) – fest, hängt
+   nur von der Stimmung ab, nicht von der aktuell aktiven n-Auswahl. Bildet zusammen mit
+   sizeRefMidi() die volle Spannweite für die Kugelgröße (s.u.), unabhängig davon
+   welche Obertöne gerade eingeblendet sind. */
+function maxPossibleMidi() {
+  let m = -Infinity;
+  for (let s = 0; s < N_STRINGS; s++) {
+    const e = freqToExactMidi(midiToFreq(tuningMidi[s]) * K_MAX);
+    if (e > m) m = e;
+  }
+  return m;
+}
+function computeHeights() {
+  if (heightMode === 'pitch') {
+    const midiRef = fundamentalRefMidi();
+    return (s, k) => (0.35 + (freqToExactMidi(midiToFreq(tuningMidi[s]) * k) - midiRef) * 0.045) * heightScale;
+  }
+  return (s, k) => (0.35 + (k - K_MIN) * 0.13) * heightScale;
+}
+
+let baseRadius = _saved?.baseRadius ?? 0.11; // Grundton-Kugelgröße (niedrigster angezeigter Oberton), regelbar
+const SIZE_MIN_FRACTION = 0.02; // Stecknadelkopf-Grenze: kleinster Anteil von baseRadius bei voller Spreizung
+
+function rebuildNodes() {
+  for (const child of nodesGroup.children) { child.geometry.dispose(); child.material.dispose(); }
+  nodesGroup.clear();
+
+  const nodes = generateNodes();
+  const heightFn = computeHeights();
+
+  // Größenspannweite: niedrigster angezeigter Oberton (0, volle Grundton-Größe) bis
+  // höchstmöglicher Ton (1), fest – nicht von der aktuell aktiven n-Auswahl abhängig,
+  // sonst würde Umschalten der Obertöne auch schon sichtbare Kugeln umskalieren.
+  // Spreizung=0 → alle Kugeln gleich groß (baseRadius); Spreizung=1 → niedrigster
+  // Oberton bleibt bei voller Größe, höchster Ton schrumpft auf SIZE_MIN_FRACTION.
+  const sizeRef = sizeRefMidi();
+  const sizeSpan = Math.max(1, maxPossibleMidi() - sizeRef);
+  function radiusFor(stringIdx, k) {
+    if (heightMode !== 'pitch') return baseRadius;
+    const exact = freqToExactMidi(midiToFreq(tuningMidi[stringIdx]) * k);
+    const t = Math.min(1, Math.max(0, (exact - sizeRef) / sizeSpan));
+    const sizeMul = 1 - t * octaveSizeStep * (1 - SIZE_MIN_FRACTION);
+    return baseRadius * sizeMul;
+  }
+
+  const sphGeo = new THREE.SphereGeometry(1, 16, 16); // Einheitskugel, Größe über scale()
+  for (let s = 0; s < N_STRINGS; s++) {
+    for (const nd of nodes) {
+      const x = L * nd.frac;
+      const y = heightFn(s, nd.k);
+      const color = nodeColor(s, nd.k);
+      const radius = radiusFor(s, nd.k);
+      const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity:0.35, roughness:0.4, transparent:true, opacity:1 });
+      const sph = new THREE.Mesh(sphGeo, mat);
+      sph.position.set(x, y, zFor(s));
+      sph.scale.setScalar(radius);
+      sph.userData = { stringIdx: s, k: nd.k, j: nd.j, frac: nd.frac, baseOpacity:1, baseEmissive:0.35, baseScale:radius };
+      nodesGroup.add(sph);
+
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(x, 0.05, zFor(s)), new THREE.Vector3(x, y, zFor(s))
+      ]);
+      const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.35 }));
+      line.userData = { skip:true, k: nd.k, stringIdx: s, baseOpacity:0.35 };
+      nodesGroup.add(line);
+    }
+  }
+  applyFamilyFocus();
+}
+
+/* Familien-Fokus: nicht zugehörige Punkte abdunkeln, Familie bleibt „stehen".
+   Ausblendgrad über dimFactor (per Slider justierbar), kombiniert multiplikativ
+   mit der individuellen Saiten-Abblendstufe (stringDim, 1 = voll sichtbar). */
+function applyFamilyFocus() {
+  const matcher = currentMatcher();
+  const melodyKeys = activeMelodyMatchKeys();
+  for (const child of nodesGroup.children) {
+    const ud = child.userData;
+    const inFam = !matcher || matcher(ud);
+    const inMelody = !melodyKeys || melodyKeys.has(ud.stringIdx + '_' + ud.k);
+    const mul = (inFam && inMelody ? 1 : dimFactor) * stringDim[ud.stringIdx];
+    child.material.opacity = ud.baseOpacity * mul;
+    if (ud.baseEmissive !== undefined) {
+      child.material.emissiveIntensity = ud.baseEmissive * (mul < 1 ? Math.min(mul, 0.3) : 1);
+    }
+  }
+  renderMelodyPath();
+}
+
+/* Zeichnet die verbindende Linie durch die Melodie-Sequenz (buildMelodySequence) und hält
+   melodyLabelPositions für die Nummern-Overlays aktuell. Positionen werden direkt aus
+   Bundposition/String berechnet (nicht aus vorhandenen Mesh-Objekten gesucht), das gilt
+   für Naturton- wie für gefrettete Ersatztöne gleichermaßen. Lücken (Zielton innerhalb
+   des Lagenfensters auf keiner Saite erreichbar) unterbrechen die Linie. */
+function renderMelodyPath() {
+  for (const child of melodyPathGroup.children) { child.geometry.dispose(); child.material.dispose(); }
+  melodyPathGroup.clear();
+  melodyLabelPositions = [];
+
+  const info = document.getElementById('melodyMatchInfo');
+  if (activeMelodyIdx === null || !melodies[activeMelodyIdx]) {
+    if (info) info.textContent = '';
+    rebuildMelodyLabelEls();
+    return;
+  }
+  const melody = melodies[activeMelodyIdx];
+  const seq = buildMelodySequence(melody);
+  const heightFn = computeHeights();
+  const naturalCount = seq.filter(m => m && m.type === 'natural').length;
+  const frettedCount = seq.filter(m => m && m.type === 'fretted').length;
+  const missCount = seq.filter(m => !m).length;
+
+  let prevPos = null;
+  seq.forEach((m, i) => {
+    if (!m) { prevPos = null; return; }
+    const x = L * fretFrac(m.fretPos);
+    const y = m.type === 'natural' ? heightFn(m.stringIdx, m.k) : 0.05;
+    const pos = new THREE.Vector3(x, y, zFor(m.stringIdx));
+    // Gefretteter Ersatzton: Tonname als Chip, da hier (anders als beim Naturton) nicht aus
+    // der Griffbrett-Position ablesbar ist, welcher Ton tatsächlich gemeint ist.
+    const chip = m.type === 'fretted' ? NOTE_NAMES[((tuningMidi[m.stringIdx] + m.fret) % 12 + 12) % 12] : null;
+    melodyLabelPositions.push({ pos, num: i + 1, natural: m.type === 'natural', chip });
+    if (prevPos) {
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([prevPos, pos]);
+      const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 }));
+      melodyPathGroup.add(line);
+    }
+    prevPos = pos;
+  });
+  if (info) {
+    let text = `${naturalCount} von ${seq.length} Tönen als Naturton getroffen`;
+    if (frettedCount) text += `, ${frettedCount} als gefretteter Ersatz ergänzt (helle Marke)`;
+    if (missCount) text += `, ${missCount} außerhalb der Lage/des Instrumentenumfangs`;
+    info.textContent = text;
+  }
+  rebuildMelodyLabelEls();
+}
+
+function rebuildMelodyLabelEls() {
+  const container = document.getElementById('melodyLabels');
+  container.innerHTML = '';
+  melodyLabelEls = melodyLabelPositions.map(item => {
+    const wrap = document.createElement('div');
+    wrap.className = 'mel-label-wrap';
+    const el = document.createElement('div');
+    el.className = 'mel-label' + (item.natural ? '' : ' fretted');
+    el.textContent = item.num;
+    if (!item.natural) el.title = 'gefretteter Ersatzton (kein Naturton in Reichweite)';
+    wrap.appendChild(el);
+    if (item.chip) {
+      const chip = document.createElement('div');
+      chip.className = 'mel-chip';
+      chip.textContent = item.chip;
+      wrap.appendChild(chip);
+    }
+    container.appendChild(wrap);
+    return wrap;
+  });
+  updateMelodyLabelPositions();
+}
+/* Pro Frame aufgerufen (s. animate()) – projiziert die 3D-Positionen der Melodie-Knoten
+   auf Bildschirmkoordinaten, damit die Nummern-Labels der Kamera-Rotation folgen. */
+function updateMelodyLabelPositions() {
+  for (let i = 0; i < melodyLabelPositions.length; i++) {
+    const el = melodyLabelEls[i];
+    if (!el) continue;
+    const proj = melodyLabelPositions[i].pos.clone().project(camera);
+    if (proj.z > 1) { el.style.display = 'none'; continue; }
+    el.style.display = 'block';
+    el.style.left = ((proj.x * 0.5 + 0.5) * innerWidth) + 'px';
+    el.style.top = ((-proj.y * 0.5 + 0.5) * innerHeight) + 'px';
+  }
+}
+
+/* ---------- Interaktion ---------- */
+
+const pinned = new Map(); // key -> nodeData
+
+function nodeKey(d) { return `${d.stringIdx}_${d.k}_${d.j}`; }
+
+function pickAt(clientX, clientY) {
+  pointer.x = (clientX / innerWidth) * 2 - 1;
+  pointer.y = -(clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(nodesGroup.children.filter(c => !c.userData.skip));
+  return hits.length ? hits[0].object : null;
+}
+
+const hoverTip = document.getElementById('hoverTip');
+
+renderer.domElement.addEventListener('pointermove', (e) => {
+  const obj = pickAt(e.clientX, e.clientY);
+  if (hovered && hovered !== obj) hovered.scale.setScalar(hovered.userData.baseScale);
+  hovered = obj;
+  if (obj) {
+    obj.scale.setScalar(obj.userData.baseScale * 1.5);
+    const d = obj.userData;
+    const freq = midiToFreq(tuningMidi[d.stringIdx]) * d.k;
+    const nl = freqToNoteLabel(freq);
+    hoverTip.style.display = 'block';
+    hoverTip.style.left = (e.clientX + 14) + 'px';
+    hoverTip.style.top = (e.clientY + 10) + 'px';
+    hoverTip.textContent = `n=${d.k} · ${nl.text} (${fmtCents(nl.cents)})`;
+    renderer.domElement.style.cursor = 'pointer';
+  } else {
+    hoverTip.style.display = 'none';
+    renderer.domElement.style.cursor = 'grab';
+  }
+});
+renderer.domElement.addEventListener('pointerleave', () => {
+  if (hovered) hovered.scale.setScalar(hovered.userData.baseScale);
+  hovered = null;
+  hoverTip.style.display = 'none';
+});
+renderer.domElement.addEventListener('click', (e) => {
+  const obj = pickAt(e.clientX, e.clientY);
+  if (!obj) return;
+  const d = obj.userData;
+  const key = nodeKey(d);
+  if (pinned.has(key)) pinned.delete(key); else pinned.set(key, { ...d });
+  renderPins();
+});
+
+document.getElementById('clearPins').addEventListener('click', () => { pinned.clear(); renderPins(); });
+
+/* ---------- Info-Berechnung für Pins ---------- */
+
+function describeNode(d) {
+  const stringFreq = midiToFreq(tuningMidi[d.stringIdx]);
+  const freq = stringFreq * d.k;
+  const nl = freqToNoteLabel(freq);
+  const fe = fretEquivalent(d.frac);
+
+  // Wiederholpunkte: gleiches k, andere j auf derselben Saite
+  const repeats = [];
+  for (let j2 = 1; j2 < d.k; j2++) {
+    if (j2 === d.j) continue;
+    if (gcd(j2, d.k) !== 1) continue;
+    const fe2 = fretEquivalent(j2 / d.k);
+    repeats.push(`Bund ~${fe2.nearest} (${fmtCents(fe2.offset)})`);
+  }
+
+  // verwandte Obertöne: andere k' auf derselben Saite mit naher Tonklasse
+  const pc = pitchClassCents(freq);
+  const related = [];
+  for (let k2 = K_MIN; k2 <= K_MAX; k2++) {
+    if (k2 === d.k) continue;
+    const f2 = stringFreq * k2;
+    const diff = circularCentsDiff(pc, pitchClassCents(f2));
+    if (diff <= 45) related.push({ k2, diff, label: freqToNoteLabel(f2).text });
+  }
+  related.sort((a,b) => a.diff - b.diff);
+
+  // Nachbarsaiten: gleicher Knoten (gleiches j/k), andere Saite
+  const neighbors = [];
+  for (const ni of [d.stringIdx - 1, d.stringIdx + 1]) {
+    if (ni < 0 || ni >= N_STRINGS) continue;
+    const f2 = midiToFreq(tuningMidi[ni]) * d.k;
+    neighbors.push({ idx: ni, name: STRING_NAMES[ni], label: freqToNoteLabel(f2).text });
+  }
+
+  return { stringFreq, freq, nl, fe, repeats, related, neighbors };
+}
+
+function renderPins() {
+  const list = document.getElementById('pinsList');
+  const empty = document.getElementById('pinsEmpty');
+  list.innerHTML = '';
+  empty.style.display = pinned.size ? 'none' : 'block';
+
+  for (const [key, d] of pinned) {
+    const info = describeNode(d);
+    const color = colorForK(d.k);
+    const card = document.createElement('div');
+    card.className = 'pin-card';
+    card.style.borderColor = color + '55';
+    card.innerHTML = `
+      <button class="pin-close" data-key="${key}">×</button>
+      <div class="pin-head"><span class="swatch" style="background:${color}"></span>
+        Saite ${d.stringIdx+1} (${STRING_NAMES[d.stringIdx]}) · Oberton n=${d.k}</div>
+      <div class="pin-row"><span class="pin-lbl">Position:</span> <b>Bund ~${info.fe.nearest}</b> (${fmtCents(info.fe.offset)} vom Bundraster)</div>
+      <div class="pin-row"><span class="pin-lbl">Tonhöhe:</span> <b>${info.nl.text}</b> (${fmtCents(info.nl.cents)} vs. 12-TET), ${info.freq.toFixed(1)} Hz</div>
+      <div class="pin-row"><span class="pin-lbl">Wiederholpunkte:</span> ${info.repeats.length ? info.repeats.join(' · ') : '– (einziger Knoten)'}</div>
+      <div class="pin-row"><span class="pin-lbl">Verwandte Obertöne:</span> ${info.related.length ? info.related.map(r => `n=${r.k2} ${r.label} (${fmtCents(Math.round(r.diff))})`).join(' · ') : '– keine nahen Treffer'}</div>
+      <div class="pin-row"><span class="pin-lbl">Nachbarsaiten:</span> ${info.neighbors.map(n => `${n.name}: ${n.label}`).join(' · ') || '–'}</div>
+    `;
+    list.appendChild(card);
+  }
+  list.querySelectorAll('.pin-close').forEach(btn => {
+    btn.addEventListener('click', (e) => { pinned.delete(e.target.dataset.key); renderPins(); });
+  });
+}
+
+/* ---------- Controls-Panel: k-Checkboxen ---------- */
+
+const kList = document.getElementById('kList');
+for (let k = K_MIN; k <= K_MAX; k++) {
+  const row = document.createElement('label');
+  row.className = 'krow';
+  row.innerHTML = `<input type="checkbox" value="${k}" ${activeK.has(k) ? 'checked' : ''}>
+    <span class="swatch" style="background:${colorForK(k)}"></span>
+    <span class="kname">n=${k}</span>`;
+  kList.appendChild(row);
+}
+kList.addEventListener('change', (e) => {
+  if (e.target.tagName !== 'INPUT') return;
+  const k = parseInt(e.target.value, 10);
+  if (e.target.checked) activeK.add(k); else activeK.delete(k);
+  rebuildNodes();
+  saveState();
+});
+
+document.querySelectorAll('#setsPresets .preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const vals = btn.dataset.preset ? btn.dataset.preset.split(',').map(Number) : [];
+    activeK = new Set(vals);
+    kList.querySelectorAll('input').forEach(inp => { inp.checked = activeK.has(parseInt(inp.value,10)); });
+    familyFocus = null;
+    activeMelodyIdx = null;
+    savedActiveK = null;
+    refreshFamilyUI();
+    renderMelodyList();
+    rebuildNodes();
+    saveState();
+  });
+});
+
+const fretMarkersEl = document.getElementById('fretMarkers');
+fretMarkersEl.addEventListener('change', (e) => {
+  inlayGroup.visible = e.target.checked;
+  saveState();
+});
+
+/* ---------- Controls-Panel: Griffbrett-Händigkeit ---------- */
+
+document.querySelectorAll('.handed-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    mirrorStrings = btn.dataset.hand === 'right';
+    document.querySelectorAll('.handed-btn').forEach(b => b.classList.toggle('active', b === btn));
+    applyHandedness();
+    rebuildNodes(); // Knotenpositionen sind an zFor(s) gebunden, müssen neu erzeugt werden
+    saveState();
+  });
+});
+
+/* ---------- Controls-Panel: Höhe (Modus + Skalierung) ---------- */
+
+const octaveSizeSlider = document.getElementById('octaveSizeSlider');
+document.querySelectorAll('.heightmode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    heightMode = btn.dataset.mode;
+    document.querySelectorAll('.heightmode-btn').forEach(b => b.classList.toggle('active', b === btn));
+    octaveSizeSlider.disabled = heightMode !== 'pitch';
+    rebuildNodes();
+    renderPitchLegend();
+    saveState();
+  });
+});
+const heightScaleSlider = document.getElementById('heightScaleSlider');
+const heightScaleVal = document.getElementById('heightScaleVal');
+heightScaleSlider.addEventListener('input', (e) => {
+  heightScale = parseFloat(e.target.value);
+  heightScaleVal.textContent = '×' + heightScale.toFixed(1);
+  rebuildNodes();
+  saveState();
+});
+const octaveSizeVal = document.getElementById('octaveSizeVal');
+octaveSizeSlider.addEventListener('input', (e) => {
+  octaveSizeStep = parseInt(e.target.value, 10) / 100;
+  octaveSizeVal.textContent = e.target.value + '%';
+  rebuildNodes();
+  saveState();
+});
+const BASE_RADIUS_MIN = 0.03, BASE_RADIUS_MAX = 0.46; // Max verdoppelt gegenüber der ursprünglichen Grundgröße
+const baseRadiusSlider = document.getElementById('baseRadiusSlider');
+const baseRadiusVal = document.getElementById('baseRadiusVal');
+baseRadiusSlider.addEventListener('input', (e) => {
+  const pct = parseInt(e.target.value, 10);
+  baseRadius = BASE_RADIUS_MIN + pct / 100 * (BASE_RADIUS_MAX - BASE_RADIUS_MIN);
+  baseRadiusVal.textContent = pct + '%';
+  rebuildNodes();
+  saveState();
+});
+
+/* ---------- Controls-Panel: Ausblendgrad ---------- */
+
+const dimSlider = document.getElementById('dimSlider');
+const dimVal = document.getElementById('dimVal');
+dimSlider.addEventListener('input', (e) => {
+  dimFactor = parseInt(e.target.value, 10) / 100;
+  dimVal.textContent = e.target.value + '%';
+  document.documentElement.style.setProperty('--legend-dim', dimFactor);
+  applyFamilyFocus();
+  saveState();
+});
+
+/* ---------- Controls-Panel: feste Familien ---------- */
+
+const famList = document.getElementById('famList');
+function familyMembers(fam) {
+  const arr = [];
+  for (let k = K_MIN; k <= K_MAX; k++) if (fam.match({ k })) arr.push(k);
+  return arr;
+}
+function renderFamilyButtons() {
+  famList.innerHTML = '';
+  FAMILIES.forEach(fam => {
+    const members = familyMembers(fam);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'fam-btn' + (familyFocus === fam.key ? ' active' : '');
+    btn.disabled = members.length === 0;
+    btn.title = fam.desc + (members.length ? ` — n=${members.join(', ')}` : '');
+    btn.innerHTML = `<span class="fam-dot" style="background:${colorForK(members[0] ?? K_MIN)}"></span>${fam.label}`;
+    btn.addEventListener('click', () => toggleFamily(fam));
+    famList.appendChild(btn);
+  });
+}
+function toggleFamily(fam) {
+  if (familyFocus === fam.key) {
+    familyFocus = null;
+    exitFocus();
+    kList.querySelectorAll('input').forEach(inp => { inp.checked = activeK.has(parseInt(inp.value,10)); });
+    refreshFamilyUI();
+    rebuildNodes();
+    saveState();
+    return;
+  }
+  enterFocus(familyMembers(fam));
+  familyFocus = fam.key;
+  kList.querySelectorAll('input').forEach(inp => { inp.checked = activeK.has(parseInt(inp.value,10)); });
+  refreshFamilyUI();
+  rebuildNodes(); // ruft applyFamilyFocus() intern auf
+  saveState();
+}
+
+/* ---------- Controls-Panel: Skalen-Familie (Grundton + Pentatonik) ---------- */
+/* Grundton wird nur noch per Klick auf die Farblegende gesetzt (s. renderPitchLegend) –
+   kein eigenes Dropdown mehr im Panel. */
+
+const scaleFamList = document.getElementById('scaleFamList');
+
+const scaleTolSlider = document.getElementById('scaleTolSlider');
+const scaleTolVal = document.getElementById('scaleTolVal');
+scaleTolSlider.addEventListener('input', (e) => {
+  scaleTolerance = parseInt(e.target.value, 10);
+  scaleTolVal.textContent = '±' + scaleTolerance + ' ct';
+  applyFamilyFocus();
+  saveState();
+});
+
+function renderScaleButtons() {
+  scaleFamList.innerHTML = '';
+  Object.keys(SCALE_DEGREES).forEach((mode, i) => {
+    const key = 'scale:' + mode;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'fam-btn' + (familyFocus === key ? ' active' : '');
+    btn.title = `Grundton + ${SCALE_LABELS[mode]} – ausgewertet über alle Saiten und aktiven Obertöne (±Toleranz)`;
+    btn.innerHTML = `<span class="fam-dot" style="background:${PALETTE[i % PALETTE.length]}"></span>${SCALE_LABELS[mode]}`;
+    btn.addEventListener('click', () => toggleScale(mode));
+    scaleFamList.appendChild(btn);
+  });
+}
+function toggleScale(mode) {
+  const key = 'scale:' + mode;
+  if (familyFocus === key) {
+    familyFocus = null;
+    exitFocus();
+    kList.querySelectorAll('input').forEach(inp => { inp.checked = activeK.has(parseInt(inp.value,10)); });
+    refreshFamilyUI();
+    rebuildNodes();
+    saveState();
+    return;
+  }
+  enterFocus(Array.from({length: 11}, (_, i) => i + 2)); // n=2..12, genug Abdeckung für Tonhöhen-Treffer über alle Saiten
+  familyFocus = key;
+  kList.querySelectorAll('input').forEach(inp => { inp.checked = activeK.has(parseInt(inp.value,10)); });
+  refreshFamilyUI();
+  rebuildNodes();
+  saveState();
+}
+
+/* ---------- Controls-Panel: Melodien ---------- */
+
+const melodyListEl = document.getElementById('melodyList');
+let editingMelodyIdx = null;
+function renderMelodyList() {
+  melodyListEl.innerHTML = '';
+  melodies.forEach((mel, idx) => {
+    const row = document.createElement('div');
+    row.className = 'mel-row';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mel-btn' + (activeMelodyIdx === idx ? ' active' : '');
+    btn.textContent = mel.name;
+    btn.title = mel.intervals.join(', ');
+    btn.addEventListener('click', () => toggleMelody(idx));
+    row.appendChild(btn);
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'mel-edit';
+    edit.textContent = '✎';
+    edit.title = 'Melodie bearbeiten';
+    edit.addEventListener('click', (e) => { e.stopPropagation(); startEditMelody(idx); });
+    row.appendChild(edit);
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'mel-del';
+    del.textContent = '×';
+    del.title = 'Melodie löschen';
+    del.addEventListener('click', (e) => { e.stopPropagation(); deleteMelody(idx); });
+    row.appendChild(del);
+    melodyListEl.appendChild(row);
+  });
+}
+function startEditMelody(idx) {
+  editingMelodyIdx = idx;
+  document.getElementById('melodyNameInput').value = melodies[idx].name;
+  document.getElementById('melodyIntervalsInput').value = melodies[idx].intervals.join(',');
+  document.getElementById('melodyFormTitle').textContent = 'Melodie bearbeiten';
+  document.getElementById('melodySaveBtn').textContent = 'Aktualisieren';
+  document.getElementById('melodyCancelEditBtn').style.display = '';
+}
+function stopEditMelody() {
+  editingMelodyIdx = null;
+  document.getElementById('melodyNameInput').value = '';
+  document.getElementById('melodyIntervalsInput').value = '';
+  document.getElementById('melodyFormTitle').textContent = 'Neue Melodie';
+  document.getElementById('melodySaveBtn').textContent = 'Speichern';
+  document.getElementById('melodyCancelEditBtn').style.display = 'none';
+}
+function toggleMelody(idx) {
+  if (activeMelodyIdx === idx) {
+    activeMelodyIdx = null;
+    exitFocus();
+    kList.querySelectorAll('input').forEach(inp => { inp.checked = activeK.has(parseInt(inp.value,10)); });
+    renderMelodyList();
+    rebuildNodes();
+    renderPitchLegend();
+    saveState();
+    return;
+  }
+  // n=K_MIN..K_MAX aktivieren, damit jeder Melodieton eine Chance auf einen Treffer hat
+  enterFocus(Array.from({length: K_MAX - K_MIN + 1}, (_, i) => i + K_MIN));
+  activeMelodyIdx = idx;
+  kList.querySelectorAll('input').forEach(inp => { inp.checked = activeK.has(parseInt(inp.value,10)); });
+  renderMelodyList();
+  rebuildNodes();
+  renderPitchLegend();
+  saveState();
+}
+function deleteMelody(idx) {
+  const wasActive = activeMelodyIdx === idx;
+  if (editingMelodyIdx === idx) stopEditMelody();
+  else if (editingMelodyIdx !== null && editingMelodyIdx > idx) editingMelodyIdx--;
+  melodies.splice(idx, 1);
+  if (wasActive) { activeMelodyIdx = null; exitFocus(); rebuildNodes(); }
+  else if (activeMelodyIdx !== null && activeMelodyIdx > idx) activeMelodyIdx--;
+  renderMelodyList();
+  renderPitchLegend();
+  saveState();
+}
+renderMelodyList();
+
+/* ---------- Controls-Panel: Lagenfenster + Oktavrichtung ---------- */
+
+const melodyFretCenterInput = document.getElementById('melodyFretCenterInput');
+const melodyFretSpreadInput = document.getElementById('melodyFretSpreadInput');
+melodyFretCenterInput.value = melodyFretCenter;
+melodyFretSpreadInput.value = melodyFretSpread;
+melodyFretCenterInput.addEventListener('change', (e) => {
+  melodyFretCenter = Math.max(0, Math.min(N_FRETS, parseInt(e.target.value, 10) || 0));
+  melodyFretCenterInput.value = melodyFretCenter;
+  renderMelodyPath();
+  saveState();
+});
+melodyFretSpreadInput.addEventListener('change', (e) => {
+  melodyFretSpread = Math.max(1, Math.min(N_FRETS, parseInt(e.target.value, 10) || 1));
+  melodyFretSpreadInput.value = melodyFretSpread;
+  renderMelodyPath();
+  saveState();
+});
+
+document.querySelectorAll('.melody-oct-up-btn').forEach(btn => {
+  btn.classList.toggle('active', parseInt(btn.dataset.oct, 10) === melodyOctaveUp);
+  btn.addEventListener('click', () => {
+    melodyOctaveUp = parseInt(btn.dataset.oct, 10);
+    document.querySelectorAll('.melody-oct-up-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderMelodyPath();
+    saveState();
+  });
+});
+const melodyOctaveDownEnabledEl = document.getElementById('melodyOctaveDownEnabled');
+melodyOctaveDownEnabledEl.checked = melodyOctaveDownEnabled;
+melodyOctaveDownEnabledEl.addEventListener('change', (e) => {
+  melodyOctaveDownEnabled = e.target.checked;
+  renderMelodyPath();
+  saveState();
+});
+document.querySelectorAll('.melody-oct-down-btn').forEach(btn => {
+  btn.classList.toggle('active', parseInt(btn.dataset.oct, 10) === melodyOctaveDown);
+  btn.addEventListener('click', () => {
+    melodyOctaveDown = parseInt(btn.dataset.oct, 10);
+    document.querySelectorAll('.melody-oct-down-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderMelodyPath();
+    saveState();
+  });
+});
+
+const melodyModal = document.getElementById('melodyModal');
+document.getElementById('melodyBtn').addEventListener('click', () => melodyModal.classList.add('open'));
+document.getElementById('melodyModalClose').addEventListener('click', () => melodyModal.classList.remove('open'));
+melodyModal.addEventListener('click', (e) => { if (e.target === melodyModal) melodyModal.classList.remove('open'); });
+document.getElementById('melodyCancelEditBtn').addEventListener('click', () => stopEditMelody());
+document.getElementById('melodySaveBtn').addEventListener('click', () => {
+  const nameEl = document.getElementById('melodyNameInput');
+  const intervalsEl = document.getElementById('melodyIntervalsInput');
+  const name = nameEl.value.trim();
+  const raw = intervalsEl.value.trim();
+  const intervals = raw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+  if (!name || !intervals.length) return;
+  if (editingMelodyIdx !== null) {
+    melodies[editingMelodyIdx] = { name, intervals };
+    if (activeMelodyIdx === editingMelodyIdx) renderMelodyPath();
+  } else {
+    melodies.push({ name, intervals });
+  }
+  stopEditMelody();
+  renderMelodyList();
+  saveState();
+});
+
+/* ---------- Controls: Grundeinstellungen-Modal (Griffbrett/Bundmarkierungen/Stimmung) ---------- */
+
+const settingsModal = document.getElementById('settingsModal');
+document.getElementById('settingsBtn').addEventListener('click', () => settingsModal.classList.add('open'));
+document.getElementById('settingsModalClose').addEventListener('click', () => settingsModal.classList.remove('open'));
+settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.remove('open'); });
+
+/* ---------- Controls: Familien-Modal (Familien/Pentatoniken) ---------- */
+
+const familyModal = document.getElementById('familyModal');
+document.getElementById('familyBtn').addEventListener('click', () => familyModal.classList.add('open'));
+document.getElementById('familyModalClose').addEventListener('click', () => familyModal.classList.remove('open'));
+familyModal.addEventListener('click', (e) => { if (e.target === familyModal) familyModal.classList.remove('open'); });
+
+/* ---------- Steuerpanel ein-/ausblenden ---------- */
+
+document.getElementById('panelToggleBtn').addEventListener('click', () => {
+  document.getElementById('controls').classList.toggle('hidden-panel');
+});
+
+/* ---------- Saiten-Regelschalter (neben der Farblegende) ---------- */
+/* Klick: Saite (inkl. aller ihrer Obertöne) zwischen voll und der gemeinsamen
+   Ausblendung-Stufe umschalten. Scrollen über dem Schalter: individuelle,
+   stufenlose Abblendstufe für genau diese Saite (überschreibt den Klick-Wert,
+   bis wieder geklickt wird). "Abgeblendet" heißt gedimmt, nicht entfernt –
+   konsistent mit der Familien-/Skalen-Ausblendung. */
+
+const stringSwitches = document.getElementById('stringSwitches');
+const toleranceBar = document.getElementById('toleranceBar');
+function renderStringSwitches() {
+  stringSwitches.innerHTML = '';
+  for (let s = 0; s < N_STRINGS; s++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'str-sw';
+    btn.textContent = STRING_NAMES[s];
+    btn.style.opacity = Math.max(stringDim[s], 0.15); // Schalter selbst bleibt immer greifbar
+    btn.title = `Saite ${s + 1} (${STRING_NAMES[s]}) – ${Math.round(stringDim[s]*100)}% · Klick: an/abgeblendet · Scrollen: fein regeln`;
+    btn.addEventListener('click', () => {
+      stringDim[s] = stringDim[s] > 0.999 ? dimFactor : 1;
+      renderStringSwitches();
+      applyFamilyFocus();
+      saveState();
+    });
+    btn.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      stringDim[s] = Math.max(0, Math.min(1, stringDim[s] - e.deltaY * 0.0015));
+      renderStringSwitches();
+      applyFamilyFocus();
+      saveState();
+    }, { passive: false });
+    stringSwitches.appendChild(btn);
+  }
+}
+renderStringSwitches();
+
+/* ---------- Tonhöhen-Legende (unten) ---------- */
+
+const pitchLegend = document.getElementById('pitchLegend');
+/* pitchLegend bleibt zentriert (nur im Tonhöhen-Modus sichtbar). toleranceBar und
+   stringSwitches sind stetig sichtbar (Toleranz gilt auch für Familien im Oberton-
+   Modus) – links/rechts neben der Legende, wenn die sichtbar ist; sonst rücken
+   beide als zentriertes Paar zusammen, damit nichts überlappt. */
+function positionBottomBar() {
+  const gap = 10;
+  toleranceBar.style.transform = 'none';
+  stringSwitches.style.transform = 'none';
+  if (heightMode === 'pitch') {
+    const legendW = pitchLegend.offsetWidth;
+    toleranceBar.style.left = `calc(50% - ${legendW / 2 + gap}px - ${toleranceBar.offsetWidth}px)`;
+    stringSwitches.style.left = `calc(50% + ${legendW / 2 + gap}px)`;
+  } else {
+    const total = toleranceBar.offsetWidth + gap + stringSwitches.offsetWidth;
+    toleranceBar.style.left = `calc(50% - ${total / 2}px)`;
+    stringSwitches.style.left = `calc(50% - ${total / 2 - toleranceBar.offsetWidth - gap}px)`;
+  }
+}
+/* Tonklassen einer festen Familie relativ zum Grundton: odd-part-Familien ergeben
+   genau eine Tonklasse (alle passenden k reduzieren aufs selbe pc), die
+   Naturton-Pentatonik mehrere – ein Sweep über alle k deckt beide Fälle ab. */
+function familyPitchClasses(fam) {
+  const pcs = new Set();
+  for (let k = K_MIN; k <= K_MAX; k++) {
+    if (!fam.match({ k })) continue;
+    const pc = ((Math.round(1200 * Math.log2(k) / 100) + scaleRoot) % 12 + 12) % 12;
+    pcs.add(pc);
+  }
+  return pcs;
+}
+/* Vereinigung der Tonklassen aus allen gerade aktiven Hervorhebungen (Skala, feste
+   Familie, Melodie) – für die Legende gilt "in irgendeiner aktiven Hervorhebung",
+   nicht die UND-Verknüpfung wie beim Abdunkeln der 3D-Punkte selbst. */
+function activeFocusPitchClasses() {
+  const sets = [];
+  if (familyFocus && familyFocus.startsWith('scale:')) {
+    const mode = familyFocus.split(':')[1];
+    sets.push(new Set(SCALE_DEGREES[mode].map(d => (scaleRoot + d) % 12)));
+  } else if (familyFocus) {
+    const fam = FAMILIES.find(f => f.key === familyFocus);
+    if (fam) sets.push(familyPitchClasses(fam));
+  }
+  if (activeMelodyIdx !== null && melodies[activeMelodyIdx]) {
+    sets.push(new Set(melodies[activeMelodyIdx].intervals.map(iv => ((scaleRoot + iv) % 12 + 12) % 12)));
+  }
+  if (!sets.length) return null;
+  const union = new Set();
+  for (const s of sets) for (const pc of s) union.add(pc);
+  return union;
+}
+/* Hat irgendeine aktuell aktive Saite×Oberton-Kombination (auf den nächsten Halbton
+   gerundet) diese Tonklasse? Für den "unsichtbare Töne"-Hinweis in der Legende –
+   unabhängig von Familien-/Skalen-/Melodie-Fokus, rein ob der Ton auf dem Griffbrett
+   überhaupt vorkommt. */
+function pitchClassHasActiveNode(pc) {
+  for (let s = 0; s < N_STRINGS; s++) {
+    for (const k of activeK) {
+      const exact = Math.round(freqToExactMidi(midiToFreq(tuningMidi[s]) * k));
+      if (((exact % 12) + 12) % 12 === pc) return true;
+    }
+  }
+  return false;
+}
+function renderPitchLegend() {
+  pitchLegend.style.display = heightMode === 'pitch' ? 'flex' : 'none';
+  if (heightMode !== 'pitch') { positionBottomBar(); return; }
+
+  const activeSet = activeFocusPitchClasses();
+  pitchLegend.innerHTML = '';
+  // Palette rotiert auf den gewählten Grundton – der steht immer ganz links (i=0),
+  // unabhängig davon ob gerade eine Hervorhebung aktiv ist.
+  for (let i = 0; i < 12; i++) {
+    const pc = (scaleRoot + i) % 12;
+    const inSet = !activeSet || activeSet.has(pc);
+    const hasNode = pitchClassHasActiveNode(pc);
+    const sw = document.createElement('div');
+    sw.className = 'legend-sw' + (inSet ? '' : ' dim') + (i === 0 ? ' root' : '');
+    sw.style.background = colorForPitchClass(pc);
+    sw.style.cursor = 'pointer';
+    sw.title = NOTE_NAMES[pc] + ' als Grundton wählen'
+      + (hasNode ? '' : ' — kein aktiver Oberton trifft diese Tonklasse (unsichtbar auf dem Griffbrett)');
+    sw.innerHTML = `<span>${NOTE_NAMES[pc]}</span>` + (i === 0 ? '<span class="legend-cap">Grundton</span>' : '');
+    sw.addEventListener('click', () => {
+      scaleRoot = pc;
+      applyFamilyFocus();
+      renderPitchLegend();
+      saveState();
+    });
+    pitchLegend.appendChild(sw);
+  }
+  positionBottomBar();
+}
+
+function refreshFamilyUI() { renderFamilyButtons(); renderScaleButtons(); renderPitchLegend(); }
+refreshFamilyUI();
+
+/* ---------- Hilfe-Modal ---------- */
+
+/* ---------- Export/Import: gesamter Zustand als JSON-Datei (Backup/Restore) ---------- */
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(currentStateObject(), null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `harmonics-zustand-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+const importFileInput = document.getElementById('importFileInput');
+document.getElementById('importBtn').addEventListener('click', () => importFileInput.click());
+importFileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  importFileInput.value = '';
+  if (!file) return;
+  let parsed;
+  try { parsed = JSON.parse(await file.text()); } catch { alert('Datei ist kein gültiges JSON.'); return; }
+  if (!parsed || typeof parsed !== 'object') { alert('Datei enthält keinen gültigen Zustand.'); return; }
+  if (!confirm('Aktuelle Stimmung, Melodien und Einstellungen mit dieser Datei überschreiben? Die Seite wird danach neu geladen.')) return;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed)); } catch { alert('Konnte nicht in localStorage schreiben.'); return; }
+  location.reload();
+});
+
+const helpOverlay = document.getElementById('helpOverlay');
+function openHelp() { helpOverlay.classList.add('open'); }
+function closeHelp() { helpOverlay.classList.remove('open'); }
+document.getElementById('helpBtn').addEventListener('click', openHelp);
+document.getElementById('helpClose').addEventListener('click', closeHelp);
+helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) closeHelp(); });
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  closeHelp();
+  melodyModal.classList.remove('open');
+  settingsModal.classList.remove('open');
+  familyModal.classList.remove('open');
+});
+
+/* ---------- Stimmung-Inputs ---------- */
+
+const tuneList = document.getElementById('tuneList');
+STRING_NAMES.forEach((name, i) => {
+  const row = document.createElement('div');
+  row.className = 'tune-row';
+  row.innerHTML = `<label>Saite ${i+1}</label><input type="text" value="${name}" data-idx="${i}">`;
+  tuneList.appendChild(row);
+});
+tuneList.addEventListener('change', (e) => {
+  if (e.target.tagName !== 'INPUT') return;
+  const idx = parseInt(e.target.dataset.idx, 10);
+  const midi = noteNameToMidi(e.target.value);
+  if (midi == null) { e.target.value = STRING_NAMES[idx]; return; }
+  tuningMidi[idx] = midi;
+  STRING_NAMES[idx] = e.target.value.trim();
+  renderPins();
+  renderStringSwitches();
+  rebuildNodes(); // Positionen im 'pitch'-Höhenmodus hängen von der Stimmung ab
+  saveState();
+});
+
+/* ---------- Controls-Panel: geladenen/Standard-Zustand in die hartkodierten
+   HTML-Regler übertragen (die prozedural erzeugten Listen – kList, tuneList,
+   Familien-/Skalen-Buttons – lesen die Variablen ohnehin live und brauchen das nicht) ---------- */
+
+function syncControlsUI() {
+  document.querySelectorAll('.handed-btn').forEach(b => b.classList.toggle('active', (b.dataset.hand === 'right') === mirrorStrings));
+  document.querySelectorAll('.heightmode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === heightMode));
+  octaveSizeSlider.disabled = heightMode !== 'pitch';
+  octaveSizeSlider.value = Math.round(octaveSizeStep * 100);
+  octaveSizeVal.textContent = octaveSizeSlider.value + '%';
+  baseRadiusSlider.value = Math.round((baseRadius - BASE_RADIUS_MIN) / (BASE_RADIUS_MAX - BASE_RADIUS_MIN) * 100);
+  baseRadiusVal.textContent = baseRadiusSlider.value + '%';
+  heightScaleSlider.value = heightScale;
+  heightScaleVal.textContent = '×' + heightScale.toFixed(1);
+  dimSlider.value = Math.round(dimFactor * 100);
+  dimVal.textContent = dimSlider.value + '%';
+  scaleTolSlider.value = scaleTolerance;
+  scaleTolVal.textContent = '±' + scaleTolerance + ' ct';
+  fretMarkersEl.checked = _saved?.fretMarkers ?? true;
+  inlayGroup.visible = fretMarkersEl.checked;
+}
+
+/* ---------- Loop ---------- */
+
+syncControlsUI();
+applyHandedness();
+rebuildNodes();
+renderPins();
+document.documentElement.style.setProperty('--legend-dim', dimFactor);
+renderPitchLegend();
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+  if (melodyLabelPositions.length) updateMelodyLabelPositions();
+}
+animate();
+</script>
+</body>
+</html>

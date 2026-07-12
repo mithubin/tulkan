@@ -1,0 +1,38 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir \
+    flask \
+    faster-whisper \
+    yt-dlp \
+    psutil \
+    requests \
+    anthropic \
+    PyJWT \
+    bcrypt
+
+RUN pip install --no-cache-dir \
+    torch --index-url https://download.pytorch.org/whl/cpu
+
+RUN pip install --no-cache-dir \
+    transformers \
+    sentencepiece \
+    sacremoses
+
+COPY tools_nuc/tul_auth/ tul_auth/
+COPY tools_nuc/trskr/whisper_transkriplate_panel.py .
+COPY tools_nuc/trskr/panel_server.py .
+COPY tools_nuc/trskr/panel.html .
+
+ENV DOCKER=1
+ENV SUBPATH=/trskr
+ENV PORT=5004
+
+EXPOSE 5004
+
+CMD ["python3", "panel_server.py", "--no-browser", "--port", "5004"]

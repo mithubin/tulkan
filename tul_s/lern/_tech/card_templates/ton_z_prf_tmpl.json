@@ -1,0 +1,113 @@
+{
+  "card_width_mm": 180,
+  "card_height_mm": 80,
+  "margin_mm": 4,
+  "topic_width_mm": 12,
+  "line_spacing": 1.35,
+  "answer_line_spacing": 1.35,
+  "repeat_gap_mm": 0,
+  "front_bg": "ton-frage-roh_edit.jpg",
+  "back_bg": "ton-antw-roh_b_edit.jpg",
+  "front_bg_alpha": 1,
+  "back_bg_alpha": 0.59,
+  "topic_style": {
+    "font": "helv",
+    "font_path": "/path/to/lernkarten_panel/fonts/a song for jennifer.ttf",
+    "size": 16,
+    "color": [
+      1,
+      1,
+      1
+    ],
+    "shadow_offset": [
+      0.5,
+      0.5
+    ],
+    "shadow_color": [
+      0,
+      0,
+      0
+    ],
+    "bg_color": [
+      0,
+      0,
+      0
+    ],
+    "bg_alpha": 0.14
+  },
+  "question_style": {
+    "font": "helv",
+    "font_path": "/path/to/lernkarten_panel/fonts/FrederickatheGreat-Regular.ttf",
+    "size": 30,
+    "color": [
+      0.1568627450980392,
+      0.17254901960784313,
+      0.3411764705882353
+    ],
+    "shadow_offset": [
+      0,
+      0
+    ],
+    "shadow_color": [
+      0.1411764705882353,
+      0.12156862745098039,
+      0.19215686274509805
+    ],
+    "bg_color": [
+      0,
+      0,
+      0
+    ],
+    "bg_alpha": 0
+  },
+  "answer_style": {
+    "font": "helv",
+    "font_path": "/path/to/lernkarten_panel/fonts/FrederickatheGreat-Regular.ttf",
+    "size": 21,
+    "color": [
+      0.9607843137254902,
+      0.7607843137254902,
+      0.06666666666666667
+    ],
+    "shadow_offset": [
+      0.5,
+      0.5
+    ],
+    "shadow_color": [
+      0,
+      0,
+      0
+    ],
+    "bg_color": [
+      0,
+      0,
+      0
+    ],
+    "bg_alpha": 0
+  },
+  "repeat_style": {
+    "font": "helv",
+    "font_path": "/path/to/lernkarten_panel/fonts/FrederickatheGreat-Regular.ttf",
+    "size": 10,
+    "color": [
+      0.9019607843137255,
+      0.3803921568627451,
+      0
+    ],
+    "shadow_offset": [
+      0,
+      0
+    ],
+    "shadow_color": [
+      0.3686274509803922,
+      0.3607843137254902,
+      0.38823529411764707
+    ],
+    "bg_color": [
+      0,
+      0,
+      0
+    ],
+    "bg_alpha": 0
+  }
+}

@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Pyramid of Power – Zeitgraph</title>
+<style>
+:root {
+  --bg:     #111827;
+  --bg2:    #1c2535;
+  --bg3:    #28374a;
+  --text:   #e2e8f0;
+  --muted:  #64748b;
+  --border: #2d3748;
+  --link:   #3a4f68;
+  --label:  #7a8fa8;
+  --acc:    #6366f1;
+  --r: 6px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text);
+  height: 100vh; overflow: hidden;
+}
+
+/* ── UI Bar ── */
+#ui {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+.ui-row {
+  display: flex; align-items: center; gap: 14px; padding: 5px 14px; flex-wrap: wrap;
+}
+.ui-row + .ui-row { border-top: 1px solid var(--border); }
+
+#ui h1 { font-size: 12px; color: var(--muted); font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+
+.sep { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+
+.ctrl { display: flex; align-items: center; gap: 6px; }
+.ctrl label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.ctrl input[type=range] { width: 180px; accent-color: var(--acc); cursor: pointer; }
+.ctrl input[type=range].narrow { width: 90px; }
+.ctrl input[type=range].xnarrow { width: 60px; }
+#year-slider { width: 260px; }
+#q-slider    { width: 110px; }
+
+#year-display { font-size: 17px; font-weight: 700; color: var(--text); min-width: 44px; }
+#q-display    { font-size: 12px; color: var(--muted); min-width: 32px; }
+
+.btn {
+  padding: 4px 11px; border-radius: var(--r);
+  border: 1px solid var(--border); background: transparent;
+  color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 500;
+  white-space: nowrap; transition: color .13s, border-color .13s, background .13s;
+}
+.btn:hover { color: var(--text); border-color: var(--acc); background: var(--bg3); }
+.btn.pri { background: var(--acc); color: #fff; border-color: var(--acc); }
+.btn.pri:hover { filter: brightness(1.15); }
+
+#status { font-size: 11px; color: var(--muted); min-width: 80px; }
+#count  { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+/* color picker */
+.color-wrap { position: relative; }
+input[type=color] {
+  width: 26px; height: 26px; border-radius: var(--r);
+  border: 1px solid var(--border); cursor: pointer; padding: 1px;
+  background: transparent;
+}
+
+/* toggles */
+.toggle-row { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.toggle-row input[type=checkbox] { accent-color: var(--acc); cursor: pointer; }
+.toggle-row.disabled { opacity: .35; pointer-events: none; }
+
+/* legend */
+.legend { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.leg-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
+.leg-toggle { cursor: pointer; user-select: none; }
+.leg-toggle input[type=checkbox] { display: none; }
+.leg-toggle:has(input:not(:checked)) { opacity: .35; }
+.leg-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.leg-ring { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid; background: transparent; }
+
+/* vault + prefix inputs */
+#vault-name, #vault-prefix {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--r); padding: 3px 7px;
+  font-size: 11px;
+}
+#vault-name { width: 100px; }
+#vault-prefix { width: 270px; font-size: 10px; }
+#vault-name:focus, #vault-prefix:focus { outline: none; border-color: var(--acc); }
+
+/* ── Graph ── */
+#graph { position: fixed; top: 78px; left: 0; right: 0; bottom: 0; }
+
+/* SVG element classes (CSS-driven, auto-update with theme) */
+.edge    { stroke: var(--link); stroke-width: 1; }
+.node-label { fill: var(--label); font-size: 9px; pointer-events: none; }
+
+/* Node type fills */
+.n-person       { fill: #818cf8; }
+.n-organisation { fill: #fb923c; }
+.n-ereignis     { fill: #4ade80; }
+.n-regierung    { fill: #94a3b8; }
+
+/* Epoch ring colors (via stroke attribute, set in JS) */
+
+/* ── Tooltip ── */
+#tooltip {
+  position: fixed; pointer-events: none; z-index: 20;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 9px 13px;
+  font-size: 12px; color: var(--text); max-width: 280px;
+  display: none; line-height: 1.55;
+  box-shadow: 0 4px 20px rgba(0,0,0,.4);
+}
+#tooltip .tt-title { font-weight: 700; color: var(--text); font-size: 13px; }
+#tooltip .tt-sub   { color: var(--muted); font-size: 10px; margin-top: 1px; }
+#tooltip .tt-dates { color: var(--muted); margin-top: 4px; }
+#tooltip .tt-hint  { color: var(--acc); font-size: 10px; margin-top: 5px; }
+
+/* ── Epoch legend panel ── */
+#epoch-legend {
+  position: fixed; bottom: 12px; left: 14px; z-index: 10;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 8px 12px;
+  font-size: 10px; color: var(--muted);
+  display: none; gap: 5px; flex-direction: column;
+}
+#epoch-legend.visible { display: flex; }
+.ep-item { display: flex; align-items: center; gap: 6px; }
+.ep-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <!-- Zeile 1: Laden + Zeitfilter + Theme -->
+  <div class="ui-row">
+    <h1>Pyramid of Power</h1>
+    <button class="btn pri" onclick="openVault()">Vault öffnen</button>
+    <input type="file" id="file-input" style="display:none" webkitdirectory multiple>
+    <span id="status">–</span>
+    <div class="sep"></div>
+    <div class="ctrl">
+      <label>Jahr</label>
+      <input type="range" id="year-slider" min="1700" max="2030" value="1960" step="1">
+      <span id="year-display">1960</span>
+    </div>
+    <div class="ctrl">
+      <label>Q</label>
+      <input type="range" id="q-slider" min="-13" max="15" value="0" step="1">
+      <span id="q-display">1.00</span>
+    </div>
+    <div class="sep"></div>
+    <div class="ctrl">
+      <label title="Knoten nach Name filtern">Suche</label>
+      <input type="text" id="search-input" placeholder="Name…" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:3px 7px;font-size:11px;width:120px">
+    </div>
+    <div class="sep"></div>
+    <div class="ctrl">
+      <label>Hintergrund</label>
+      <input type="color" id="bg-picker" value="#111827" title="Hintergrundfarbe">
+    </div>
+    <div class="ctrl">
+      <label title="Helligkeitsschwelle hell/dunkel">Flip</label>
+      <input type="range" class="xnarrow" id="flip-slider" min="0" max="100" value="35" step="1">
+      <span id="flip-display" style="font-size:11px;color:var(--muted);min-width:28px">35%</span>
+    </div>
+    <div class="ctrl">
+      <label title="Knotengröße">Größe</label>
+      <input type="range" class="xnarrow" id="size-slider" min="3" max="12" value="10" step="1">
+      <span id="size-display" style="font-size:11px;color:var(--muted);min-width:28px">1×</span>
+    </div>
+  </div>
+
+  <!-- Zeile 2: Darstellung + Obsidian + Legende -->
+  <div class="ui-row">
+    <div class="toggle-row">
+      <input type="checkbox" id="epoch-ring-toggle">
+      <label for="epoch-ring-toggle">Epochenring</label>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="rolle-toggle">
+      <label for="rolle-toggle">Beobachter</label>
+    </div>
+    <div class="sep"></div>
+    <div class="ctrl">
+      <label title="Obsidian-Vault-Name">Vault</label>
+      <input type="text" id="vault-name" placeholder="tec_lo" value="">
+    </div>
+    <div class="ctrl">
+      <label title="Pfad-Präfix im Vault (vor lexikon/)">Präfix</label>
+      <input type="text" id="vault-prefix" placeholder="cloudclaude/polit_glob_sozial/pyramidofpower" value="">
+    </div>
+    <div class="sep"></div>
+    <div class="legend">
+      <label class="leg-item leg-toggle"><input type="checkbox" id="show-person" checked><div class="leg-dot" style="background:#818cf8"></div>Person</label>
+      <label class="leg-item leg-toggle"><input type="checkbox" id="show-organisation" checked><div class="leg-dot" style="background:#fb923c"></div>Org.</label>
+      <label class="leg-item leg-toggle"><input type="checkbox" id="show-ereignis" checked><div class="leg-dot" style="background:#4ade80"></div>Ereignis</label>
+      <label class="leg-item leg-toggle"><input type="checkbox" id="show-regierung" checked><div class="leg-dot" style="background:#94a3b8"></div>Regierung</label>
+      <div class="leg-item"><div class="leg-ring" style="border:2px dashed var(--text)"></div>Beobachter</div>
+    </div>
+    <span id="count" style="margin-left:auto">– Knoten</span>
+  </div>
+</div>
+
+<!-- Epoch legend (bottom-left, visible when ring active) -->
+<div id="epoch-legend"></div>
+
+<svg id="graph"></svg>
+<div id="tooltip"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════════════
+const TYPE_COLOR = {
+  person:       '#818cf8',
+  organisation: '#fb923c',
+  ereignis:     '#4ade80',
+  regierung:    '#94a3b8',
+};
+
+const EPOCH_COLOR = {
+  'aufklaerung':      '#9333ea',  // violett  (~1700)
+  '19jh':             '#3b82f6',  // blau     (~1800)
+  'jahrhundertwende': '#06b6d4',  // cyan     (~1880)
+  'zwischenkrieg':    '#22c55e',  // grün     (~1919)
+  'kalter-krieg':     '#eab308',  // gelb     (~1945)
+  'post-kk':          '#ef4444',  // rot      (~1991)
+};
+
+const EPOCH_LABEL = {
+  'aufklaerung':      'Aufklärung (~1700)',
+  '19jh':             '19. Jh.',
+  'jahrhundertwende': 'Jahrhundertwende',
+  'zwischenkrieg':    'Zwischenkrieg',
+  'kalter-krieg':     'Kalter Krieg',
+  'post-kk':          'Post-KK (1991–)',
+};
+
+// ══════════════════════════════════════════════════════════════════
+// THEME
+// ══════════════════════════════════════════════════════════════════
+function hexToRgb(h) {
+  h = h.replace('#','');
+  if (h.length===3) h = h.split('').map(c=>c+c).join('');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+function mixHex(h1, h2, t) {
+  const [r1,g1,b1]=hexToRgb(h1), [r2,g2,b2]=hexToRgb(h2);
+  return '#'+[r1*(1-t)+r2*t, g1*(1-t)+g2*t, b1*(1-t)+b2*t]
+    .map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
+}
+function luminance(hex) {
+  return hexToRgb(hex).reduce((acc, c, i) => {
+    c /= 255;
+    c = c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+    return acc + c * [0.2126, 0.7152, 0.0722][i];
+  }, 0);
+}
+
+let currentBg = localStorage.getItem('zt-bg') || '#111827';
+let flipThreshold = parseFloat(localStorage.getItem('zt-flip') || '0.35');
+
+function applyTheme(bgHex, threshold) {
+  currentBg = bgHex;
+  flipThreshold = threshold;
+  localStorage.setItem('zt-bg', bgHex);
+  localStorage.setItem('zt-flip', threshold);
+
+  const lum = luminance(bgHex);
+  const dark = lum < threshold;
+  const towards = dark ? '#ffffff' : '#000000';
+
+  const set = (k,v) => document.documentElement.style.setProperty(k, v);
+  set('--bg',     bgHex);
+  set('--bg2',    mixHex(bgHex, towards, 0.07));
+  set('--bg3',    mixHex(bgHex, towards, 0.14));
+  set('--text',   dark ? '#e2e8f0' : '#1e293b');
+  set('--muted',  dark ? '#64748b' : '#94a3b8');
+  set('--border', mixHex(bgHex, towards, 0.20));
+  set('--link',   mixHex(bgHex, towards, 0.25));
+  set('--label',  dark ? '#7a8fa8' : '#4a6080');
+  set('--acc',    dark ? '#818cf8' : '#4f46e5');
+
+  // update graph elements that use CSS vars (edge + label CSS classes handle it)
+  // Re-apply filter to refresh opacities/stroke
+  if (linkSel) {
+    linkSel.attr('stroke', getVar('--link'));
+    labelSel.attr('fill', getVar('--label'));
+  }
+}
+
+function getVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+let allNodes = [], allEdges = [];
+let simulation, svg, linkSel, nodeSel, labelSel;
+let centerYear = 1960, qVal = 1.0;
+let showEpochRing = false, showRolleRing = false;
+let nodeSizeFactor = 1.0;
+let filterText = '';
+let showTypes = { person: true, organisation: true, ereignis: true, regierung: true };
+
+// ══════════════════════════════════════════════════════════════════
+// GAUSSIAN FILTER
+// ══════════════════════════════════════════════════════════════════
+function sliderToQ(v) { return Math.pow(2, v / 5); }
+function sigma(q)     { return 50 / q; }
+
+function gauss(year, center, sig) {
+  const d = year - center;
+  return Math.exp(-(d * d) / (2 * sig * sig));
+}
+
+function nodeOpacity(node, center, sig) {
+  const s = node.wirkung_start, e = node.wirkung_ende;
+  if (s === null && e === null) return 0.85;
+  if (e === null) {
+    // ongoing: voll sichtbar sobald Slider den Start erreicht hat
+    if (s === null || center >= s) return 0.88;
+    return gauss(s, center, sig);
+  }
+  const ys = s !== null ? s : e;
+  return Math.max(gauss(ys, center, sig), gauss(e, center, sig), gauss((ys+e)/2, center, sig));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FRONTMATTER PARSER
+// ══════════════════════════════════════════════════════════════════
+function parseFrontmatter(text) {
+  const m = text.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return null;
+  const fm = {};
+  for (const line of m[1].split('\n')) {
+    const kv = line.match(/^(\w[\w_]*)\s*:\s*(.+)$/);
+    if (!kv) continue;
+    const [, key, val] = kv;
+    const v = val.trim();
+    if (v.startsWith('[')) {
+      fm[key] = v.slice(1,-1).split(',').map(x => x.trim().replace(/^["']|["']$/g,''));
+    } else if (v === 'null') {
+      fm[key] = null;
+    } else if (/^\d+$/.test(v)) {
+      fm[key] = parseInt(v);
+    } else {
+      fm[key] = v.replace(/^["']|["']$/g,'');
+    }
+  }
+  return fm;
+}
+
+function extractWikilinks(text) {
+  const re = /\[\[([^\]|#\n]+)(?:\|[^\]\n]+)?\]\]/g;
+  const links = [], seen = new Set();
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const t = m[1].trim();
+    if (!seen.has(t)) { seen.add(t); links.push(t); }
+  }
+  return links;
+}
+
+function primaryEpoch(node) {
+  const e = node.epoche || [];
+  // strip "epoche/" prefix if present
+  const clean = e.map(s => s.replace('epoche/',''));
+  // return last (most recent) epoch that we know
+  for (let i = clean.length - 1; i >= 0; i--) {
+    if (EPOCH_COLOR[clean[i]]) return clean[i];
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VAULT LOADER
+// ══════════════════════════════════════════════════════════════════
+async function openVault() {
+  if (window.showDirectoryPicker) {
+    let h;
+    try { h = await window.showDirectoryPicker({ mode: 'read' }); } catch { return; }
+    setStatus('Lade…');
+    const files = [];
+    await collectFromHandle(h, files, h.name);
+    await processFiles(files);
+  } else {
+    document.getElementById('file-input').click();
+  }
+}
+
+async function collectFromHandle(handle, out, prefix) {
+  for await (const [name, entry] of handle.entries()) {
+    if (entry.kind === 'directory' && !name.startsWith('_') && name !== 'quellen') {
+      await collectFromHandle(entry, out, `${prefix}/${name}`);
+    } else if (entry.kind === 'file' && name.endsWith('.md') && !name.startsWith('_')) {
+      out.push({ name, file: await entry.getFile(), path: `${prefix}/${name}` });
+    }
+  }
+}
+
+document.getElementById('file-input').addEventListener('change', async function() {
+  const valid = [...this.files].filter(f =>
+    f.name.endsWith('.md') && !f.name.startsWith('_') &&
+    !f.webkitRelativePath.includes('/_') &&
+    !f.webkitRelativePath.includes('/quellen/')
+  );
+  setStatus('Lade…');
+  await processFiles(valid.map(f => ({ name: f.name, file: f, path: f.webkitRelativePath })));
+});
+
+async function processFiles(namedFiles) {
+  const nodes = [], edges = [];
+  const nameToId = {};
+
+  for (const { name, file, path } of namedFiles) {
+    const text = await file.text();
+    const fm = parseFrontmatter(text);
+    if (!fm || !fm.type) continue;
+
+    const id = name.replace(/\.md$/, '');
+    const aliases = Array.isArray(fm.aliases) ? fm.aliases : [];
+    const epoche  = Array.isArray(fm.epoche)  ? fm.epoche  :
+                    fm.epoche ? [fm.epoche] : [];
+
+    // Regierungen: amtsantritt/amtsende als Alias für wirkung_start/ende
+    let wStart = fm.wirkung_start ?? null;
+    let wEnde  = fm.wirkung_ende  ?? null;
+    if (fm.type === 'regierung') {
+      if (wStart === null && fm.amtsantritt != null) wStart = +fm.amtsantritt || null;
+      if (wEnde  === null && fm.amtsende    != null) wEnde  = +fm.amtsende   || null;
+    }
+
+    nodes.push({
+      id, label: id, type: fm.type, aliases, epoche,
+      rolle:        fm.rolle   ?? null,
+      land:         fm.land    ?? null,
+      kopf:         fm.kopf    ?? null,
+      wirkung_start: wStart,
+      wirkung_ende:  wEnde,
+      vaultPath: path,
+      body: text,
+    });
+
+    nameToId[id.toLowerCase()] = id;
+    for (const a of aliases) nameToId[a.toLowerCase()] = id;
+  }
+
+  const edgeSet = new Set();
+  for (const node of nodes) {
+    for (const link of extractWikilinks(node.body)) {
+      const tid = nameToId[link.toLowerCase()];
+      if (tid && tid !== node.id) {
+        const key = [node.id, tid].sort().join('→');
+        if (!edgeSet.has(key)) { edgeSet.add(key); edges.push({ source: node.id, target: tid }); }
+      }
+    }
+  }
+
+  allNodes = nodes; allEdges = edges;
+  setStatus(`${nodes.length} Karten · ${edges.length} Links`);
+  initGraph();
+  updateEpochLegend();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBSIDIAN LINK
+// ══════════════════════════════════════════════════════════════════
+function openInObsidian(node) {
+  const vaultName = document.getElementById('vault-name').value.trim() || 'tec_lo';
+  const prefix    = document.getElementById('vault-prefix').value.trim();
+  // vaultPath is like "lexikon/personen/John D. Rockefeller Sr.md" (relative to vault root)
+  let filePath = (node.vaultPath || node.id).replace(/\.md$/, '');
+  if (prefix) filePath = `${prefix}/${filePath}`;
+  const uri = `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(filePath)}`;
+  window.open(uri, '_blank');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// D3 GRAPH
+// ══════════════════════════════════════════════════════════════════
+function nodeRadius(d) {
+  const deg = allEdges.filter(e => e.source === d.id || e.target === d.id || e.source.id === d.id || e.target.id === d.id).length;
+  return (4 + Math.sqrt(deg) * 1.6) * nodeSizeFactor;
+}
+
+function initGraph() {
+  const svgEl = document.getElementById('graph');
+  svgEl.innerHTML = '';
+  const W = window.innerWidth, H = window.innerHeight - 78;
+
+  svg = d3.select('#graph').attr('width', W).attr('height', H);
+  const g = svg.append('g');
+
+  svg.call(d3.zoom().scaleExtent([0.05, 10])
+    .on('zoom', e => g.attr('transform', e.transform)));
+
+  const nodeById = Object.fromEntries(allNodes.map(n => [n.id, n]));
+  const validEdges = allEdges.filter(e => nodeById[e.source] && nodeById[e.target]);
+
+  simulation = d3.forceSimulation(allNodes)
+    .force('link',      d3.forceLink(validEdges).id(d => d.id).distance(65).strength(0.25))
+    .force('charge',    d3.forceManyBody().strength(-90).distanceMax(300))
+    .force('center',    d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide(d => nodeRadius(d) + 3))
+    .alphaDecay(0.018);
+
+  // Edges
+  linkSel = g.append('g').selectAll('line')
+    .data(validEdges).join('line')
+    .attr('class', 'edge')
+    .attr('stroke', getVar('--link'));
+
+  // Nodes (circle elements)
+  const drag = d3.drag()
+    .on('start', (e,d) => { if(!e.active) simulation.alphaTarget(0.1).restart(); d.fx=d.x; d.fy=d.y; })
+    .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+    .on('end',   (e,d) => { if(!e.active) simulation.alphaTarget(0); d.fx=null; d.fy=null; });
+
+  nodeSel = g.append('g').selectAll('circle')
+    .data(allNodes).join('circle')
+    .attr('r', d => nodeRadius(d))
+    .attr('class', d => `n-${d.type}`)
+    .attr('stroke-width', 2.5)
+    .attr('cursor', 'pointer')
+    .on('mouseover', showTooltip)
+    .on('mousemove', moveTooltip)
+    .on('mouseout',  hideTooltip)
+    .on('click', (e, d) => { e.stopPropagation(); openInObsidian(d); })
+    .call(drag);
+
+  // Labels
+  labelSel = g.append('g').selectAll('text')
+    .data(allNodes).join('text')
+    .attr('class', 'node-label')
+    .attr('fill', getVar('--label'))
+    .text(d => d.label.length > 24 ? d.label.slice(0,22)+'…' : d.label)
+    .attr('dx', d => nodeRadius(d) + 3).attr('dy', 3)
+    .attr('pointer-events', 'none');
+
+  simulation.on('tick', () => {
+    linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+            .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    nodeSel.attr('cx',d=>d.x).attr('cy',d=>d.y);
+    labelSel.attr('x',d=>d.x).attr('y',d=>d.y);
+  });
+
+  applyFilter();
+  applyEpochRing();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FILTER
+// ══════════════════════════════════════════════════════════════════
+function applyFilter() {
+  if (!nodeSel) return;
+  const sig = sigma(qVal);
+  const ft = filterText.toLowerCase();
+  let visible = 0;
+
+  nodeSel.attr('opacity', d => {
+    if (!showTypes[d.type]) return 0;
+    const textMatch = !ft || d.label.toLowerCase().includes(ft) ||
+                      d.aliases.some(a => a.toLowerCase().includes(ft));
+    if (!textMatch) return 0.04;
+    const op = nodeOpacity(d, centerYear, sig);
+    if (op > 0.04) visible++;
+    return op;
+  });
+  labelSel.attr('opacity', d => {
+    if (!showTypes[d.type]) return 0;
+    const textMatch = !ft || d.label.toLowerCase().includes(ft) ||
+                      d.aliases.some(a => a.toLowerCase().includes(ft));
+    if (!textMatch) return 0;
+    const op = nodeOpacity(d, centerYear, sig);
+    return op > 0.35 ? Math.min(op, 0.9) : 0;
+  });
+  linkSel.attr('opacity', d => {
+    const opA = nodeOpacity(d.source, centerYear, sig);
+    const opB = nodeOpacity(d.target, centerYear, sig);
+    return Math.min(opA, opB) * 0.55;
+  });
+
+  document.getElementById('count').textContent = `${visible} / ${allNodes.length} Knoten`;
+}
+
+function applyNodeRings() {
+  if (!nodeSel) return;
+  nodeSel
+    .attr('stroke', d => {
+      const isObs = showRolleRing && d.rolle === 'beobachter';
+      if (showEpochRing) {
+        const ep = primaryEpoch(d);
+        if (ep) return EPOCH_COLOR[ep];
+        return isObs ? getVar('--text') : 'none';
+      }
+      return isObs ? getVar('--text') : 'none';
+    })
+    .attr('stroke-dasharray', d => {
+      return (showRolleRing && d.rolle === 'beobachter') ? '5 3' : 'none';
+    });
+}
+// keep alias for internal calls
+function applyEpochRing() { applyNodeRings(); }
+
+// ══════════════════════════════════════════════════════════════════
+// EPOCH LEGEND
+// ══════════════════════════════════════════════════════════════════
+function updateEpochLegend() {
+  const panel = document.getElementById('epoch-legend');
+  // Collect epochs actually present
+  const present = new Set();
+  for (const n of allNodes) {
+    const ep = primaryEpoch(n);
+    if (ep) present.add(ep);
+  }
+  const order = ['aufklaerung','19jh','jahrhundertwende','zwischenkrieg','kalter-krieg','post-kk'];
+  panel.innerHTML = '';
+  for (const ep of order) {
+    if (!present.has(ep)) continue;
+    const div = document.createElement('div');
+    div.className = 'ep-item';
+    div.innerHTML = `<div class="ep-swatch" style="background:${EPOCH_COLOR[ep]}"></div>${EPOCH_LABEL[ep]}`;
+    panel.appendChild(div);
+  }
+  panel.classList.toggle('visible', showEpochRing && present.size > 0);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════════════════════════════
+function showTooltip(event, d) {
+  const tt = document.getElementById('tooltip');
+  const s = d.wirkung_start, e = d.wirkung_ende;
+  const dates = (s !== null || e !== null)
+    ? `${s ?? '?'} – ${e !== null ? e : 'ongoing'}` : '–';
+  const ep = d.epoche.map(x => x.replace('epoche/','')).join(', ');
+  const sub2 = d.type === 'regierung'
+    ? [d.land, d.kopf ? d.kopf.replace(/\[\[|\]\]/g,'') : null].filter(Boolean).join(' · ')
+    : ep;
+  tt.innerHTML = `
+    <div class="tt-title">${d.label}</div>
+    <div class="tt-sub">${d.type}${sub2 ? ' · ' + sub2 : ''}</div>
+    <div class="tt-dates">${dates}</div>
+    <div class="tt-hint">↩ Klick → Obsidian öffnen</div>
+  `;
+  tt.style.display = 'block';
+  moveTooltip(event);
+}
+function moveTooltip(event) {
+  const tt = document.getElementById('tooltip');
+  const x = event.clientX + 16, y = event.clientY + 14;
+  tt.style.left = (x + tt.offsetWidth > window.innerWidth ? event.clientX - tt.offsetWidth - 8 : x) + 'px';
+  tt.style.top  = (y + tt.offsetHeight > window.innerHeight ? event.clientY - tt.offsetHeight - 8 : y) + 'px';
+}
+function hideTooltip() { document.getElementById('tooltip').style.display = 'none'; }
+
+// ══════════════════════════════════════════════════════════════════
+// CONTROLS WIRING
+// ══════════════════════════════════════════════════════════════════
+const yearSlider = document.getElementById('year-slider');
+const qSlider    = document.getElementById('q-slider');
+const bgPicker   = document.getElementById('bg-picker');
+const flipSlider = document.getElementById('flip-slider');
+const searchInput = document.getElementById('search-input');
+const sizeSlider  = document.getElementById('size-slider');
+const epochToggle= document.getElementById('epoch-ring-toggle');
+const rolleToggle= document.getElementById('rolle-toggle');
+const vaultInput  = document.getElementById('vault-name');
+const prefixInput = document.getElementById('vault-prefix');
+
+yearSlider.addEventListener('input', () => {
+  centerYear = +yearSlider.value;
+  document.getElementById('year-display').textContent = centerYear;
+  applyFilter();
+});
+
+qSlider.addEventListener('input', () => {
+  qVal = sliderToQ(+qSlider.value);
+  document.getElementById('q-display').textContent = qVal.toFixed(2);
+  applyFilter();
+});
+
+bgPicker.addEventListener('input', () => {
+  applyTheme(bgPicker.value, flipThreshold);
+});
+
+flipSlider.addEventListener('input', () => {
+  const pct = +flipSlider.value;
+  document.getElementById('flip-display').textContent = pct + '%';
+  applyTheme(bgPicker.value, pct / 100);
+});
+
+searchInput.addEventListener('input', () => {
+  filterText = searchInput.value.trim();
+  applyFilter();
+});
+
+['person','organisation','ereignis','regierung'].forEach(t => {
+  document.getElementById(`show-${t}`).addEventListener('change', e => {
+    showTypes[t] = e.target.checked;
+    applyFilter();
+  });
+});
+
+sizeSlider.addEventListener('input', () => {
+  nodeSizeFactor = +sizeSlider.value / 10;
+  document.getElementById('size-display').textContent = nodeSizeFactor.toFixed(1) + '×';
+  if (nodeSel) {
+    nodeSel.attr('r', d => nodeRadius(d));
+    labelSel.attr('dx', d => nodeRadius(d) + 3);
+    simulation.force('collision', d3.forceCollide(d => nodeRadius(d) + 3));
+    simulation.alpha(0.3).restart();
+  }
+});
+
+epochToggle.addEventListener('change', () => {
+  showEpochRing = epochToggle.checked;
+  applyNodeRings();
+  updateEpochLegend();
+});
+
+rolleToggle.addEventListener('change', () => {
+  showRolleRing = rolleToggle.checked;
+  applyNodeRings();
+});
+
+vaultInput.addEventListener('change', () => {
+  localStorage.setItem('zt-vault', vaultInput.value);
+});
+prefixInput.addEventListener('change', () => {
+  localStorage.setItem('zt-prefix', prefixInput.value);
+});
+
+window.addEventListener('resize', () => {
+  if (!svg) return;
+  const W = window.innerWidth, H = window.innerHeight - 78;
+  svg.attr('width', W).attr('height', H);
+  if (simulation) simulation.force('center', d3.forceCenter(W/2, H/2)).alpha(0.1).restart();
+});
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+// ── Init on load ────────────────────────────────────────────────
+(function init() {
+  // Restore saved settings
+  const savedBg     = localStorage.getItem('zt-bg')     || '#111827';
+  const savedFlip   = localStorage.getItem('zt-flip')   || '0.35';
+  const savedVault  = localStorage.getItem('zt-vault')  || 'tec_lo';
+  const savedPrefix = localStorage.getItem('zt-prefix') || 'cloudclaude/polit_glob_sozial/pyramidofpower';
+
+  bgPicker.value = savedBg;
+  flipSlider.value = Math.round(parseFloat(savedFlip) * 100);
+  document.getElementById('flip-display').textContent = flipSlider.value + '%';
+  vaultInput.value  = savedVault;
+  prefixInput.value = savedPrefix;
+
+  applyTheme(savedBg, parseFloat(savedFlip));
+})();
+</script>
+</body>
+</html>

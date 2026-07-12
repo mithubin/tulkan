@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DV-Admin – tul</title>
+<link rel="stylesheet" href="/static/tul-theme.css">
+<style>
+  :root {
+    --bg:#1a1a1a; --bg2:#242424; --bg3:#2e2e2e;
+    --acc:#5b8dd9; --border:#3a3a3a; --text:#e0e0e0; --muted:#888;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--text);min-height:100vh}
+  header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+  .hdr-left{display:flex;align-items:center;gap:6px}
+  .hdr-left a{color:var(--acc);text-decoration:none;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:4px}
+  .hdr-left a:hover{background:var(--bg3)}
+  h1{flex:1;text-align:center;font-size:15px;font-weight:600}
+  main{max-width:1200px;margin:0 auto;padding:16px}
+
+  .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .filter-bar select,.filter-bar input{
+    background:var(--bg2);border:1px solid var(--border);color:var(--text);
+    padding:5px 8px;border-radius:4px;font-size:13px}
+  .filter-bar input{flex:1;min-width:180px}
+  .stats{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+
+  details{margin-bottom:10px;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  details[open]{border-color:var(--acc)}
+  summary{
+    cursor:pointer;padding:9px 12px;background:var(--bg2);user-select:none;
+    display:flex;align-items:center;gap:8px;list-style:none;font-weight:600}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:'▶';font-size:10px;color:var(--muted);transition:transform .15s}
+  details[open] summary::before{transform:rotate(90deg)}
+  .tool-badge{
+    font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;
+    background:var(--bg3);color:var(--acc);border:1px solid var(--acc);letter-spacing:.5px}
+  .tool-count{font-size:12px;color:var(--muted);font-weight:400}
+  .tool-size{font-size:12px;color:var(--muted);font-weight:400;margin-left:auto}
+
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);vertical-align:middle}
+  th{font-size:11px;font-weight:600;color:var(--muted);background:var(--bg2);text-transform:uppercase;letter-spacing:.5px}
+  tr:hover td{background:var(--bg3)}
+  .fname{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;font-size:12px}
+  .tul-mime{font-family:monospace;font-size:11px;color:var(--acc)}
+  .cat-badge{font-size:10px;padding:2px 6px;border-radius:3px;font-weight:600}
+  .cat-badge.input{background:#2a3a2a;color:#7cbf7c}
+  .cat-badge.output{background:#2a2e3a;color:#7ca7cf}
+  .sz{color:var(--muted);font-size:12px;white-space:nowrap}
+  .dt{color:var(--muted);font-size:12px;white-space:nowrap}
+  .user-col{font-size:11px;color:var(--muted)}
+  .del-btn{
+    background:none;border:1px solid #662222;color:#cc5555;
+    padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px}
+  .del-btn:hover{background:#3a1515;border-color:#cc5555;color:#ff7777}
+
+  /* ── Routing-Matrix ── */
+  #routing details{border-color:var(--border);margin-top:0}
+  .route-matrix-wrap{overflow:auto;max-height:420px;border-top:1px solid var(--border)}
+  .route-matrix{border-collapse:collapse;font-size:11px;font-family:monospace}
+  .route-matrix th,.route-matrix td{
+    border:1px solid var(--border);padding:0;min-width:32px;text-align:center}
+  /* sticky erste Spalte */
+  .route-matrix td.src,.route-matrix th.corner{
+    position:sticky;left:0;z-index:2;
+    background:var(--bg2);text-align:left;
+    padding:5px 10px;white-space:nowrap;font-size:11px;color:var(--acc)}
+  .route-matrix th.corner{z-index:3;color:var(--muted)}
+  /* sticky Header-Zeile */
+  .route-matrix thead tr{position:sticky;top:0;z-index:2}
+  .route-matrix thead th{
+    background:var(--bg2);padding:6px 5px;
+    writing-mode:vertical-rl;text-orientation:mixed;
+    transform:rotate(180deg);
+    max-height:140px;white-space:nowrap;vertical-align:bottom;color:var(--muted)}
+  .route-matrix thead th.corner{writing-mode:horizontal-tb;transform:none;padding:5px 10px}
+  /* Zellen */
+  .route-matrix tbody td.dot{background:var(--bg3)}
+  .route-matrix tbody td.dot::after{content:'●';color:var(--acc);font-size:13px;line-height:30px}
+  .route-matrix tbody tr:hover td{background:color-mix(in srgb,var(--bg3) 60%,var(--acc) 10%)}
+  .route-matrix tbody tr:hover td.src{background:var(--bg3)}
+
+  /* ── Vollbild-Overlay ── */
+  .full-btn{
+    margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);
+    padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px}
+  .full-btn:hover{border-color:var(--acc);color:var(--acc)}
+  #route-overlay{
+    display:none;position:fixed;inset:0;z-index:500;
+    background:rgba(0,0,0,.75);backdrop-filter:blur(3px)}
+  #route-overlay.open{display:flex;align-items:flex-start;justify-content:center;padding:24px}
+  #route-overlay-box{
+    background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+    width:100%;max-width:1400px;display:flex;flex-direction:column;max-height:calc(100vh - 48px)}
+  #route-overlay-hdr{
+    display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+  #route-overlay-hdr span{font-size:13px;font-weight:600;flex:1}
+  #route-overlay-hdr button{
+    background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px}
+  #route-overlay-hdr button:hover{color:var(--text)}
+  #route-overlay-body{overflow:auto;flex:1}
+  #route-overlay-body .route-matrix-wrap{max-height:none;border-top:none}
+
+  .loading{text-align:center;padding:40px;color:var(--muted)}
+  .err{color:#cc5555;padding:12px;background:#2a1515;border-radius:4px;margin:8px 0}
+  .empty-tool{padding:14px;color:var(--muted);font-style:italic;font-size:13px}
+
+  .ghost{opacity:.4}
+  .ghost .fname::after{content:' ⚠';color:#cc9900;font-style:normal}
+
+  /* Auswahl + ZIP */
+  .sel-bar{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .sel-btn{
+    padding:3px 9px;background:none;border:1px solid var(--border);color:var(--muted);
+    border-radius:4px;cursor:pointer;font-size:12px}
+  .sel-btn:hover{border-color:var(--acc);color:var(--acc)}
+  .zip-btn{
+    padding:3px 12px;background:none;border:1px solid var(--acc);color:var(--acc);
+    border-radius:4px;cursor:pointer;font-size:12px;margin-left:auto}
+  .zip-btn:hover:not(:disabled){background:rgba(91,141,217,.12)}
+  .zip-btn:disabled{opacity:.35;cursor:default}
+  /* Auswahl-Bar unterhalb summary */
+  .grp-actions{
+    display:flex;gap:5px;padding:5px 10px;background:var(--bg2);border-top:1px solid var(--border)}
+  .grp-actions .sel-btn{font-size:11px;padding:2px 8px}
+  /* Checkbox-Spalte */
+  .cb-col{width:28px;text-align:center!important;padding:4px 6px!important}
+  input[type=checkbox]{accent-color:var(--acc);cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr-left">
+    <a href="/">← Hub</a>
+  </div>
+  <h1>DV-Verwaltung</h1>
+</header>
+
+<main>
+  <div class="filter-bar">
+    <select id="flt-tool"><option value="">Alle Tools</option></select>
+    <select id="flt-cat">
+      <option value="">Alle Kategorien</option>
+      <option value="input">input</option>
+      <option value="output">output</option>
+    </select>
+    <select id="flt-type"><option value="">Alle file_types</option></select>
+    <input id="flt-q" type="search" placeholder="Dateiname suchen…">
+    <span class="stats" id="stats">–</span>
+  </div>
+
+  <div class="sel-bar">
+    <button class="sel-btn" onclick="selAll(true)">Alle</button>
+    <button class="sel-btn" onclick="selAll(false)">Keine</button>
+    <button class="sel-btn" onclick="toggleAll()">⇄ Toggle</button>
+    <button class="sel-btn" style="border-color:#662222;color:#cc5555" onclick="delAll()">Auswahl löschen</button>
+    <button class="zip-btn" id="zip-btn" disabled onclick="downloadZip()">ZIP</button>
+  </div>
+
+  <div id="tree"><div class="loading">Lade…</div></div>
+
+  <div id="routing" style="margin-top:24px">
+    <details>
+      <summary>
+        <span class="tool-badge" style="background:var(--bg3);color:var(--muted);border-color:var(--border)">ROUTING</span>
+        <span class="tool-count">Tabelle (read-only)</span>
+        <button class="full-btn" onclick="event.stopPropagation();openRouteOverlay()" title="Vollbild">⛶</button>
+      </summary>
+      <div id="routing-inner"><div class="loading">Lade…</div></div>
+    </details>
+  </div>
+</main>
+
+<div id="route-overlay" onclick="if(event.target===this)closeRouteOverlay()">
+  <div id="route-overlay-box">
+    <div id="route-overlay-hdr">
+      <span>Routing-Matrix</span>
+      <button onclick="closeRouteOverlay()">✕</button>
+    </div>
+    <div id="route-overlay-body"></div>
+  </div>
+</div>
+
+<script src="/static/tul-theme.js"></script>
+<script>
+tulTheme.init({ subpath: '/admin/dv', preset: tulTheme.PRESETS?.hub ?? {} });
+
+let _all = [];
+
+function fmt_size(b) {
+  if (!b) return '–';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+function fmt_date(s) {
+  if (!s) return '–';
+  return s.slice(0,10);
+}
+function total_size(files) {
+  return files.reduce((s,f) => s + (f.size||0), 0);
+}
+
+async function load() {
+  try {
+    const r = await fetch('/api/admin/dv/files');
+    if (!r.ok) throw new Error(r.statusText);
+    _all = await r.json();
+    populate_filters();
+    render();
+  } catch(e) {
+    document.getElementById('tree').innerHTML =
+      `<div class="err">Fehler: ${e.message}</div>`;
+  }
+}
+
+function populate_filters() {
+  const tools = [...new Set(_all.map(f=>f.tool))].sort();
+  const types = [...new Set(_all.map(f=>f.file_type).filter(Boolean))].sort();
+  const st = document.getElementById('flt-tool');
+  tools.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; st.appendChild(o); });
+  const sf = document.getElementById('flt-type');
+  types.forEach(t => { const o=document.createElement('option'); o.value=t; o.textContent=t; sf.appendChild(o); });
+}
+
+function filtered() {
+  const tool = document.getElementById('flt-tool').value;
+  const cat  = document.getElementById('flt-cat').value;
+  const type = document.getElementById('flt-type').value;
+  const q    = document.getElementById('flt-q').value.toLowerCase();
+  return _all.filter(f =>
+    (!tool || f.tool===tool) &&
+    (!cat  || f.category===cat) &&
+    (!type || f.file_type===type) &&
+    (!q    || f.filename.toLowerCase().includes(q))
+  );
+}
+
+function mk_file_table(files, gid) {
+  const tbl = document.createElement('table');
+  tbl.innerHTML = `<thead><tr>
+    <th class="cb-col"><input type="checkbox" title="Alle/Keine" onchange="selGroup('${gid}',this.checked)"></th>
+    <th>Dateiname</th><th>tul-mime</th><th>Kat</th><th>file_type</th>
+    <th>Größe</th><th>Datum</th><th>Nutzer</th><th></th>
+  </tr></thead>`;
+  const tbody = document.createElement('tbody');
+  files.forEach(f => {
+    const tr = document.createElement('tr');
+    tr.dataset.id = f.id;
+    tr.innerHTML = `
+      <td class="cb-col"><input type="checkbox" class="row-cb" data-id="${f.id}" onchange="updateZipBtn()"></td>
+      <td class="fname" title="${f.path||f.filename}">${f.filename}</td>
+      <td class="tul-mime">${f.tul_mime||'–'}</td>
+      <td><span class="cat-badge ${f.category}">${f.category}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${f.file_type||'–'}</td>
+      <td class="sz">${fmt_size(f.size)}</td>
+      <td class="dt">${fmt_date(f.created_at)}</td>
+      <td class="user-col">${f.user_name}</td>
+      <td><button class="del-btn" onclick="del_file('${f.id}',this)">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  return tbl;
+}
+
+function mk_sel_bar(gid) {
+  const bar = document.createElement('div');
+  bar.className = 'grp-actions';
+  bar.innerHTML = `
+    <button class="sel-btn" onclick="selGroup('${gid}',true)">Alle</button>
+    <button class="sel-btn" onclick="selGroup('${gid}',false)">Keine</button>
+    <button class="sel-btn" onclick="toggleGroup('${gid}')">⇄ Toggle</button>
+    <button class="sel-btn" style="margin-left:auto;border-color:#662222;color:#cc5555" onclick="delGroup('${gid}')">Auswahl löschen</button>`;
+  return bar;
+}
+
+function render() {
+  const files = filtered();
+  const stats = document.getElementById('stats');
+  stats.textContent = `${files.length} Datei${files.length!==1?'en':''} · ${fmt_size(total_size(files))}`;
+
+  const byTool = new Map();
+  files.forEach(f => {
+    if (!byTool.has(f.tool)) byTool.set(f.tool, []);
+    byTool.get(f.tool).push(f);
+  });
+  const tools = [...byTool.keys()].sort();
+
+  const tree = document.getElementById('tree');
+  tree.innerHTML = '';
+  if (!tools.length) {
+    tree.innerHTML = '<div class="loading">Keine Dateien gefunden.</div>';
+    return;
+  }
+
+  tools.forEach(tool => {
+    const tFiles  = byTool.get(tool);
+    const toolGid = 'tool-' + tool;
+    const hasGrp  = tFiles.some(f => f.grp);
+
+    const details = document.createElement('details');
+    details.open  = true;
+    details.id    = toolGid;
+
+    // ── Summary (nur Badge + Counts, keine Buttons) ──
+    const sum = document.createElement('summary');
+    sum.innerHTML = `
+      <span class="tool-badge">${tool}</span>
+      <span class="tool-count">${tFiles.length} Datei${tFiles.length!==1?'en':''}</span>
+      <span class="tool-size">${fmt_size(total_size(tFiles))}</span>`;
+    details.appendChild(sum);
+
+    if (!hasGrp) {
+      // ── Flat: Auswahl-Bar + Tabelle ──
+      details.appendChild(mk_sel_bar(toolGid));
+      details.appendChild(mk_file_table(tFiles, toolGid));
+    } else {
+      // ── Zwei-Ebenen: Gruppen-Sub-Details ──
+      details.appendChild(mk_sel_bar(toolGid));  // globale Auswahl für das ganze Tool
+
+      const byGrp = new Map();
+      tFiles.forEach(f => {
+        const g = f.grp || '–';
+        if (!byGrp.has(g)) byGrp.set(g, []);
+        byGrp.get(g).push(f);
+      });
+      // Ungrouped zuerst, dann nach grp-Name
+      const grps = [...byGrp.keys()].sort((a, b) => {
+        if (a === '–') return -1; if (b === '–') return 1;
+        return b.localeCompare(a);  // neueste Jobs oben
+      });
+
+      grps.forEach(grp => {
+        const gFiles = byGrp.get(grp);
+        const subGid = 'grp-' + tool + '-' + grp.replace(/[^a-z0-9]/gi, '_');
+        const sub    = document.createElement('details');
+        sub.open     = true;
+        sub.id       = subGid;
+        sub.style.margin = '4px 0 0 0';
+        sub.style.borderRadius = '4px';
+
+        const subSum = document.createElement('summary');
+        subSum.style.background = 'var(--bg3)';
+        subSum.style.fontSize   = '12px';
+        const cat = gFiles[0]?.category || '';
+        const isOutput = cat === 'output';
+        subSum.innerHTML = `
+          <span style="font-family:monospace;color:var(--acc)">${grp}</span>
+          <span class="tool-count">${gFiles.length} Datei${gFiles.length!==1?'en':''}</span>
+          <span class="tool-size">${fmt_size(total_size(gFiles))}</span>`;
+        sub.appendChild(subSum);
+        sub.appendChild(mk_sel_bar(subGid));
+        sub.appendChild(mk_file_table(gFiles, subGid));
+        details.appendChild(sub);
+      });
+    }
+
+    tree.appendChild(details);
+  });
+}
+
+async function del_file(id, btn) {
+  const tr = btn.closest('tr');
+  const name = tr.querySelector('.fname').textContent;
+  if (!confirm(`Datei löschen (Disk + DB)?\n${name}`)) return;
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/admin/dv/files/${id}`, {method:'DELETE'});
+    if (!r.ok) throw new Error((await r.json()).error || r.statusText);
+    const data = await r.json();
+    if (!data.disk_deleted) {
+      console.warn('DB entfernt, Disk-Löschen nicht möglich (Pfad-Mapping fehlt?):', name);
+    }
+    _all = _all.filter(f => f.id !== id);
+    render();
+  } catch(e) {
+    alert('Fehler: ' + e.message);
+    btn.disabled = false;
+  }
+}
+
+async function load_routing() {  // returns Promise
+  const inner = document.getElementById('routing-inner');
+  try {
+    const r = await fetch('/api/admin/dv/routing');
+    const data = await r.json();
+    const entries = Object.entries(data);   // [src, [dest, ...]]
+
+    // alle Ziele als geordnete Spalten — nach Tool, dann Phase
+    const destSet = new Set();
+    entries.forEach(([, dests]) => dests.forEach(d => destSet.add(d)));
+    const cols = [...destSet].sort((a, b) => {
+      const [at, ap = ''] = a.split(':');
+      const [bt, bp = ''] = b.split(':');
+      return at !== bt ? at.localeCompare(bt) : ap.localeCompare(bp);
+    });
+
+    // Zeilen nach Tool (2. Segment von tul-mime: format:tool:phase), dann Phase
+    entries.sort(([a], [b]) => {
+      const [, at = '', ap = ''] = a.split(':');
+      const [, bt = '', bp = ''] = b.split(':');
+      return at !== bt ? at.localeCompare(bt) : ap.localeCompare(bp);
+    });
+
+    let html = '<div class="route-matrix-wrap"><table class="route-matrix"><thead><tr>';
+    html += '<th class="corner">tul-mime ↓ &nbsp;&nbsp; Ziel →</th>';
+    cols.forEach(c => { html += `<th title="${c}">${c}</th>`; });
+    html += '</tr></thead><tbody>';
+
+    entries.forEach(([src, dests]) => {
+      const destSet2 = new Set(dests);
+      html += `<tr><td class="src" title="${src}">${src}</td>`;
+      cols.forEach(c => {
+        html += destSet2.has(c) ? '<td class="dot"></td>' : '<td></td>';
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    inner.innerHTML = html;
+  } catch(e) {
+    inner.innerHTML = `<div class="err">Fehler: ${e.message}</div>`;
+  }
+}
+
+// ── Auswahl-Steuerung ────────────────────────────────────────────────────────
+function selGroup(gid, state) {
+  document.getElementById(gid).querySelectorAll('.row-cb').forEach(cb => cb.checked = state);
+  updateZipBtn();
+}
+function toggleGroup(gid) {
+  document.getElementById(gid).querySelectorAll('.row-cb').forEach(cb => cb.checked = !cb.checked);
+  updateZipBtn();
+}
+function selAll(state) {
+  document.querySelectorAll('.row-cb').forEach(cb => cb.checked = state);
+  updateZipBtn();
+}
+function toggleAll() {
+  document.querySelectorAll('.row-cb').forEach(cb => cb.checked = !cb.checked);
+  updateZipBtn();
+}
+function updateZipBtn() {
+  const n = document.querySelectorAll('.row-cb:checked').length;
+  const btn = document.getElementById('zip-btn');
+  btn.textContent = n > 0 ? `ZIP (${n})` : 'ZIP';
+  btn.disabled = n === 0;
+}
+async function delGroup(gid) {
+  const cbs = [...document.getElementById(gid).querySelectorAll('.row-cb:checked')];
+  if (!cbs.length) { alert('Keine Dateien ausgewählt.'); return; }
+  if (!confirm(`${cbs.length} Datei${cbs.length!==1?'en':''} löschen (Disk + DB)?`)) return;
+  for (const cb of cbs) {
+    const id = cb.dataset.id;
+    try {
+      await fetch(`/api/admin/dv/files/${id}`, {method:'DELETE'});
+      _all = _all.filter(f => f.id !== id);
+    } catch(e) { console.error('Löschen fehlgeschlagen:', id, e); }
+  }
+  render();
+}
+async function delAll() {
+  const cbs = [...document.querySelectorAll('.row-cb:checked')];
+  if (!cbs.length) { alert('Keine Dateien ausgewählt.'); return; }
+  if (!confirm(`${cbs.length} Datei${cbs.length!==1?'en':''} löschen (Disk + DB)?`)) return;
+  for (const cb of cbs) {
+    const id = cb.dataset.id;
+    try {
+      await fetch(`/api/admin/dv/files/${id}`, {method:'DELETE'});
+      _all = _all.filter(f => f.id !== id);
+    } catch(e) { console.error('Löschen fehlgeschlagen:', id, e); }
+  }
+  render();
+}
+async function downloadZip() {
+  const ids = [...document.querySelectorAll('.row-cb:checked')].map(cb => cb.dataset.id);
+  if (!ids.length) return;
+  try {
+    const r = await fetch('/api/admin/dv/zip', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ids})
+    });
+    if (!r.ok) throw new Error((await r.json()).error || r.statusText);
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'tul-dv-export.zip'; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { alert('ZIP-Fehler: ' + e); }
+}
+
+['flt-tool','flt-cat','flt-type','flt-q'].forEach(id =>
+  document.getElementById(id).addEventListener('input', render));
+
+document.querySelector('#routing details').addEventListener('toggle', function() {
+  if (this.open && document.getElementById('routing-inner').querySelector('.loading'))
+    load_routing();
+}, {once:true});
+
+function openRouteOverlay() {
+  const src = document.getElementById('routing-inner');
+  if (src.querySelector('.loading')) load_routing().then(_showOverlay);
+  else _showOverlay();
+}
+function _showOverlay() {
+  const body = document.getElementById('route-overlay-body');
+  body.innerHTML = document.getElementById('routing-inner').innerHTML;
+  document.getElementById('route-overlay').classList.add('open');
+  document.addEventListener('keydown', _ovEsc);
+}
+function closeRouteOverlay() {
+  document.getElementById('route-overlay').classList.remove('open');
+  document.removeEventListener('keydown', _ovEsc);
+}
+function _ovEsc(e) { if (e.key === 'Escape') closeRouteOverlay(); }
+
+load();
+</script>
+</body>
+</html>

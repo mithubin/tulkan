@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% macro style_editor(pid, label) %}
+<div class="fe">
+  <div class="fe-label">{{ label }}</div>
+  <div class="fe-row">
+    <div class="fe-pos-grid">
+      <span>pt</span><input type="number" id="{{ pid }}-size" step="0.5" onchange="previewCard()">
+      <span>TTF</span>
+      <select id="{{ pid }}-font-sel" onchange="applyFontSel('{{ pid }}')" style="max-width:180px">
+        <option value="">(Standard)</option>
+        {% for f in fonts %}<option value="{{ f.path }}">{{ f.name }}</option>{% endfor %}
+      </select>
+      <input type="hidden" id="{{ pid }}-font-path" value="">
+      <span>Farbe</span><input type="color" id="{{ pid }}-color" onchange="previewCard()">
+    </div>
+    <div class="fe-shadow-row">
+      <input type="checkbox" id="{{ pid }}-sh-on" onchange="toggleShadow('{{ pid }}')">
+      <span class="fe-lbl">Schatten</span>
+      <input type="color" id="{{ pid }}-sh-color" value="#000000" onchange="previewCard()">
+      <span class="fe-lbl">dx</span>
+      <input type="number" id="{{ pid }}-sh-x" value="0" step="0.5" style="width:68px" onchange="previewCard()">
+      <span class="fe-lbl">dy</span>
+      <input type="number" id="{{ pid }}-sh-y" value="0" step="0.5" style="width:68px" onchange="previewCard()">
+    </div>
+    <div class="fe-shadow-row" style="margin-top:6px">
+      <span class="fe-lbl">Hintergrund</span>
+      <input type="color" id="{{ pid }}-bg-color" value="#000000" oninput="previewCard()">
+      <span class="fe-lbl" style="margin-left:8px">Deckkraft</span>
+      <input type="range" id="{{ pid }}-bg-alpha" min="0" max="1" step="0.01" value="0"
+             style="width:80px;accent-color:var(--accent)"
+             oninput="document.getElementById('{{ pid }}-bg-alpha-val').textContent=Math.round(this.value*100)+'%';previewCard()">
+      <span id="{{ pid }}-bg-alpha-val" class="fe-lbl" style="min-width:28px">0%</span>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px">
+  <h1 style="margin:0">Karten erstellen</h1>
+  <button id="layout-toggle" onclick="toggleLayout()" title="Ansicht umschalten">⇔ Nebeneinander</button>
+</div>
+
+<div class="create-layout" id="create-layout">
+
+  {# ── Konfiguration ──────────────────────────────────────────────────────── #}
+  <div class="config-col">
+
+    <section class="card-box">
+      <h2>1. CSV laden &amp; prüfen</h2>
+      <div class="form-row">
+        <label>CSV-Datei</label>
+        <select id="csv-select" style="max-width:320px">
+          <option value="">(Datei hochladen)</option>
+          {% for f in csvfiles %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+        </select>
+        <button type="button" onclick="loadCSVFromServer()">aus csv/</button>
+      </div>
+      <div class="form-row">
+        <label>oder Upload</label>
+        <input type="file" id="csv-file" accept=".csv">
+        <button type="button" onclick="loadCSV()">Laden &amp; prüfen</button>
+      </div>
+      <div id="csv-status" class="status-box" style="display:none"></div>
+      <div id="csv-preview" style="display:none; margin-top:8px"></div>
+    </section>
+
+    <section class="card-box">
+      <h2>2. Template</h2>
+      <div class="form-row">
+        <label>Template</label>
+        <select id="template-select" onchange="loadTemplate()">
+          {% for t in templates %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+        <button type="button" onclick="saveTemplate()">Speichern</button>
+        <button type="button" onclick="saveTemplateAs()">Als neu…</button>
+      </div>
+    </section>
+
+    <section class="card-box">
+      <h2>3. Kartenmaße</h2>
+      <div class="measures-grid">
+        <span>Breite mm</span>
+        <input type="number" id="card-w" value="180" step="1" onchange="previewCard()">
+        <span>Höhe mm</span>
+        <input type="number" id="card-h" value="80" step="1" onchange="previewCard()">
+        <span>Rand / Abstand mm</span>
+        <input type="number" id="margin" value="4" step="0.5" onchange="previewCard()">
+        <span>Themafeld-Breite mm</span>
+        <input type="number" id="topic-w" value="10" step="0.5" onchange="previewCard()">
+        <span>Zeilenabstand Frage</span>
+        <input type="number" id="line-spacing" value="1.2" step="0.05" min="0.7" max="3.0" onchange="previewCard()">
+        <span>Zeilenabstand Antwort</span>
+        <input type="number" id="answer-line-spacing" value="1.2" step="0.05" min="0.7" max="3.0" onchange="previewCard()">
+        <span>Abstand Frage-Wdh. mm</span>
+        <input type="number" id="repeat-gap" value="4" step="0.5" onchange="previewCard()">
+      </div>
+    </section>
+
+    <section class="card-box">
+      <h2>4. Fragekarte</h2>
+      <div class="form-row" style="margin-bottom:4px">
+        <label>Hintergrundbild</label>
+        <select id="front-bg" onchange="previewCard()">
+          <option value="">(keines)</option>
+          {% for img in images %}<option value="{{ img }}">{{ img }}</option>{% endfor %}
+        </select>
+        <button type="button" class="edit-img-btn" title="Bild bearbeiten"
+                onclick="openImageEditorFromSelect('front-bg')">✎</button>
+      </div>
+      <div class="form-row" style="margin-bottom:10px">
+        <label style="color:var(--muted);font-size:12px">Deckkraft</label>
+        <input type="range" id="front-bg-alpha" min="0" max="1" step="0.01" value="1"
+               style="flex:1;accent-color:var(--accent)"
+               oninput="document.getElementById('front-bg-alpha-val').textContent=Math.round(this.value*100)+'%';previewCard()">
+        <span id="front-bg-alpha-val" style="font-size:12px;color:var(--muted);min-width:32px;text-align:right">100%</span>
+      </div>
+      {{ style_editor("topic",    "Thema-Feld (links, hochkant)") }}
+      {{ style_editor("question", "Frage-Feld") }}
+    </section>
+
+    <section class="card-box">
+      <h2>5. Antwortkarte</h2>
+      <div class="form-row" style="margin-bottom:4px">
+        <label>Hintergrundbild</label>
+        <select id="back-bg" onchange="previewCard()">
+          <option value="">(keines)</option>
+          {% for img in images %}<option value="{{ img }}">{{ img }}</option>{% endfor %}
+        </select>
+        <button type="button" class="edit-img-btn" title="Bild bearbeiten"
+                onclick="openImageEditorFromSelect('back-bg')">✎</button>
+      </div>
+      <div class="form-row" style="margin-bottom:10px">
+        <label style="color:var(--muted);font-size:12px">Deckkraft</label>
+        <input type="range" id="back-bg-alpha" min="0" max="1" step="0.01" value="1"
+               style="flex:1;accent-color:var(--accent)"
+               oninput="document.getElementById('back-bg-alpha-val').textContent=Math.round(this.value*100)+'%';previewCard()">
+        <span id="back-bg-alpha-val" style="font-size:12px;color:var(--muted);min-width:32px;text-align:right">100%</span>
+      </div>
+      {{ style_editor("answer", "Antwort-Feld") }}
+      {{ style_editor("repeat", "Frage-Wiederholung (klein, unter Antwort)") }}
+    </section>
+
+    <section class="card-box">
+      <h2>6. PDF erzeugen</h2>
+      <div class="form-row">
+        <label>Dateiname</label>
+        <input type="text" id="output-name" placeholder="meine_karten.pdf" style="width:200px">
+        <button type="button" onclick="createPDF()">PDF erstellen</button>
+        <span id="create-status"></span>
+      </div>
+      <div id="create-result" style="display:none; margin-top:8px">
+        <a id="create-download" href="#" download>PDF herunterladen</a>
+      </div>
+    </section>
+
+  </div>
+
+  {# ── Vorschau ───────────────────────────────────────────────────────────── #}
+  <div class="preview-col">
+    <section class="card-box preview-sticky">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px">
+        <h2 style="margin:0">Vorschau</h2>
+        <button type="button" onclick="refreshPreview()" style="padding:4px 10px; font-size:12px">↺</button>
+      </div>
+      <div class="preview-label">Fragekarte</div>
+      <canvas id="preview-front" width="510" height="227" style="max-width:100%"></canvas>
+      <div class="preview-label" style="margin-top:10px">Antwortkarte</div>
+      <canvas id="preview-back" width="510" height="227" style="max-width:100%"></canvas>
+    </section>
+  </div>
+
+</div>
+{% endblock %}

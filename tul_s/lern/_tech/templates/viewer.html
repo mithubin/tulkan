@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Viewer</h1>
+
+<div class="viewer-layout">
+
+  <!-- ── Linke Spalte: PDF + Level ───────────────────────────────────────── -->
+  <div class="viewer-left">
+
+    <section class="card-box">
+      <h2>PDF wählen</h2>
+      <div id="pdf-list" class="muted" style="font-size:13px">Lade…</div>
+    </section>
+
+    <section class="card-box" id="level-box" style="display:none">
+      <h2>Level-Konfiguration</h2>
+      <div id="level-status" class="muted" style="font-size:12px; margin-bottom:10px"></div>
+      <div id="level-rows"></div>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
+        <button class="btn-secondary" onclick="detectLevels()">Auto-erkennen</button>
+        <button class="btn-secondary" onclick="addLevelRow()">+ Level</button>
+        <button onclick="saveLevels()">Speichern</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ── Rechte Spalte: Session + Scores ─────────────────────────────────── -->
+  <div class="viewer-right">
+
+    <section class="card-box" id="session-box" style="display:none">
+      <h2>Session</h2>
+
+      <h3>Level-Filter</h3>
+      <div id="level-filter-wrap" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:13px">
+          <input type="checkbox" id="filter-all" checked onchange="filterAllChanged()"> Alle
+        </label>
+      </div>
+
+      <h3>Reihenfolge</h3>
+      <div style="display:flex; gap:16px; margin-bottom:14px; font-size:13px">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer">
+          <input type="radio" name="order" value="seq" checked> Reihenfolge
+        </label>
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer">
+          <input type="radio" name="order" value="rnd"> Zufällig
+        </label>
+      </div>
+
+      <h3>Modus</h3>
+      <div style="display:flex; gap:16px; margin-bottom:14px; font-size:13px">
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer">
+          <input type="radio" name="mode" value="manual" checked onchange="modeChanged()"> Manuell
+        </label>
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer">
+          <input type="radio" name="mode" value="auto" onchange="modeChanged()"> Autopilot
+        </label>
+      </div>
+
+      <div id="timing-wrap" style="display:none; margin-bottom:14px">
+        <h3>Autopilot-Timing (Sekunden)</h3>
+        <div style="display:grid; grid-template-columns: max-content 64px 12px 64px; align-items:center; gap:6px 8px; font-size:13px">
+          <span style="color:var(--muted)">Frage</span>
+          <input type="number" id="t-qmin" value="10" min="1" max="60" style="width:64px">
+          <span style="color:var(--muted); text-align:center">–</span>
+          <input type="number" id="t-qmax" value="16" min="1" max="60" style="width:64px">
+          <span style="color:var(--muted)">Antwort</span>
+          <input type="number" id="t-amin" value="12" min="1" max="60" style="width:64px">
+          <span style="color:var(--muted); text-align:center">–</span>
+          <input type="number" id="t-amax" value="20" min="1" max="60" style="width:64px">
+        </div>
+      </div>
+
+      <div id="session-info" class="muted" style="font-size:12px; margin-bottom:10px"></div>
+
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px">
+        <button id="btn-start" onclick="startViewer()" style="font-size:15px; padding:10px 28px">
+          ▶ Starten
+        </button>
+        <button onclick="openTkViewer()" style="padding:9px 16px; font-size:13px; background:#1e1e2e; border-color:#333">
+          tk-view
+        </button>
+        <label style="display:flex; align-items:center; gap:5px; font-size:12px; color:var(--muted)">
+          DPI <input type="number" id="tk-dpi" value="150" min="50" max="600"
+                     style="width:56px; font-size:12px; padding:4px 6px">
+        </label>
+        <span id="tk-status" style="font-size:11px; color:var(--muted)"></span>
+      </div>
+    </section>
+
+    <section class="card-box" id="keys-box" style="display:none">
+      <h2>Tastenkürzel (Player)</h2>
+      <table style="font-size:12px; border-collapse:collapse; width:100%; margin-top:4px">
+        <tr><td style="padding:3px 12px 3px 0;color:var(--muted)">Space / →</td><td>Frage → Antwort → nächste Karte</td></tr>
+        <tr><td style="padding:3px 12px 3px 0;color:var(--muted)">←</td><td>zurück</td></tr>
+        <tr><td style="padding:3px 12px 3px 0;color:var(--muted)">j / +</td><td>richtig (und weiter)</td></tr>
+        <tr><td style="padding:3px 12px 3px 0;color:var(--muted)">n / −</td><td>falsch (und weiter)</td></tr>
+        <tr><td style="padding:3px 12px 3px 0;color:var(--muted)">0</td><td>neutral (und weiter)</td></tr>
+        <tr><td style="padding:3px 12px 3px 0;color:var(--muted)">P</td><td>Autopilot: Pause / Weiter</td></tr>
+        <tr><td style="padding:3px 12px 3px 0;color:var(--muted)">T</td><td>Autopilot ↔ Manuell wechseln</td></tr>
+        <tr><td style="padding:3px 12px 3px 0;color:var(--muted)">Q / Esc</td><td>beenden → Score-Overlay</td></tr>
+      </table>
+    </section>
+
+    <section class="card-box" id="scores-box" style="display:none">
+      <h2>Score-Logs</h2>
+      <div id="scores-list"></div>
+      <div id="score-content" style="display:none; margin-top:12px">
+        <pre id="score-pre" style="font-size:12px; background:#16162a; padding:10px; border-radius:5px; overflow-x:auto; white-space:pre-wrap"></pre>
+        <button class="btn-secondary" onclick="closeScore()" style="margin-top:8px">Schließen</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<style>
+.viewer-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 520px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.viewer-left, .viewer-right { display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 760px) { .viewer-layout { grid-template-columns: 1fr; } }
+
+.level-row {
+  display: grid;
+  grid-template-columns: 1fr 72px 12px 72px auto;
+  align-items: center;
+  gap: 6px 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.level-row span { color: var(--muted); text-align: center; }
+button.del-row {
+  background: none; color: var(--muted); border: 1px solid var(--border);
+  padding: 3px 8px; font-size: 12px;
+}
+button.del-row:hover { color: var(--err); border-color: var(--err); filter: none; }
+.score-entry {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.score-entry:last-child { border-bottom: none; }
+</style>
+
+<script>
+let currentPdf = null;   // {filename, hash, page_count, card_count, levels, last_session}
+let currentLevels = [];  // working copy of levels being edited
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+async function loadPdfList() {
+  const resp = await fetch(_BASE+'/api/viewer/pdfs');
+  const d = await resp.json();
+  const wrap = document.getElementById('pdf-list');
+  if (!d.ok || !d.pdfs.length) {
+    wrap.textContent = 'Keine PDFs in karten-pdfs/.';
+    return;
+  }
+  wrap.innerHTML = '';
+  d.pdfs.forEach(pdf => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer';
+    const meta = [];
+    if (pdf.levels && pdf.levels.length > 1) meta.push(`${pdf.levels.length} Level`);
+    meta.push(`${pdf.card_count} Karten`);
+    const enc = encodeURIComponent(pdf.filename);
+    row.innerHTML = `
+      <span style="flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pdf.filename}</span>
+      <span style="color:var(--muted);font-size:11px;white-space:nowrap;flex-shrink:0">${meta.join(' · ')}</span>
+      <a href="${_BASE}/api/cards/download/${enc}" download
+         onclick="event.stopPropagation()"
+         style="color:var(--muted);font-size:13px;text-decoration:none;padding:2px 5px;flex-shrink:0" title="Download">↓</a>
+      <a href="${_BASE}/print?pdf=${enc}"
+         onclick="event.stopPropagation()"
+         style="color:var(--muted);font-size:13px;text-decoration:none;padding:2px 5px;flex-shrink:0" title="Drucken">⎙</a>`;
+    row.onclick = () => selectPdf(pdf, row);
+    wrap.appendChild(row);
+  });
+}
+
+function selectPdf(pdf, rowEl) {
+  // Highlight
+  document.querySelectorAll('#pdf-list > div').forEach(r => r.style.background = '');
+  rowEl.style.background = 'rgba(124,156,191,0.12)';
+
+  currentPdf = pdf;
+  currentLevels = pdf.levels ? JSON.parse(JSON.stringify(pdf.levels)) : [];
+
+  renderLevels();
+  document.getElementById('level-box').style.display = '';
+  document.getElementById('session-box').style.display = '';
+  document.getElementById('keys-box').style.display = '';
+
+  // Level-Filter aufbauen
+  buildLevelFilter();
+
+  // Last session wiederherstellen
+  if (pdf.last_session) {
+    const ls = pdf.last_session;
+    document.querySelector(`input[name=order][value="${ls.randomize ? 'rnd' : 'seq'}"]`).checked = true;
+    // Level-Filter setzen
+    if (ls.level_filter && ls.level_filter.length) {
+      document.querySelectorAll('.filter-lev').forEach(cb => {
+        cb.checked = ls.level_filter.includes(cb.dataset.name);
+      });
+      document.getElementById('filter-all').checked = false;
+      filterLevChanged();
+    }
+  }
+
+  updateSessionInfo();
+  loadScores();
+}
+
+// ── Level-Editor ──────────────────────────────────────────────────────────────
+
+function renderLevels() {
+  const wrap = document.getElementById('level-rows');
+  wrap.innerHTML = '';
+  if (!currentLevels.length) {
+    wrap.innerHTML = '<p class="muted" style="font-size:13px;margin-bottom:8px">Keine Level gespeichert.</p>';
+    return;
+  }
+  currentLevels.forEach((lev, i) => {
+    const row = document.createElement('div');
+    row.className = 'level-row';
+    row.innerHTML = `
+      <input type="text"  value="${lev.name}"  onchange="currentLevels[${i}].name=this.value;buildLevelFilter()" style="min-width:0">
+      <input type="number" value="${lev.start}" onchange="currentLevels[${i}].start=+this.value" style="width:72px">
+      <span>–</span>
+      <input type="number" value="${lev.end}"   onchange="currentLevels[${i}].end=+this.value"   style="width:72px">
+      <button class="del-row" onclick="deleteLevelRow(${i})">✕</button>`;
+    wrap.appendChild(row);
+  });
+}
+
+function addLevelRow() {
+  const last = currentLevels[currentLevels.length - 1];
+  const start = last ? last.end + 1 : 1;
+  currentLevels.push({ name: 'Neu', start, end: start + 1 });
+  renderLevels();
+}
+
+function deleteLevelRow(i) {
+  currentLevels.splice(i, 1);
+  renderLevels();
+  buildLevelFilter();
+}
+
+async function detectLevels() {
+  const st = document.getElementById('level-status');
+  st.textContent = 'Scanne PDF…';
+  const resp = await fetch(_BASE+'/api/viewer/detect-levels', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({pdf: currentPdf.filename}),
+  });
+  const d = await resp.json();
+  if (d.levels && d.levels.length) {
+    currentLevels = d.levels;
+    renderLevels();
+    buildLevelFilter();
+    st.textContent = `${d.levels.length} Level erkannt.`;
+  } else {
+    st.textContent = 'Keine =lev:-Marker im PDF gefunden.';
+  }
+}
+
+async function saveLevels() {
+  const resp = await fetch(_BASE+'/api/viewer/save-levels', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({hash: currentPdf.hash, levels: currentLevels.length ? currentLevels : null}),
+  });
+  const d = await resp.json();
+  document.getElementById('level-status').textContent = d.ok ? 'Gespeichert.' : 'Fehler: ' + d.error;
+  if (d.ok) {
+    currentPdf.levels = currentLevels.length ? currentLevels : null;
+    buildLevelFilter();
+  }
+}
+
+// ── Level-Filter (Session) ────────────────────────────────────────────────────
+
+function buildLevelFilter() {
+  const wrap = document.getElementById('level-filter-wrap');
+  // Behalte Alle-Checkbox
+  const allCb = document.getElementById('filter-all');
+  const prevAll = allCb.checked;
+  wrap.innerHTML = '';
+  const allLabel = document.createElement('label');
+  allLabel.style.cssText = 'display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px';
+  allLabel.innerHTML = `<input type="checkbox" id="filter-all" onchange="filterAllChanged()" ${prevAll ? 'checked' : ''}> Alle`;
+  wrap.appendChild(allLabel);
+
+  if (currentLevels.length) {
+    currentLevels.forEach(lev => {
+      const lbl = document.createElement('label');
+      lbl.style.cssText = 'display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px';
+      const cards = (lev.end - lev.start + 1) >> 1;
+      lbl.innerHTML = `<input type="checkbox" class="filter-lev" data-name="${lev.name}" onchange="filterLevChanged()" ${prevAll ? 'disabled' : ''}> ${lev.name} <span style="color:var(--muted);font-size:11px">(${cards})</span>`;
+      wrap.appendChild(lbl);
+    });
+  }
+  updateSessionInfo();
+}
+
+function filterAllChanged() {
+  const all = document.getElementById('filter-all').checked;
+  document.querySelectorAll('.filter-lev').forEach(cb => { cb.checked = false; cb.disabled = all; });
+  updateSessionInfo();
+}
+
+function filterLevChanged() {
+  const any = [...document.querySelectorAll('.filter-lev')].some(cb => cb.checked);
+  document.getElementById('filter-all').checked = !any;
+  updateSessionInfo();
+}
+
+function getSelectedLevels() {
+  if (document.getElementById('filter-all')?.checked) return [];
+  return [...document.querySelectorAll('.filter-lev:checked')].map(cb => cb.dataset.name);
+}
+
+function updateSessionInfo() {
+  const el = document.getElementById('session-info');
+  if (!currentPdf) return;
+  const filter = getSelectedLevels();
+  let count;
+  if (!filter.length || !currentPdf.levels) {
+    count = currentPdf.card_count;
+  } else {
+    count = 0;
+    currentLevels.forEach(l => {
+      if (filter.includes(l.name)) count += (l.end - l.start + 1) >> 1;
+    });
+  }
+  el.textContent = `${count} Karten in dieser Session`;
+}
+
+// ── Modus ─────────────────────────────────────────────────────────────────────
+
+function modeChanged() {
+  const auto = document.querySelector('input[name=mode]:checked')?.value === 'auto';
+  document.getElementById('timing-wrap').style.display = auto ? '' : 'none';
+}
+
+// ── Starten ───────────────────────────────────────────────────────────────────
+
+function startViewer() {
+  if (!currentPdf) return;
+  const cfg = {
+    pdf:          currentPdf.filename,
+    level_filter: getSelectedLevels(),
+    randomize:    document.querySelector('input[name=order]:checked')?.value === 'rnd',
+    mode:         document.querySelector('input[name=mode]:checked')?.value || 'manual',
+    timing:       [
+      +document.getElementById('t-qmin').value || 6,
+      +document.getElementById('t-qmax').value || 8,
+      +document.getElementById('t-amin').value || 6,
+      +document.getElementById('t-amax').value || 6,
+    ],
+  };
+  sessionStorage.setItem('viewer_cfg', JSON.stringify(cfg));
+  window.open('/viewer/play', '_blank');
+}
+
+// ── Scores ────────────────────────────────────────────────────────────────────
+
+async function loadScores() {
+  const box = document.getElementById('scores-box');
+  const list = document.getElementById('scores-list');
+  const resp = await fetch(_BASE+'/api/viewer/scores');
+  const d = await resp.json();
+  const prefix = currentPdf ? currentPdf.filename.replace(/\.pdf$/i, '') : '';
+  const relevant = (d.scores || []).filter(s => !prefix || s.name.startsWith(prefix));
+  if (!relevant.length) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  list.innerHTML = '';
+  relevant.slice(0, 10).forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'score-entry';
+    const date = new Date(s.mtime * 1000).toLocaleDateString('de-DE');
+    row.innerHTML = `<span style="flex:1;color:var(--muted)">${s.name}</span>
+      <span style="color:var(--muted);font-size:11px">${date}</span>
+      <button class="btn-secondary" onclick="readScore('${s.name}')">lesen</button>`;
+    list.appendChild(row);
+  });
+}
+
+async function readScore(name) {
+  const resp = await fetch(_BASE+'/api/viewer/score-read/' + encodeURIComponent(name));
+  const text = await resp.text();
+  document.getElementById('score-pre').textContent = text;
+  document.getElementById('score-content').style.display = '';
+}
+
+function closeScore() {
+  document.getElementById('score-content').style.display = 'none';
+}
+
+// ── Tkinter-Viewer ────────────────────────────────────────────────────────────
+
+async function openTkViewer() {
+  if (!currentPdf) return;
+  const dpi      = parseInt(document.getElementById('tk-dpi').value) || 150;
+  const mode     = document.querySelector('input[name="mode"]:checked')?.value || 'manual';
+  const randomize = document.querySelector('input[name="order"]:checked')?.value === 'rnd';
+  const timing   = [
+    document.getElementById('t-qmin')?.value || 10,
+    document.getElementById('t-qmax')?.value || 16,
+    document.getElementById('t-amin')?.value || 12,
+    document.getElementById('t-amax')?.value || 20,
+  ].join(',');
+  const level_filter = getSelectedLevels();
+
+  const st = document.getElementById('tk-status');
+  st.textContent = 'startet…';
+  const resp = await fetch(_BASE+'/api/viewer/tkinter-open', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      pdf: currentPdf.filename, dpi, mode, randomize, timing,
+      level_filter, fullscreen: true,
+    }),
+  });
+  const d = await resp.json();
+  st.textContent = d.ok ? 'geöffnet' : '✗ ' + d.error;
+  if (d.ok) setTimeout(() => { st.textContent = ''; }, 3000);
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+
+loadPdfList();
+</script>
+{% endblock %}

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viewer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #000; color: #ddd;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      overflow: hidden; user-select: none;
+    }
+
+    /* ── Karten-Anzeige ── */
+    #card-wrap {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #card-img {
+      width: 100vw; height: 100vh;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* ── Status-Leiste oben ── */
+    #status-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; gap: 16px;
+      padding: 6px 14px;
+      background: rgba(0,0,0,0.7);
+      font-size: 13px; color: #aaa;
+      backdrop-filter: blur(4px);
+      z-index: 10;
+    }
+    #st-progress  { flex: 1; }
+    #st-score     { display: flex; gap: 10px; }
+    .sc-r { color: #6abf6a; font-weight: 600; }
+    .sc-f { color: #bf6a6a; font-weight: 600; }
+    .sc-n { color: #888; }
+    #st-mode      { color: #555; font-size: 11px; }
+
+    /* ── Autopilot Timer-Balken ── */
+    #timer-bar-wrap {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 3px; background: rgba(255,255,255,0.08);
+      z-index: 10;
+    }
+    #timer-bar {
+      height: 100%; width: 100%;
+      background: rgba(124, 156, 191, 0.12);
+      transform-origin: left;
+    }
+
+    /* ── Tastatur-Hinweise (kurz eingeblendet) ── */
+    #key-hints {
+      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.75); border: 1px solid #333;
+      border-radius: 8px; padding: 12px 18px;
+      font-size: 12px; color: #888; line-height: 2;
+      text-align: center; z-index: 20;
+      transition: opacity 0.4s;
+    }
+    #key-hints b { color: #bbb; }
+    #key-hints.hidden { opacity: 0; pointer-events: none; }
+
+    /* ── Pause-Overlay ── */
+    #pause-overlay {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.6); font-size: 28px; color: #666;
+      z-index: 30; display: none;
+    }
+
+    /* ── End-Overlay ── */
+    #end-overlay {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85); z-index: 40; display: none;
+    }
+    #end-box {
+      background: #1a1a2e; border: 1px solid #2d2d4e;
+      border-radius: 10px; padding: 28px 32px; min-width: 300px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    #end-box h2 { font-size: 16px; color: #ccc; margin-bottom: 6px; }
+    .end-row { display: flex; justify-content: space-between; font-size: 14px; }
+    .end-row span:first-child { color: #888; }
+    #end-name {
+      background: #111; border: 1px solid #333; color: #ddd;
+      padding: 6px 10px; border-radius: 5px; font-size: 13px; width: 100%;
+      margin-top: 6px;
+    }
+    #end-buttons { display: flex; gap: 10px; margin-top: 8px; }
+    button.end-btn {
+      flex: 1; padding: 8px; border-radius: 5px; cursor: pointer;
+      font-size: 13px; border: 1px solid #333; background: #222; color: #aaa;
+    }
+    button.end-btn.pri { background: #7c9cbf; color: #fff; border-color: #7c9cbf; }
+    button.end-btn:hover { filter: brightness(1.2); }
+  </style>
+</head>
+<body>
+
+<div id="card-wrap">
+  <img id="card-img" src="" alt="">
+</div>
+
+<div id="status-bar">
+  <span id="st-progress">—</span>
+  <span id="st-score">
+    <span class="sc-r">✓ 0</span>
+    <span class="sc-f">✗ 0</span>
+    <span class="sc-n">○ 0</span>
+  </span>
+  <span id="st-mode"></span>
+</div>
+
+<div id="timer-bar-wrap" style="display:none">
+  <div id="timer-bar"></div>
+</div>
+
+<div id="key-hints">
+  Manuell: <b>Space/→</b> weiter &nbsp;·&nbsp; <b>←</b> zurück &nbsp;·&nbsp;
+  <b>j/+</b> richtig &nbsp;·&nbsp; <b>n/−</b> falsch &nbsp;·&nbsp; <b>0</b> neutral<br>
+  Autopilot: <b>P</b> Pause &nbsp;·&nbsp; <b>T</b> Modus wechseln<br>
+  <b>Q / Esc</b> beenden
+</div>
+
+<div id="pause-overlay">⏸ Pause</div>
+
+<div id="end-overlay">
+  <div id="end-box">
+    <h2 id="end-title">Session abgeschlossen</h2>
+    <div class="end-row"><span>Karten</span><span id="end-total">—</span></div>
+    <div class="end-row"><span style="color:#6abf6a">Richtig</span><span id="end-r">—</span></div>
+    <div class="end-row"><span style="color:#bf6a6a">Falsch</span><span id="end-f">—</span></div>
+    <div class="end-row"><span>Neutral</span><span id="end-n">—</span></div>
+    <div class="end-row"><span>Dauer</span><span id="end-dur">—</span></div>
+    <input id="end-name" type="text" placeholder="Name (optional)" maxlength="40">
+    <div id="end-buttons">
+      <button class="end-btn" onclick="closePlayer()">Schließen</button>
+      <button class="end-btn pri" onclick="saveScore()">Speichern & Schließen</button>
+    </div>
+  </div>
+</div>
+
+<script>const _BASE = '{{ _base }}';</script>
+<script src="{{ url_for('static', filename='viewer_play.js') }}"></script>
+</body>
+</html>

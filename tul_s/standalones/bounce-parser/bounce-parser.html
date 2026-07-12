@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bounce-Parser</title>
+<style>
+:root {
+  --bg: #1a1a2e; --bg2: #16213e; --bg3: #0f3460;
+  --text: #e0e0e0; --muted: #888; --border: #334;
+  --acc: #5b8dd9; --err: #e05555; --warn: #e0a040; --ok: #55a855;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font: 13px/1.5 'Segoe UI', sans-serif; padding: 1.5rem; }
+h1 { font-size: 1.1rem; font-weight: 600; color: var(--acc); margin-bottom: 1.5rem; letter-spacing: .03em; }
+
+.config { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.2rem; align-items: flex-end; }
+.config label { display: flex; flex-direction: column; gap: .25rem; font-size: .8rem; color: var(--muted); }
+.config input {
+  background: var(--bg2); border: 1px solid var(--border);
+  color: var(--text); padding: .35rem .6rem; font: 12px monospace; width: 220px;
+  border-radius: 2px;
+}
+
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: 4px;
+  padding: 1.8rem 2rem; text-align: center; cursor: pointer;
+  color: var(--muted); margin-bottom: 1.2rem; transition: border-color .2s, color .2s;
+  font-size: .9rem;
+}
+.drop-zone.over { border-color: var(--acc); color: var(--text); }
+.drop-zone small { display: block; margin-top: .3rem; font-size: .75rem; }
+
+.stats { color: var(--muted); font-size: .8rem; margin-bottom: .8rem; }
+
+.actions { display: flex; gap: .6rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+button {
+  background: var(--bg3); color: var(--text); border: 1px solid var(--border);
+  padding: .4rem .9rem; cursor: pointer; font: inherit; border-radius: 2px;
+  font-size: .82rem; transition: background .15s;
+}
+button:hover:not(:disabled) { background: var(--acc); border-color: var(--acc); }
+button:disabled { opacity: .35; cursor: default; }
+button.danger { border-color: #553; }
+button.danger:hover:not(:disabled) { background: #553; border-color: #885; }
+
+table { width: 100%; border-collapse: collapse; font-size: .82rem; margin-bottom: 1.2rem; }
+th {
+  background: var(--bg2); padding: .45rem .6rem; text-align: left;
+  border-bottom: 1px solid var(--border); color: var(--muted);
+  font-weight: 500; white-space: nowrap;
+}
+td { padding: .38rem .6rem; border-bottom: 1px solid var(--border); word-break: break-all; }
+tr:hover td { background: var(--bg2); }
+.c5 { color: var(--err); }
+.c4 { color: var(--warn); }
+.unknown { color: var(--muted); font-style: italic; }
+
+.sql-tabs { display: none; margin-bottom: 1.5rem; }
+.sql-tabs.visible { display: block; }
+.tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+.tab-btn {
+  background: var(--bg2); color: var(--muted); border: 1px solid var(--border);
+  border-bottom: none; padding: .4rem 1.1rem; cursor: pointer; font: inherit;
+  font-size: .82rem; border-radius: 2px 2px 0 0; margin-right: 3px;
+  transition: background .15s, color .15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { background: var(--bg3); color: var(--text); border-color: var(--border); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+.sql-box {
+  background: var(--bg2); border: 1px solid var(--border); border-top: none;
+  padding: 1rem; font: 11.5px/1.6 monospace; white-space: pre;
+  overflow: auto; max-height: 300px; color: #bcd;
+}
+.tab-copy-bar { background: var(--bg3); border: 1px solid var(--border); border-top: none; border-bottom: none; padding: .4rem .8rem; display: flex; align-items: center; gap: .6rem; }
+.tab-copy-bar button { padding: .28rem .8rem; font-size: .78rem; }
+.copied { color: var(--ok); font-size: .75rem; opacity: 0; transition: opacity .3s; }
+.copied.show { opacity: 1; }
+
+#file-input { display: none; }
+</style>
+</head>
+<body>
+
+<h1>Bounce-Parser → LO Base SQL</h1>
+
+<div class="config">
+  <label>Haupttabelle
+    <input id="cfg-main"   value="aa Presse komplett">
+  </label>
+  <label>E-Mail-Feld
+    <input id="cfg-email"  value="Email Red">
+  </label>
+  <label>Archivtabelle (Bounces)
+    <input id="cfg-bounce" value="aa Bounces">
+  </label>
+</div>
+
+<div class="drop-zone" id="drop-zone">
+  .eml / .txt Bounce-Mails hier ablegen oder klicken
+  <small>Mehrfachauswahl möglich</small>
+  <input type="file" id="file-input" multiple accept=".eml,.txt">
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="actions">
+  <button id="btn-csv" disabled>↓ CSV</button>
+  <button id="btn-sql" disabled>SQL anzeigen</button>
+  <button id="btn-clear" class="danger" disabled>Leeren</button>
+</div>
+
+<table id="tbl" style="display:none">
+  <thead><tr>
+    <th>E-Mail</th><th>Status</th><th>Grund</th><th>Diagnose</th><th style="color:var(--muted)">Datei</th>
+  </tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<div class="sql-tabs" id="sql-tabs">
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="create">CREATE (einmalig)</button>
+    <button class="tab-btn"        data-tab="insert">INSERT (sichern)</button>
+    <button class="tab-btn"        data-tab="delete">DELETE (löschen)</button>
+  </div>
+  <div class="tab-pane active" id="tab-create">
+    <div class="tab-copy-bar">
+      <button onclick="copyTab('create')">Kopieren</button>
+      <span class="copied" id="cp-create">kopiert</span>
+    </div>
+    <div class="sql-box" id="sql-create"></div>
+  </div>
+  <div class="tab-pane" id="tab-insert">
+    <div class="tab-copy-bar">
+      <button onclick="copyTab('insert')">Kopieren</button>
+      <span class="copied" id="cp-insert">kopiert</span>
+    </div>
+    <div class="sql-box" id="sql-insert"></div>
+  </div>
+  <div class="tab-pane" id="tab-delete">
+    <div class="tab-copy-bar">
+      <button onclick="copyTab('delete')">Kopieren</button>
+      <span class="copied" id="cp-delete">kopiert</span>
+    </div>
+    <div class="sql-box" id="sql-delete"></div>
+  </div>
+</div>
+
+<script>
+const results = [];
+
+const STATUS = {
+  '5.0.0':'Allgemeiner Fehler','5.1.0':'Adressierungsfehler',
+  '5.1.1':'Adresse unbekannt','5.1.2':'Ungültiger Hostname',
+  '5.1.3':'Ungültige Adresssyntax','5.1.6':'Adresse geändert',
+  '5.2.0':'Mailbox-Fehler','5.2.1':'Mailbox deaktiviert',
+  '5.2.2':'Mailbox voll','5.2.3':'Nachricht zu groß',
+  '5.4.4':'Kein Route zum Host','5.5.0':'Protokollfehler',
+  '5.7.0':'Policy-Fehler','5.7.1':'Abgewiesen / Policy',
+  '5.7.9':'Authentifizierungsfehler',
+  '4.2.2':'Mailbox voll (temporär)','4.4.1':'Verbindungsproblem (temporär)',
+  '4.7.0':'Policy-Fehler (temporär)',
+};
+
+function parseBounce(raw, filename) {
+  const entries = [];
+
+  // --- Strategy 1: RFC 3464 DSN delivery-status blocks ---
+  // Collect all Final-Recipient / Status / Diagnostic-Code / Action sets
+  const blockRe = /Final-Recipient\s*:[^\r\n]+(?:\r?\n(?:[ \t][^\r\n]*|(?![ \t])(?:Original-Recipient|Status|Action|Diagnostic-Code|Remote-MTA|Last-Attempt-Date)[^\r\n]*))+/gi;
+  let m;
+  while ((m = blockRe.exec(raw)) !== null) {
+    const block = m[0];
+
+    const recipM = block.match(/Final-Recipient\s*:\s*(?:rfc822;\s*)?([^\s\r\n<>]+)/i);
+    if (!recipM) continue;
+    const email = recipM[1].replace(/[<>]/g,'').trim().toLowerCase();
+    if (!email.includes('@')) continue;
+
+    const statusM  = block.match(/Status\s*:\s*([\d.]+)/i);
+    const actionM  = block.match(/Action\s*:\s*(\w+)/i);
+    const diagM    = raw.match(/Diagnostic-Code\s*:[^\r\n]*?smtp[^\r\n]*?;\s*(.+?)(?=\r?\n\S|\r?\n\r?\n)/is);
+
+    const code   = statusM ? statusM[1] : '';
+    const action = actionM ? actionM[1] : 'failed';
+    let diag = diagM ? diagM[1].replace(/\r?\n\s+/g,' ').trim() : '';
+    // Strip leading smtp code if present
+    diag = diag.replace(/^\d{3}\s+/,'');
+    if (diag.length > 120) diag = diag.slice(0,120) + '…';
+
+    const reason = STATUS[code] || (action === 'failed' ? 'Zustellung fehlgeschlagen' : action);
+    entries.push({ email, code, reason, diag, filename });
+  }
+
+  // --- Strategy 2: X-Failed-Recipients header ---
+  if (!entries.length) {
+    const xf = raw.match(/X-Failed-Recipients\s*:\s*([^\r\n]+)/i);
+    if (xf) {
+      xf[1].split(',').forEach(e => {
+        const em = e.trim().toLowerCase();
+        if (em.includes('@'))
+          entries.push({ email: em, code:'', reason:'Zustellung fehlgeschlagen', diag:'', filename });
+      });
+    }
+  }
+
+  // --- Strategy 3: Fallback pattern scan ---
+  if (!entries.length) {
+    const emailRe = /[\w.+%-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
+    const failRe  = /(?:failed|undelivered|undeliverable|unknown user|user unknown|no such user|mailbox unavailable|does not exist|non-?existent)/i;
+    const found   = new Set();
+    let em;
+    while ((em = emailRe.exec(raw)) !== null) {
+      const addr = em[0].toLowerCase();
+      if (found.has(addr)) continue;
+      // Check surrounding context (±200 chars)
+      const ctx = raw.slice(Math.max(0, em.index-200), em.index+addr.length+200);
+      if (failRe.test(ctx)) {
+        found.add(addr);
+        entries.push({ email: addr, code:'', reason:'Zustellung fehlgeschlagen', diag:'', filename });
+      }
+    }
+  }
+
+  return entries;
+}
+
+function processFiles(files) {
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const parsed = parseBounce(e.target.result, file.name);
+      if (parsed.length === 0)
+        results.push({ email: null, code:'', reason:'', diag:'Nicht erkannt', filename: file.name });
+      else
+        results.push(...parsed);
+      render();
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+}
+
+function render() {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  for (const r of results) {
+    const tr = document.createElement('tr');
+    const cls = r.code.startsWith('5') ? 'c5' : r.code.startsWith('4') ? 'c4' : '';
+    tr.innerHTML = `
+      <td>${r.email ? r.email : '<span class="unknown">—</span>'}</td>
+      <td class="${cls}">${r.code||'–'}</td>
+      <td>${r.reason||'–'}</td>
+      <td style="color:var(--muted)">${r.diag}</td>
+      <td style="color:var(--muted);font-size:.75rem">${r.filename}</td>`;
+    tbody.appendChild(tr);
+  }
+
+  const valid = validEmails();
+  document.getElementById('stats').textContent =
+    `${results.length} Einträge · ${valid.length} gültige Adressen · ` +
+    `${results.filter(r=>!r.email).length} nicht erkannt`;
+
+  const hasValid = valid.length > 0;
+  document.getElementById('tbl').style.display = results.length ? '' : 'none';
+  document.getElementById('btn-csv').disabled  = !hasValid;
+  document.getElementById('btn-sql').disabled  = !hasValid;
+  document.getElementById('btn-copy').disabled = !hasValid;
+  document.getElementById('btn-clear').disabled = results.length === 0;
+}
+
+function validEmails() {
+  return [...new Set(results.filter(r => r.email).map(r => r.email))];
+}
+
+const sqlTexts = { create: '', insert: '', delete: '' };
+
+function buildSQLParts() {
+  const main   = document.getElementById('cfg-main').value;
+  const field  = document.getElementById('cfg-email').value;
+  const bounce = document.getElementById('cfg-bounce').value;
+  const emails = validEmails();
+  const inList = emails.map(e => `  '${e.replace(/'/g,"''")}'`).join(',\n');
+  const date   = new Date().toLocaleDateString('de-DE');
+  const files  = [...new Set(results.map(r=>r.filename))].join(', ');
+
+  sqlTexts.create =
+`-- Archivtabelle einmalig anlegen (HSQLDB unterstützt kein CREATE AS SELECT)
+-- Bounce-Bereinigung ${date} · ${emails.length} Adressen
+-- Dateien: ${files}
+
+-- Option A: per LO-Base-GUI
+--   Tabellen → Neu → Spalten manuell aus "${main}" übernehmen,
+--   Tabellenname: "${bounce}"
+
+-- Option B: per SQL (Spalten einmalig aus Haupttabelle holen):
+--   Tools → SQL → folgende Abfrage ausführen, dann Spalten ablesen:
+--   SELECT * FROM "${main}" WHERE 1=0
+--   Anschließend CREATE TABLE "${bounce}" (col1 TYP, col2 TYP, ...) manuell befüllen.
+
+-- Hinweis: dieser Schritt ist nur einmal nötig.
+-- Danach reichen INSERT + DELETE für jede Bereinigungsrunde.`;
+
+  sqlTexts.insert =
+`-- Bounce-Datensätze sichern
+-- Bounce-Bereinigung ${date} · ${emails.length} Adressen
+
+INSERT INTO "${bounce}"
+  SELECT * FROM "${main}"
+  WHERE LOWER("${field}") IN (
+${inList}
+  );`;
+
+  sqlTexts.delete =
+`-- Bounces aus Haupttabelle löschen
+-- Bounce-Bereinigung ${date} · ${emails.length} Adressen
+
+DELETE FROM "${main}"
+  WHERE LOWER("${field}") IN (
+${inList}
+  );`;
+}
+
+function showSQL() {
+  buildSQLParts();
+  document.getElementById('sql-create').textContent = sqlTexts.create;
+  document.getElementById('sql-insert').textContent = sqlTexts.insert;
+  document.getElementById('sql-delete').textContent = sqlTexts.delete;
+  const tabs = document.getElementById('sql-tabs');
+  tabs.classList.add('visible');
+  tabs.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function copyTab(name) {
+  navigator.clipboard.writeText(sqlTexts[name]).then(() => {
+    const hint = document.getElementById('cp-' + name);
+    hint.classList.add('show');
+    setTimeout(() => hint.classList.remove('show'), 1800);
+  });
+}
+
+function exportCSV() {
+  const rows = [['E-Mail','Status','Grund','Diagnose','Datei']];
+  results.filter(r=>r.email).forEach(r =>
+    rows.push([r.email, r.code, r.reason, r.diag, r.filename]));
+  const csv = rows.map(r => r.map(c=>`"${(c||'').replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bounces_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Wiring
+const dz = document.getElementById('drop-zone');
+const fi = document.getElementById('file-input');
+
+dz.addEventListener('click',    () => fi.click());
+fi.addEventListener('change',   () => processFiles(fi.files));
+dz.addEventListener('dragover', e  => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave',() => dz.classList.remove('over'));
+dz.addEventListener('drop',     e  => { e.preventDefault(); dz.classList.remove('over'); processFiles(e.dataTransfer.files); });
+
+document.getElementById('btn-csv').addEventListener('click', exportCSV);
+document.getElementById('btn-sql').addEventListener('click', showSQL);
+document.getElementById('btn-clear').addEventListener('click', () => {
+  results.length = 0;
+  sqlTexts.create = sqlTexts.insert = sqlTexts.delete = '';
+  document.getElementById('tbody').innerHTML = '';
+  document.getElementById('stats').textContent = '';
+  document.getElementById('sql-tabs').classList.remove('visible');
+  document.getElementById('tbl').style.display = 'none';
+  ['btn-csv','btn-sql','btn-clear'].forEach(id =>
+    document.getElementById(id).disabled = true);
+});
+</script>
+</body>
+</html>

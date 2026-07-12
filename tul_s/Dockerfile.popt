@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ghostscript \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir flask PyJWT bcrypt
+
+WORKDIR /app
+
+COPY tools_nuc/tul_auth/ tul_auth/
+COPY tools_nuc/popt/pdfopt_vz_panel.sh .
+COPY tools_nuc/popt/panel_server.py .
+COPY tools_nuc/popt/panel.html .
+
+ENV DOCKER=1
+ENV SUBPATH=/popt
+ENV PORT=5006
+
+EXPOSE 5006
+
+CMD ["python3", "panel_server.py", "--no-browser", "--port", "5006"]

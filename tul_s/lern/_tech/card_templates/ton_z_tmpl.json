@@ -1,0 +1,87 @@
+{
+  "card_width_mm": 180,
+  "card_height_mm": 80,
+  "margin_mm": 4,
+  "topic_width_mm": 10,
+  "line_spacing": 1.35,
+  "answer_line_spacing": 1.35,
+  "repeat_gap_mm": 0,
+  "front_bg": "ton_1a_bl.png",
+  "back_bg": "ton_2.png",
+  "topic_style": {
+    "font": "helv",
+    "font_path": "/path/to/lernkarten_panel/fonts/a song for jennifer.ttf",
+    "size": 16,
+    "color": [
+      1,
+      1,
+      1
+    ],
+    "shadow_offset": [
+      0.5,
+      0.5
+    ],
+    "shadow_color": [
+      0,
+      0,
+      0
+    ]
+  },
+  "question_style": {
+    "font": "helv",
+    "font_path": "/path/to/lernkarten_panel/fonts/FrederickatheGreat-Regular.ttf",
+    "size": 30,
+    "color": [
+      0.1568627450980392,
+      0.17254901960784313,
+      0.3411764705882353
+    ],
+    "shadow_offset": [
+      0,
+      0
+    ],
+    "shadow_color": [
+      0.1411764705882353,
+      0.12156862745098039,
+      0.19215686274509805
+    ]
+  },
+  "answer_style": {
+    "font": "helv",
+    "font_path": "/path/to/lernkarten_panel/fonts/FrederickatheGreat-Regular.ttf",
+    "size": 21,
+    "color": [
+      0.24313725490196078,
+      0.2784313725490196,
+      0.45098039215686275
+    ],
+    "shadow_offset": [
+      0,
+      0
+    ],
+    "shadow_color": [
+      0.3686274509803922,
+      0.3607843137254902,
+      0.39215686274509803
+    ]
+  },
+  "repeat_style": {
+    "font": "helv",
+    "font_path": "/path/to/lernkarten_panel/fonts/FrederickatheGreat-Regular.ttf",
+    "size": 10,
+    "color": [
+      1,
+      0.7490196078431373,
+      0.4392156862745098
+    ],
+    "shadow_offset": [
+      1,
+      1
+    ],
+    "shadow_color": [
+      0.3686274509803922,
+      0.3607843137254902,
+      0.38823529411764707
+    ]
+  }
+}

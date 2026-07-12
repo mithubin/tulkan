@@ -1,0 +1,31 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libfreetype6 libpng16-16 fontconfig \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir \
+    flask \
+    werkzeug \
+    matplotlib \
+    pandas \
+    plotly \
+    pypdf \
+    kiwisolver \
+    reportlab \
+    PyJWT \
+    bcrypt
+
+WORKDIR /app
+
+COPY tools_nuc/tul_auth/ tul_auth/
+COPY tools_nuc/kurv/courbes_panel.py .
+COPY tools_nuc/kurv/panel.html .
+
+ENV DOCKER=1
+ENV SUBPATH=/kurv
+ENV PORT=5008
+
+EXPOSE 5008
+
+CMD ["python3", "courbes_panel.py", "--panel"]

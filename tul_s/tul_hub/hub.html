@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tul.yourdomain.example</title>
+<link rel="stylesheet" href="/static/tul-theme.css">
+<style>
+:root {
+  --bg:#1e1b18; --bg2:#28231f; --bg3:#302820; --border:#5a4030;
+  --acc:#a07040; --acc2:#b88050; --text:#e8dac8; --muted:#a08060; --blur:8px;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.5;min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── Header ── */
+header{background:var(--bg2);border-bottom:1px solid var(--border);padding:6px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:sticky;top:0;z-index:10;}
+header h1{font-size:15px;font-weight:600;white-space:nowrap;flex:1;}
+header h1 span{color:var(--muted);font-weight:400;}
+.hdr-btn{font-size:13px;padding:3px 9px;background:var(--bg3);border:1px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer;}
+.hdr-btn:hover{color:var(--text);border-color:var(--acc);}
+.tlt-user-badge{padding:2px 7px;background:var(--acc);color:var(--bg);border-radius:3px;font-size:12px;font-weight:700;cursor:default;}
+
+/* ── Login ── */
+#login-view{max-width:340px;margin:60px auto 0;padding:26px 22px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;}
+#login-view h2{font-size:17px;font-weight:600;margin-bottom:18px;}
+.form-field{display:flex;flex-direction:column;gap:3px;margin-bottom:12px;}
+.form-field label{font-size:12px;color:var(--muted);}
+.form-field input,.inp{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-size:14px;font-family:var(--sans);outline:none;width:100%;}
+.form-field input:focus,.inp:focus{border-color:var(--acc);}
+.btn-p{width:100%;padding:8px;background:var(--acc);color:var(--bg);border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .12s;}
+.btn-p:hover{opacity:.85;}
+.msg{font-size:13px;padding:5px 9px;border-radius:3px;margin-top:8px;display:none;}
+.msg.ok{background:color-mix(in srgb,#a6e3a1 15%,var(--bg3));border:1px solid #a6e3a1;color:#a6e3a1;display:block;}
+.msg.err{background:color-mix(in srgb,#f38ba8 15%,var(--bg3));border:1px solid #f38ba8;color:#f38ba8;display:block;}
+
+/* ── Hub grid ── */
+main{flex:1;padding:24px 20px;max-width:900px;width:100%;margin:0 auto;}
+.tile-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;}
+@media(max-width:640px){.tile-grid{grid-template-columns:repeat(2,1fr);}}
+
+/* Real tile */
+.tile{
+  --ta:var(--acc); --tb:var(--bg2); --tt:var(--text); --tm:var(--muted); --tbd:var(--border);
+  background:var(--tb);border:1px solid var(--tbd);border-radius:6px;
+  aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;padding:12px 10px;transition:border-color .15s,background .2s;
+  position:relative;user-select:none;
+}
+.tile:hover{border-color:var(--ta);}
+.tile.drag-over{border-color:var(--ta);background:color-mix(in srgb,var(--ta) 10%,var(--tb));}
+.tile.dragging{opacity:.3;}
+
+/* Ghost tile (empty slot) */
+.tile-ghost{
+  background:transparent;border:2px dashed var(--tbd);cursor:default;
+}
+.tile-ghost.drag-over{border-color:var(--ta);background:color-mix(in srgb,var(--ta) 8%,transparent);}
+.ghost-rm{position:absolute;top:4px;right:6px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:2px;}
+.ghost-rm:hover{color:#f38ba8;}
+
+/* Add-slot tile */
+.tile-add{
+  background:transparent;border:2px dashed color-mix(in srgb,var(--border) 50%,transparent);
+  cursor:pointer;font-size:1.4rem;color:var(--muted);opacity:.5;
+}
+.tile-add:hover{opacity:1;border-color:var(--acc);color:var(--acc);}
+
+/* Tile content */
+.tile-icon{font-size:2rem;line-height:1;}
+.tile-name{font-size:.88rem;font-weight:700;color:var(--tt);text-align:center;word-break:break-word;}
+.tile-name-inp{font-size:.88rem;font-weight:700;text-align:center;background:var(--bg3);border:1px solid var(--ta);border-radius:3px;color:var(--tt);padding:2px 5px;width:90%;outline:none;font-family:var(--sans);}
+.tile-open{display:block;margin-top:4px;padding:4px 14px;background:var(--ta);color:var(--bg);font-size:.72rem;font-weight:700;border-radius:3px;text-decoration:none;transition:opacity .12s;white-space:nowrap;}
+.tile-open:hover{opacity:.82;}
+
+.hidden{display:none!important;}
+
+/* ── Modal ── */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;}
+.ov.hidden{display:none;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:6px;width:100%;max-width:min(940px,92vw);max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;}
+.modal-head{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-head span{flex:1;font-size:.92rem;font-weight:700;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:2px 6px;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:16px;display:flex;flex-direction:column;gap:16px;}
+.sec-lbl{font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);padding-bottom:5px;margin-bottom:8px;}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;}
+.row .form-field{flex:1;min-width:120px;margin-bottom:0;}
+.btn-s{padding:6px 14px;background:var(--acc);color:var(--bg);border:none;border-radius:3px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.btn-s:hover{opacity:.85;}
+.btn-dng{background:transparent;color:#f38ba8;border:1px solid #f38ba8;border-radius:3px;font-size:11px;padding:2px 8px;cursor:pointer;}
+.btn-dng:hover{background:#f38ba8;color:var(--bg);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{text-align:left;padding:4px 6px;background:var(--bg3);color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);}
+td{padding:3px 6px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.rb{display:inline-block;padding:1px 5px;border-radius:2px;font-size:10px;font-weight:600;text-transform:uppercase;}
+.rb-admin{background:color-mix(in srgb,var(--acc) 25%,var(--bg3));color:var(--acc);}
+.rb-user{background:var(--bg3);color:var(--muted);}
+input[type=checkbox]{cursor:pointer;accent-color:var(--acc);width:13px;height:13px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>tul<span>.milan.how</span></h1>
+  <button id="admin-btn" class="hdr-btn hidden" onclick="openAdmin()" title="Administration">⚙</button>
+</header>
+
+<div id="login-view" style="display:none">
+  <h2>Anmelden</h2>
+  <div class="form-field"><label>E-Mail</label><input type="email" id="login-email" autocomplete="email"></div>
+  <div class="form-field"><label>Passwort</label><input type="password" id="login-pw" autocomplete="current-password"></div>
+  <button class="btn-p" onclick="doLogin()">Anmelden</button>
+  <div class="msg" id="login-msg"></div>
+</div>
+
+<main id="hub-view" style="display:none">
+  <div class="tile-grid" id="tile-grid"></div>
+</main>
+
+
+<!-- Admin modal -->
+<div class="ov hidden" id="adminOv" onclick="if(event.target===this)closeAdmin()">
+  <div class="modal">
+    <div class="modal-head">
+      <span>⚙ Administration</span>
+      <button class="modal-close" onclick="closeAdmin()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div>
+        <div class="sec-lbl">Passwort ändern</div>
+        <div class="row">
+          <div class="form-field"><label>Altes Passwort</label><input class="inp" type="password" id="pw-old" autocomplete="current-password"></div>
+          <div class="form-field"><label>Neues Passwort</label><input class="inp" type="password" id="pw-new" autocomplete="new-password"></div>
+          <div class="form-field"><label>Bestätigen</label><input class="inp" type="password" id="pw-confirm" autocomplete="new-password"></div>
+          <button class="btn-s" onclick="changePw()">Ändern</button>
+        </div>
+        <div class="msg" id="pw-msg" style="margin-top:8px"></div>
+      </div>
+
+      <div id="admin-section" style="display:none">
+        <div class="sec-lbl">Neuen Nutzer anlegen</div>
+        <div class="row">
+          <div class="form-field"><label>Name</label><input class="inp" type="text" id="reg-name"></div>
+          <div class="form-field"><label>E-Mail</label><input class="inp" type="email" id="reg-email"></div>
+          <div class="form-field"><label>Passwort</label><input class="inp" type="password" id="reg-pw"></div>
+          <button class="btn-s" onclick="createUser()">Anlegen</button>
+        </div>
+        <div class="msg" id="reg-msg" style="margin-top:8px"></div>
+
+        <div class="sec-lbl" style="margin-top:14px">Nutzer</div>
+        <div id="users-table-wrap" style="overflow-x:auto"></div>
+
+        <div class="sec-lbl" style="margin-top:20px">Datei-Verwaltung</div>
+        <div style="margin-top:6px">
+          <a href="/admin/dv" target="_blank"
+             style="display:inline-block;padding:7px 14px;background:var(--bg3);
+                    border:1px solid var(--border);border-radius:5px;color:var(--acc);
+                    text-decoration:none;font-size:13px">
+            DV-Admin ↗
+          </a>
+          <div style="font-size:11px;color:var(--muted);margin-top:5px">
+            Dateibaum aller Tools · tul-mimes · Routing-Tabelle · DB-Pflege
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/tul-theme.js"></script>
+<script>
+/* ── Tool-Definitionen ── */
+const TOOLS_DEF = [
+  {id:'trskr',   icon:'🎙', name:'trskr'},
+  {id:'bild',    icon:'🖼', name:'bild'},
+  {id:'kurv',    icon:'📈', name:'kurv'},
+  {id:'popt',    icon:'📄', name:'popt'},
+  {id:'lern',    icon:'📚', name:'lern'},
+  {id:'nach',    icon:'🔍', name:'nach'},
+  {id:'kal-trel',icon:'📅', name:'kal-trel'},
+  {id:'buch',    icon:'📖', name:'buch'},
+];
+const TOOL_IDS = TOOLS_DEF.map(t=>t.id);
+const MODULE_PATHS = {trskr:'/trskr',bild:'/bild',kurv:'/kurv',popt:'/popt',lern:'/lern',nach:'/nach','kal-trel':'/kal-trel',buch:'/buch'};
+
+/* ── Persistence ── */
+let _order=null,_names={};
+
+async function loadPrefs(){
+  try{
+    const r=await fetch('/prefs');
+    if(r.ok){const p=await r.json();if(Array.isArray(p.order))_order=p.order;if(p.names&&typeof p.names==='object')_names=p.names;}
+  }catch{}
+  if(!_order)_order=TOOL_IDS.slice();
+  else{const missing=TOOL_IDS.filter(id=>!_order.includes(id)&&id!==null);_order=[..._order,...missing];}
+}
+
+function _postPrefs(){
+  fetch('/prefs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:_order,names:_names})}).catch(()=>{});
+}
+
+function getOrder(){return _order||TOOL_IDS.slice();}
+function saveOrder(arr){_order=arr;_postPrefs();}
+function getNames(){return _names;}
+function saveName(id,name){_names[id]=name;_postPrefs();}
+
+/* ── Drag state ── */
+let _dragIdx=null;
+
+/* ── Render ── */
+function renderGrid(){
+  const grid=document.getElementById('tile-grid');
+  const names=getNames();
+  const order=getOrder();
+  const toolMap=Object.fromEntries(TOOLS_DEF.map(t=>[t.id,t]));
+  grid.innerHTML='';
+
+  order.forEach((id,idx)=>{
+    if(id===null){
+      const ghost=document.createElement('div');
+      ghost.className='tile tile-ghost';
+      ghost.dataset.idx=idx;
+      ghost.innerHTML=`<button class="ghost-rm" onclick="removeSlot(${idx})" title="Slot entfernen">×</button>`;
+      ghost.addEventListener('dragover',e=>{e.preventDefault();ghost.classList.add('drag-over');});
+      ghost.addEventListener('dragleave',()=>ghost.classList.remove('drag-over'));
+      ghost.addEventListener('drop',e=>{dropOn(e,ghost,idx);});
+      grid.appendChild(ghost);
+      return;
+    }
+    const t=toolMap[id];
+    if(!t)return;
+    const displayName=names[id]||t.name;
+    const tile=document.createElement('div');
+    tile.className='tile';
+    tile.dataset.id=id;
+    tile.dataset.idx=idx;
+    tile.draggable=true;
+    tile.innerHTML=`
+      <div class="tile-icon">${t.icon}</div>
+      <div class="tile-name" title="Doppelklick zum Umbenennen">${esc(displayName)}</div>
+      <a class="tile-open" href="${MODULE_PATHS[id]}/">Öffnen</a>
+    `;
+    tile.querySelector('.tile-name').addEventListener('dblclick',e=>{e.preventDefault();startRename(tile,id,displayName);});
+    tile.querySelector('.tile-open').addEventListener('click',e=>e.stopPropagation());
+    tile.addEventListener('dragstart',e=>{_dragIdx=idx;tile.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    tile.addEventListener('dragend',()=>{tile.classList.remove('dragging');document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));});
+    tile.addEventListener('dragover',e=>{e.preventDefault();if(idx!==_dragIdx)tile.classList.add('drag-over');});
+    tile.addEventListener('dragleave',()=>tile.classList.remove('drag-over'));
+    tile.addEventListener('drop',e=>{dropOn(e,tile,idx);});
+    grid.appendChild(tile);
+  });
+
+  // "+" Leerslot hinzufügen
+  const addBtn=document.createElement('div');
+  addBtn.className='tile tile-add';
+  addBtn.title='Leerslot einfügen';
+  addBtn.innerHTML='<span>+</span>';
+  addBtn.addEventListener('click',addSlot);
+  grid.appendChild(addBtn);
+
+  loadModuleThemes();
+}
+
+function dropOn(e,el,toIdx){
+  e.preventDefault();el.classList.remove('drag-over');
+  if(_dragIdx===null||_dragIdx===toIdx)return;
+  const order=getOrder();
+  [order[_dragIdx],order[toIdx]]=[order[toIdx],order[_dragIdx]];
+  saveOrder(order);
+  _dragIdx=null;
+  renderGrid();
+}
+
+function addSlot(){
+  const order=getOrder();order.push(null);saveOrder(order);renderGrid();
+}
+function removeSlot(idx){
+  const order=getOrder();order.splice(idx,1);saveOrder(order);renderGrid();
+}
+
+/* ── Rename (Doppelklick) ── */
+function startRename(tile,id,current){
+  const nameEl=tile.querySelector('.tile-name');
+  const inp=document.createElement('input');
+  inp.className='tile-name-inp';inp.value=current;inp.maxLength=30;
+  nameEl.replaceWith(inp);inp.focus();inp.select();
+  const finish=()=>{
+    const v=inp.value.trim()||current;
+    saveName(id,v);
+    const nd=document.createElement('div');
+    nd.className='tile-name';nd.title='Doppelklick zum Umbenennen';nd.textContent=v;
+    nd.addEventListener('dblclick',e=>{e.preventDefault();startRename(tile,id,v);});
+    inp.replaceWith(nd);
+  };
+  inp.addEventListener('blur',finish);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){inp.value=current;inp.blur();}});
+}
+
+/* ── Modul-Akzentfarben ── */
+async function loadModuleThemes(){
+  for(const[id,path]of Object.entries(MODULE_PATHS)){
+    try{
+      const r=await fetch(path+'/theme');if(!r.ok)continue;
+      const t=await r.json();
+      // saveToServer schreibt { ...params, ...{vars:{...}, isDark} }
+      const vars=(t.vars)||{};
+      const tile=document.querySelector(`.tile[data-id="${id}"]`);
+      if(!tile)continue;
+      const acc=t.accent||vars['--acc'];
+      const fg=vars['--bg3'];       // Vorderfläche → Tile-BG
+      const bg=t.chrome||vars['--bg2'];
+      const text=vars['--text'];
+      const muted=vars['--muted'];
+      const border=vars['--border'];
+      if(acc)       tile.style.setProperty('--ta',acc);
+      if(fg||bg)    tile.style.setProperty('--tb',fg||bg);
+      if(text)      tile.style.setProperty('--tt',text);
+      if(muted)     tile.style.setProperty('--tm',muted);
+      if(border)    tile.style.setProperty('--tbd',border);
+    }catch{}
+  }
+}
+
+/* ── Init ── */
+function init(){
+  const user=window.TUL_USER;
+  if(!user){
+    document.getElementById('login-view').style.display='';
+    document.getElementById('login-email').focus();
+    return;
+  }
+  showHub(user);
+}
+
+async function showHub(user){
+  document.getElementById('hub-view').style.display='';
+  document.getElementById('admin-btn').classList.remove('hidden');
+  if(user.global_role==='admin'){
+    document.getElementById('admin-section').style.display='';
+    loadUsers();
+  }
+  await loadPrefs();
+  renderGrid();
+  window.TUL_HELP={title:'tul.yourdomain.example',sections:[
+    {heading:'Navigation',text:'Klick auf „Öffnen" startet das jeweilige Modul.'},
+    {heading:'Raster anpassen',items:[
+      'Tiles per Drag & Drop verschieben — Swap-Logik, funktioniert auch mit Leerslots.',
+      'Doppelklick auf den Tile-Namen: umbenennen (lokal gespeichert).',
+      '„+" fügt einen Leerslot ein; × entfernt ihn.'
+    ]},
+    {heading:'Header rechts',text:'◑ Theme — Farbgebung. ? — diese Hilfe. ⚙ — Administration (Passwort, Nutzerverwaltung). ⏏ — Abmelden.'},
+  ]};
+  tulTheme.init({subpath:'',preset:tulTheme.PRESETS['hub']});
+}
+
+/* ── Login ── */
+async function doLogin(){
+  const email=document.getElementById('login-email').value;
+  const password=document.getElementById('login-pw').value;
+  try{
+    const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const d=await r.json();
+    if(r.ok)location.reload();else showMsg('login-msg',d.error||'Fehler',false);
+  }catch{showMsg('login-msg','Verbindungsfehler',false);}
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const pw=document.getElementById('login-pw');
+  if(pw)pw.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+});
+
+/* ── Admin modal ── */
+function openAdmin(){document.getElementById('adminOv').classList.remove('hidden');}
+function closeAdmin(){document.getElementById('adminOv').classList.add('hidden');}
+
+/* ── Passwort ändern ── */
+async function changePw(){
+  const old_pw=document.getElementById('pw-old').value;
+  const new_pw=document.getElementById('pw-new').value;
+  const confirm=document.getElementById('pw-confirm').value;
+  if(!old_pw||!new_pw){showMsg('pw-msg','Alle Felder ausfüllen.',false);return;}
+  if(new_pw!==confirm){showMsg('pw-msg','Neue Passwörter stimmen nicht überein.',false);return;}
+  if(new_pw.length<8){showMsg('pw-msg','Mindestens 8 Zeichen.',false);return;}
+  try{
+    const r=await fetch('/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_pw,new_pw})});
+    const d=await r.json();
+    if(r.ok){showMsg('pw-msg','Passwort geändert.',true);['pw-old','pw-new','pw-confirm'].forEach(id=>document.getElementById(id).value='');}
+    else showMsg('pw-msg',d.error||'Fehler.',false);
+  }catch{showMsg('pw-msg','Verbindungsfehler.',false);}
+}
+
+/* ── Admin: Nutzer ── */
+async function loadUsers(){
+  try{const r=await fetch('/admin/users');if(!r.ok)return;renderUsersTable(await r.json());}catch{}
+}
+function renderUsersTable(users){
+  const wrap=document.getElementById('users-table-wrap');
+  if(!users.length){wrap.innerHTML='<p style="color:var(--muted);font-size:12px;margin-top:8px">Keine Nutzer.</p>';return;}
+  const names=getNames();
+  // Spalten aus TOOLS_DEF — auto-aktuell wenn neue Module hinzukommen
+  const cols=TOOLS_DEF.map(t=>{
+    const custom=names[t.id];
+    const label=custom&&custom!==t.name
+      ?`${t.icon} ${esc(custom)}<br><span style="opacity:.5;font-size:9px">${t.id}</span>`
+      :`${t.icon} ${t.id}`;
+    return `<th style="font-size:10px;writing-mode:vertical-rl;white-space:nowrap;padding:6px 4px;line-height:1.3">${label}</th>`;
+  }).join('');
+  const rows=users.map(u=>{
+    const rb=`<span class="rb rb-${u.global_role}">${u.global_role}</span>`;
+    const boxes=TOOLS_DEF.map(t=>{
+      const checked=(u.tool_access[t.id]!==false);  // default true für unbekannte Tools
+      return `<td style="text-align:center"><input type="checkbox" ${checked?'checked':''} onchange="setAccess('${u.id}','${t.id}',this.checked)"></td>`;
+    }).join('');
+    const me=window.TUL_USER&&u.id===window.TUL_USER.id;
+    const del=!me?`<button class="btn-dng" onclick="deleteUser('${u.id}','${esc(u.name)}')">×</button>`:'';
+    const role=!me?`<button class="hdr-btn" style="font-size:10px;padding:1px 6px" onclick="toggleRole('${u.id}','${u.global_role}')">${u.global_role==='admin'?'↓':'↑'}</button>`:'';
+    return `<tr${me?' style="opacity:.55"':''}>
+      <td style="white-space:nowrap">${esc(u.name)}</td>
+      <td style="white-space:nowrap;color:var(--muted)">${esc(u.email)}</td>
+      <td style="white-space:nowrap">${rb} ${role}</td>
+      ${boxes}<td>${del}</td></tr>`;
+  }).join('');
+  wrap.innerHTML=`<table><thead><tr><th>Name</th><th>E-Mail</th><th>Rolle</th>${cols}<th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+async function createUser(){
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const password=document.getElementById('reg-pw').value;
+  if(!name||!email||!password){showMsg('reg-msg','Alle Felder ausfüllen.',false);return;}
+  try{
+    const r=await fetch('/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password})});
+    const d=await r.json();
+    if(r.ok){showMsg('reg-msg',`Nutzer „${name}" angelegt.`,true);['reg-name','reg-email','reg-pw'].forEach(id=>document.getElementById(id).value='');loadUsers();}
+    else showMsg('reg-msg',d.error||'Fehler',false);
+  }catch{showMsg('reg-msg','Verbindungsfehler',false);}
+}
+async function setAccess(uid,tool,allowed){
+  await fetch(`/admin/users/${uid}/access`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool,allowed})});
+}
+async function toggleRole(uid,cur){const r=await fetch(`/admin/users/${uid}/role`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({role:cur==='admin'?'user':'admin'})});if(r.ok)loadUsers();}
+async function deleteUser(uid,name){if(!confirm(`Nutzer „${name}" wirklich löschen?`))return;const r=await fetch(`/admin/users/${uid}`,{method:'DELETE'});if(r.ok)loadUsers();}
+
+/* ── Utils ── */
+function showMsg(id,txt,ok){const el=document.getElementById(id);el.textContent=txt;el.className='msg '+(ok?'ok':'err');}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+init();
+</script>
+</body>
+</html>

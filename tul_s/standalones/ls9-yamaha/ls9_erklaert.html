@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yamaha LS9-32 – Grundlagen und konkretes Setup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #13131f;
+    --surface:  #1a1a2e;
+    --surface2: #1e2040;
+    --border:   #2a2a4a;
+    --accent:   #7c9cbf;
+    --accent2:  #b07cc0;
+    --green:    #6abf6a;
+    --orange:   #e0a060;
+    --red:      #bf6a6a;
+    --text:     #dde;
+    --muted:    #778;
+    --code:     #a8d8a8;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  h1 { font-size: 26px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 48px; }
+
+  h2 {
+    font-size: 19px; font-weight: 600; color: var(--accent);
+    margin: 56px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 15px; font-weight: 600; color: var(--orange); margin: 28px 0 8px; }
+
+  p { margin-bottom: 12px; }
+
+  code {
+    font-family: "Cascadia Code", "Fira Mono", monospace;
+    background: var(--surface2);
+    color: var(--code);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+
+  .cmd-block {
+    background: #0d0d1a;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-family: "Cascadia Code", "Fira Mono", monospace;
+    font-size: 13px;
+    color: var(--code);
+    margin: 16px 0;
+    line-height: 1.9;
+  }
+  .cmd-block .comment { color: var(--muted); }
+  .cmd-block .step { color: var(--orange); }
+
+  .box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 20px 0;
+  }
+
+  .highlight-box {
+    background: #1a2030;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+
+  .warn-box {
+    background: #221a10;
+    border: 1px solid var(--orange);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+
+  svg text { font-family: "Segoe UI", system-ui, sans-serif; }
+
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 24px;
+    margin-bottom: 48px;
+  }
+  .toc h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; }
+  .toc a { color: var(--accent); text-decoration: none; display: block; padding: 3px 0; font-size: 14px; }
+  .toc a:hover { color: #fff; }
+  .toc .num { color: var(--muted); font-size: 12px; margin-right: 8px; }
+
+  .label-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pill-green  { background: #1a3a1a; color: var(--green);  border: 1px solid #2a5a2a; }
+  .pill-orange { background: #3a2a10; color: var(--orange); border: 1px solid #5a4020; }
+  .pill-blue   { background: #1a2a3a; color: var(--accent); border: 1px solid #2a4a6a; }
+  .pill-purple { background: #2a1a3a; color: var(--accent2); border: 1px solid #4a2a6a; }
+  .pill-red    { background: #3a1a1a; color: var(--red);    border: 1px solid #6a2a2a; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  th { text-align: left; padding: 8px 12px; background: var(--surface2); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  td { padding: 9px 12px; border-top: 1px solid var(--border); vertical-align: top; }
+  td code { font-size: 12px; }
+  tr:hover td { background: #1e1e30; }
+
+  .diagram { margin: 28px 0; text-align: center; }
+  .diagram svg { max-width: 100%; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+  .mini-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+  .mini-box strong { display: block; margin-bottom: 6px; color: var(--orange); }
+
+  .checklist { list-style: none; padding: 0; }
+  .checklist li {
+    padding: 6px 0 6px 28px;
+    position: relative;
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .checklist li:first-child { border-top: none; }
+  .checklist li::before {
+    content: "☐";
+    position: absolute;
+    left: 4px;
+    color: var(--muted);
+  }
+  .checklist li.warn::before { content: "⚠"; color: var(--orange); }
+
+  /* back link */
+  .back-link {
+    display: inline-block; margin-bottom: 18px;
+    color: var(--accent); font-size: 13px; text-decoration: none;
+  }
+  .back-link:hover { color: #fff; }
+</style>
+</head>
+<body>
+
+<a href="ls9_setup_3d.html" class="back-link">Interaktives Setup-Routing →</a>
+
+<h1>Yamaha LS9-32 – Grundlagen und konkretes Setup</h1>
+<p class="subtitle">Digitales Mischpult · Signalfluss · Layer · Bühnen-Mikros · Notebooks · Kommunikation · Monitoring</p>
+
+<div class="toc">
+  <h3>Inhalt</h3>
+  <a href="#grundkonzept"><span class="num">1</span> Grundkonzept: digital denken</a>
+  <a href="#signalfluss"><span class="num">2</span> Signalfluss – der Weg eines Kanals</a>
+  <a href="#pult"><span class="num">3</span> Pult-Oberfläche und Bedienung</a>
+  <a href="#layer"><span class="num">4</span> Das Layer-System</a>
+  <a href="#setup"><span class="num">5</span> Unser konkretes Setup (Übersicht)</a>
+  <a href="#kanaele"><span class="num">6</span> Kanaleinstellungen: Gain, HPF, Gate, Kompressor</a>
+  <a href="#routing"><span class="num">7</span> Bus-Routing: wer geht wohin</a>
+  <a href="#komm"><span class="num">8</span> Das Kommunikationssystem</a>
+  <a href="#custom"><span class="num">9</span> Custom Layer und Show-Betrieb</a>
+  <a href="#checklist"><span class="num">10</span> Checkliste vor Beginn</a>
+  <a href="#glossar"><span class="num">G</span> Glossar – alle Fachbegriffe</a>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="grundkonzept">1 · Grundkonzept: digital denken</h2>
+
+<p>Das LS9-32 ist ein <strong>digitales Mischpult</strong>. Wer vom analogen Pult kommt, muss eine gedankliche Umstellung vollziehen – und das ist wörtlich gemeint.</p>
+
+<p>Beim analogen Pult ist der Signalweg physisch sichtbar: ein Kanal, ein Kanalzug, ein Fader. Was du siehst, ist was du hast. Beim LS9 ist der Signalweg <strong>virtuell</strong>. Die physischen Fader sind nur Fenster in eine innere Signalwelt, die weit mehr Kanäle enthält als Fader vorhanden sind. Das Pult denkt in Patches, Layern und Bussen.</p>
+
+<div class="two-col">
+  <div class="mini-box">
+    <strong>Analog</strong>
+    Kanal 1 = Kanalzug 1 = Fader 1. Jede Verbindung ist eine physische Strippe. Das Signal läuft sichtbar von links nach rechts durch das Pult.
+  </div>
+  <div class="mini-box">
+    <strong>Digital (LS9)</strong>
+    Kanal 1 kann auf jedem Fader liegen. Derselbe Fader zeigt je nach Layer etwas anderes. Der Signalweg ist konfigurierbar – ohne einen Stecker umzustecken.
+  </div>
+</div>
+
+<p>Das klingt zunächst abstrakter – der Vorteil ist erheblich: ein einziges kompaktes Gerät ersetzt Dutzende externer Prozessoren (EQ, Kompressor, Gate, Hall, GEQ). Der vollständige Zustand lässt sich als <strong>Scene</strong> speichern und mit einem Tastendruck abrufen.</p>
+
+<div class="highlight-box">
+  <strong>Die drei Welten des LS9:</strong><br>
+  <strong>Eingangs-Welt:</strong> Alles was reinkommt – Mikrofone, Notebooks, Effekt-Returns. Layer 1–32 und 33–64.<br>
+  <strong>Ausgangs-Welt:</strong> Alles was rausgeht – Stereo-Master (PA), Aux-Busse (Monitoring). Master-Layer.<br>
+  <strong>Patch-Welt:</strong> Die Verbindung zwischen physischen XLR-Buchsen und internen Kanälen. Vollständig konfigurierbar.
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="signalfluss">2 · Signalfluss – der Weg eines Kanals</h2>
+
+<p>Jeder Eingangskanal durchläuft dieselbe Kette, von oben nach unten. Das Wichtige: die Reihenfolge ist nicht zufällig – Gate vor Kompressor vor Fader ist Absicht.</p>
+
+<div class="diagram">
+<svg width="720" height="500" viewBox="0 0 720 500">
+  <defs>
+    <marker id="sf" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#7c9cbf"/>
+    </marker>
+    <marker id="sf2" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6abf6a"/>
+    </marker>
+    <marker id="sf3" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#b07cc0"/>
+    </marker>
+  </defs>
+
+  <!-- Kanal-Spalte -->
+  <!-- XLR -->
+  <rect x="60" y="10" width="200" height="38" rx="6" fill="#1a1a2e" stroke="#3a3a6a" stroke-width="1.5"/>
+  <text x="120" y="32" text-anchor="middle" fill="#556" font-size="11">XLR-Eingang</text>
+  <text x="220" y="32" text-anchor="middle" fill="#445" font-size="10">Mikrofon, DI-Box, Notebook</text>
+
+  <line x1="160" y1="50" x2="160" y2="72" stroke="#7c9cbf" stroke-width="2" marker-end="url(#sf)"/>
+
+  <!-- Patch -->
+  <rect x="60" y="74" width="200" height="38" rx="6" fill="#2a1a3a" stroke="#5a3a7a" stroke-width="1.5"/>
+  <text x="120" y="97" text-anchor="middle" fill="#b07cc0" font-size="12" font-weight="600">PATCH</text>
+  <text x="220" y="97" text-anchor="middle" fill="#668" font-size="10">XLR In 1 → CH 1 zuweisen</text>
+
+  <line x1="160" y1="114" x2="160" y2="136" stroke="#7c9cbf" stroke-width="2" marker-end="url(#sf)"/>
+
+  <!-- Preamp -->
+  <rect x="60" y="138" width="200" height="44" rx="6" fill="#1a2a1a" stroke="#3a6a3a" stroke-width="1.5"/>
+  <text x="120" y="158" text-anchor="middle" fill="#6abf6a" font-size="12" font-weight="600">Preamp</text>
+  <text x="120" y="174" text-anchor="middle" fill="#556" font-size="10">Gain · Phantom +48V · Phase ø</text>
+  <text x="230" y="158" text-anchor="middle" fill="#556" font-size="10">analoger Eingang –</text>
+  <text x="230" y="171" text-anchor="middle" fill="#556" font-size="10">wichtigste Einstellung</text>
+
+  <line x1="160" y1="184" x2="160" y2="206" stroke="#7c9cbf" stroke-width="2" marker-end="url(#sf)"/>
+
+  <!-- HPF -->
+  <rect x="60" y="208" width="200" height="38" rx="6" fill="#1a2a1a" stroke="#2a5a2a" stroke-width="1.5"/>
+  <text x="120" y="232" text-anchor="middle" fill="#6abf6a" font-size="12">HPF</text>
+  <text x="230" y="232" text-anchor="middle" fill="#556" font-size="10">Tiefenabschnitt (z.B. 120 Hz) für Sprache</text>
+
+  <line x1="160" y1="248" x2="160" y2="270" stroke="#7c9cbf" stroke-width="2" marker-end="url(#sf)"/>
+
+  <!-- Gate -->
+  <rect x="60" y="272" width="200" height="38" rx="6" fill="#28200a" stroke="#5a4a1a" stroke-width="1.5"/>
+  <text x="120" y="296" text-anchor="middle" fill="#e0a060" font-size="12" font-weight="600">Gate</text>
+  <text x="230" y="296" text-anchor="middle" fill="#556" font-size="10">Stille-Unterdrückung: erst Gate …</text>
+
+  <line x1="160" y1="312" x2="160" y2="334" stroke="#7c9cbf" stroke-width="2" marker-end="url(#sf)"/>
+
+  <!-- EQ -->
+  <rect x="60" y="336" width="200" height="38" rx="6" fill="#1a2030" stroke="#3a5a7a" stroke-width="1.5"/>
+  <text x="120" y="359" text-anchor="middle" fill="#7c9cbf" font-size="12" font-weight="600">EQ (4-Band parametrisch)</text>
+  <text x="230" y="359" text-anchor="middle" fill="#556" font-size="10">Klang formen</text>
+
+  <line x1="160" y1="376" x2="160" y2="398" stroke="#7c9cbf" stroke-width="2" marker-end="url(#sf)"/>
+
+  <!-- Kompressor -->
+  <rect x="60" y="400" width="200" height="38" rx="6" fill="#28200a" stroke="#5a4a1a" stroke-width="1.5"/>
+  <text x="120" y="424" text-anchor="middle" fill="#e0a060" font-size="12" font-weight="600">Kompressor</text>
+  <text x="230" y="424" text-anchor="middle" fill="#556" font-size="10">… dann Kompressor</text>
+
+  <line x1="160" y1="440" x2="160" y2="462" stroke="#7c9cbf" stroke-width="2" marker-end="url(#sf)"/>
+
+  <!-- Fader / Pan / ON -->
+  <rect x="60" y="464" width="200" height="30" rx="6" fill="#2a1a3a" stroke="#5a3a7a" stroke-width="1.5"/>
+  <text x="160" y="484" text-anchor="middle" fill="#b07cc0" font-size="12">Fader · Pan · ON</text>
+
+  <!-- Rechte Seite: Bus-Sends -->
+  <rect x="480" y="160" width="200" height="200" rx="10" fill="#141428" stroke="#2a2a4a" stroke-width="1.5"/>
+  <text x="580" y="184" text-anchor="middle" fill="#445" font-size="11">Mix-Bus-Sends</text>
+
+  <rect x="494" y="196" width="172" height="28" rx="4" fill="#1a2030" stroke="#3a5a7a" stroke-width="1.2"/>
+  <text x="580" y="214" text-anchor="middle" fill="#7c9cbf" font-size="11">Stereo-Master (PA)</text>
+
+  <rect x="494" y="234" width="172" height="28" rx="4" fill="#1a2e1a" stroke="#2a5a2a" stroke-width="1.2"/>
+  <text x="580" y="252" text-anchor="middle" fill="#6abf6a" font-size="11">MIX 1 – Technik-Monitor</text>
+
+  <rect x="494" y="272" width="172" height="28" rx="4" fill="#281a08" stroke="#5a3a10" stroke-width="1.2"/>
+  <text x="580" y="290" text-anchor="middle" fill="#e0a060" font-size="11">MIX 2 / MIX 3 – Komm</text>
+
+  <rect x="494" y="310" width="172" height="28" rx="4" fill="#2a1a3a" stroke="#5a3a6a" stroke-width="1.2"/>
+  <text x="580" y="328" text-anchor="middle" fill="#b07cc0" font-size="11">Effekte / weitere Busse</text>
+
+  <!-- Pfeil vom Fader zu Bus-Sends -->
+  <line x1="262" y1="480" x2="476" y2="260" stroke="#b07cc0" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#sf3)"/>
+  <text x="380" y="395" text-anchor="middle" fill="#664466" font-size="10" transform="rotate(-30 380 395)">pro Bus eigener Send-Pegel</text>
+
+  <!-- Gate/Kompressor-Hinweis -->
+  <line x1="262" y1="291" x2="390" y2="291" stroke="#5a4a1a" stroke-width="1" stroke-dasharray="3 2"/>
+  <line x1="262" y1="415" x2="390" y2="415" stroke="#5a4a1a" stroke-width="1" stroke-dasharray="3 2"/>
+  <rect x="392" y="278" width="80" height="150" rx="6" fill="#1a1508" stroke="#3a3010" stroke-width="1"/>
+  <text x="432" y="298" text-anchor="middle" fill="#e0a060" font-size="10">Gate öffnet</text>
+  <text x="432" y="313" text-anchor="middle" fill="#445" font-size="10">→ Kompressor</text>
+  <text x="432" y="328" text-anchor="middle" fill="#445" font-size="10">arbeitet an</text>
+  <text x="432" y="345" text-anchor="middle" fill="#556" font-size="10">Dynamik.</text>
+  <text x="432" y="365" text-anchor="middle" fill="#e0a060" font-size="10">Gate zu</text>
+  <text x="432" y="380" text-anchor="middle" fill="#445" font-size="10">→ Signal kommt</text>
+  <text x="432" y="395" text-anchor="middle" fill="#445" font-size="10">nicht durch,</text>
+  <text x="432" y="410" text-anchor="middle" fill="#445" font-size="10">Kompressor</text>
+  <text x="432" y="425" text-anchor="middle" fill="#445" font-size="10">irrelevant.</text>
+</svg>
+</div>
+
+<p>Jeder Kanal hat diese komplette Kette – EQ, Gate, Kompressor – als digitale Verarbeitung <strong>eingebaut</strong>. Kein externes Rack nötig für die Grundbearbeitung.</p>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="pult">3 · Pult-Oberfläche und Bedienung</h2>
+
+<div class="diagram">
+<svg width="720" height="200" viewBox="0 0 720 200">
+
+  <!-- Gesamt-Rahmen -->
+  <rect x="5" y="15" width="710" height="175" rx="10" fill="#0d0d18" stroke="#2a2a4a" stroke-width="1.5"/>
+  <text x="360" y="10" text-anchor="middle" fill="#334" font-size="10">Yamaha LS9-32 – Draufsicht (schematisch)</text>
+
+  <!-- Fader-Bank 1-32 -->
+  <rect x="12" y="24" width="290" height="160" rx="6" fill="#141428" stroke="#2a4a6a" stroke-width="1.5"/>
+  <text x="157" y="45" text-anchor="middle" fill="#7c9cbf" font-size="12" font-weight="600">Fader-Bank</text>
+  <text x="157" y="60" text-anchor="middle" fill="#556" font-size="10">32 Kanal-Fader + ON/SEL-Tasten</text>
+  <!-- Mini-Fader-Symbole -->
+  <rect x="22"  y="75" width="12" height="60" rx="2" fill="#1a2030" stroke="#2a4a6a"/>
+  <rect x="27"  y="95" width="2"  height="12" rx="1" fill="#7c9cbf"/>
+  <rect x="38"  y="75" width="12" height="60" rx="2" fill="#1a2030" stroke="#2a4a6a"/>
+  <rect x="43"  y="105" width="2" height="12" rx="1" fill="#7c9cbf"/>
+  <rect x="54"  y="75" width="12" height="60" rx="2" fill="#1a2030" stroke="#2a4a6a"/>
+  <rect x="59"  y="88" width="2"  height="12" rx="1" fill="#7c9cbf"/>
+  <rect x="70"  y="75" width="12" height="60" rx="2" fill="#1a2030" stroke="#2a4a6a"/>
+  <rect x="75"  y="100" width="2" height="12" rx="1" fill="#7c9cbf"/>
+  <text x="157" y="160" text-anchor="middle" fill="#445" font-size="9">Inhalt je nach aktivem Layer</text>
+  <!-- Layer-Tasten -->
+  <rect x="22" y="165" width="270" height="14" rx="3" fill="#1a1830" stroke="#2a2a5a"/>
+  <text x="157" y="175" text-anchor="middle" fill="#556" font-size="9">Layer-Tasten: 1–32 · 33–64 · MASTER · CUSTOM</text>
+
+  <!-- Display-Access -->
+  <rect x="308" y="24" width="90" height="90" rx="6" fill="#1a1520" stroke="#3a2a5a" stroke-width="1.5"/>
+  <text x="353" y="45" text-anchor="middle" fill="#b07cc0" font-size="11" font-weight="600">Display-</text>
+  <text x="353" y="59" text-anchor="middle" fill="#b07cc0" font-size="11" font-weight="600">Access</text>
+  <text x="353" y="75" text-anchor="middle" fill="#556" font-size="10">EQ · Dyn</text>
+  <text x="353" y="88" text-anchor="middle" fill="#556" font-size="10">Patch · Routing</text>
+  <text x="353" y="101" text-anchor="middle" fill="#556" font-size="10">Scene · Effect</text>
+
+  <!-- Display -->
+  <rect x="308" y="120" width="90" height="64" rx="6" fill="#101018" stroke="#3a3a5a" stroke-width="1.5"/>
+  <text x="353" y="145" text-anchor="middle" fill="#7c9cbf" font-size="12" font-weight="600">LCD</text>
+  <text x="353" y="163" text-anchor="middle" fill="#445" font-size="9">kein Touch –</text>
+  <text x="353" y="174" text-anchor="middle" fill="#445" font-size="9">Wheel + Enter</text>
+
+  <!-- Selected-Channel -->
+  <rect x="404" y="24" width="120" height="90" rx="6" fill="#1a2030" stroke="#3a5a7a" stroke-width="1.5"/>
+  <text x="464" y="44" text-anchor="middle" fill="#7c9cbf" font-size="11" font-weight="600">Selected Channel</text>
+  <text x="464" y="60" text-anchor="middle" fill="#556" font-size="10">Gain-Regler</text>
+  <text x="464" y="74" text-anchor="middle" fill="#556" font-size="10">EQ-Schnellregler</text>
+  <text x="464" y="88" text-anchor="middle" fill="#556" font-size="10">Dynamics-Regler</text>
+  <text x="464" y="102" text-anchor="middle" fill="#445" font-size="9">gilt für SEL-markierten Kanal</text>
+
+  <!-- Wheel/Nav -->
+  <rect x="404" y="120" width="120" height="64" rx="6" fill="#1a1a28" stroke="#3a3a5a" stroke-width="1.5"/>
+  <text x="464" y="145" text-anchor="middle" fill="#778" font-size="11">Wheel · Enter</text>
+  <text x="464" y="160" text-anchor="middle" fill="#556" font-size="10">Werte ändern,</text>
+  <text x="464" y="172" text-anchor="middle" fill="#556" font-size="10">navigieren</text>
+
+  <!-- Master-Sektion -->
+  <rect x="530" y="24" width="140" height="130" rx="6" fill="#1a2028" stroke="#2a5a3a" stroke-width="1.5"/>
+  <text x="600" y="44" text-anchor="middle" fill="#6abf6a" font-size="11" font-weight="600">Master-Sektion</text>
+  <text x="600" y="60" text-anchor="middle" fill="#556" font-size="10">Aux/Bus-Fader</text>
+  <!-- Mini-Fader Ausgänge -->
+  <rect x="540" y="72" width="10" height="50" rx="2" fill="#1a2a1a" stroke="#2a5a2a"/>
+  <rect x="544" y="88" width="2" height="10" rx="1" fill="#6abf6a"/>
+  <rect x="555" y="72" width="10" height="50" rx="2" fill="#1a2a1a" stroke="#2a5a2a"/>
+  <rect x="559" y="95" width="2" height="10" rx="1" fill="#6abf6a"/>
+  <rect x="570" y="72" width="10" height="50" rx="2" fill="#1a2a1a" stroke="#2a5a2a"/>
+  <rect x="574" y="82" width="2" height="10" rx="1" fill="#6abf6a"/>
+  <text x="600" y="80" text-anchor="middle" fill="#445" font-size="9">MIX 1–16</text>
+  <text x="600" y="110" text-anchor="middle" fill="#445" font-size="9">Matrix 1–8</text>
+  <text x="600" y="140" text-anchor="middle" fill="#556" font-size="9">zeigt Send-Pegel</text>
+  <text x="600" y="152" text-anchor="middle" fill="#556" font-size="9">wenn MIX-Taste aktiv</text>
+
+  <!-- Stereo-Master -->
+  <rect x="530" y="160" width="140" height="30" rx="4" fill="#1a2e1a" stroke="#3a6a3a" stroke-width="1.5"/>
+  <text x="600" y="180" text-anchor="middle" fill="#6abf6a" font-size="12" font-weight="600">Stereo-Master</text>
+</svg>
+</div>
+
+<h3>Grundprinzip der Bedienung</h3>
+
+<p>Das Display reagiert nicht auf Touch. Alles läuft über zwei Eingaben: <strong>Kanal auswählen</strong> (SEL-Taste am Fader) und dann die gewünschte <strong>Display-Access-Taste</strong> drücken – das Display zeigt die Parameter dieses Kanals. Mit dem Wheel Wert ändern, Enter bestätigen.</p>
+
+<div class="cmd-block">
+<span class="comment"># Beispiel: HPF von CH 1 einschalten</span><br>
+SEL-Taste an Fader 1 drücken          <span class="comment"># CH 1 auswählen</span><br>
+Display-Access: <span class="step">EQ</span>                  <span class="comment"># EQ-Seite aufrufen</span><br>
+Cursor zu HPF                          <span class="comment"># HPF-Parameter markieren</span><br>
+Enter                                  <span class="comment"># einschalten</span><br>
+Cursor zu HPF-Frequenz → Wheel: 120 Hz
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="layer">4 · Das Layer-System</h2>
+
+<p>Das LS9-32 hat 33 physische Fader. Intern verwaltet es bis zu 64 Eingangskanäle, 16 Mix-Busse, Matrix, Master und mehr. Das Layer-System löst diesen Widerspruch: je nach aktivem Layer zeigen <em>dieselben</em> Fader andere Inhalte.</p>
+
+<div class="diagram">
+<svg width="720" height="220" viewBox="0 0 720 220">
+  <!-- Physische Fader-Bank (Symbol) -->
+  <rect x="10" y="80" width="180" height="90" rx="8" fill="#141428" stroke="#2a2a4a" stroke-width="1.5"/>
+  <text x="100" y="100" text-anchor="middle" fill="#445" font-size="11">33 physische Fader</text>
+  <rect x="22"  y="108" width="10" height="40" rx="2" fill="#1a2030" stroke="#2a4a6a"/>
+  <rect x="26" y="118" width="2" height="8" rx="1" fill="#7c9cbf"/>
+  <rect x="38"  y="108" width="10" height="40" rx="2" fill="#1a2030" stroke="#2a4a6a"/>
+  <rect x="42" y="128" width="2" height="8" rx="1" fill="#7c9cbf"/>
+  <rect x="54"  y="108" width="10" height="40" rx="2" fill="#1a2030" stroke="#2a4a6a"/>
+  <rect x="58" y="116" width="2" height="8" rx="1" fill="#7c9cbf"/>
+  <text x="100" y="165" text-anchor="middle" fill="#334" font-size="9">…</text>
+  <text x="100" y="180" text-anchor="middle" fill="#556" font-size="10">Layer-Tasten</text>
+
+  <!-- Pfeil -->
+  <text x="208" y="130" text-anchor="middle" fill="#445" font-size="24">↕</text>
+
+  <!-- Layer-Boxes -->
+  <!-- Layer 1-32 -->
+  <rect x="228" y="20" width="150" height="55" rx="8" fill="#141828" stroke="#2a4a6a" stroke-width="1.8"/>
+  <text x="303" y="42" text-anchor="middle" fill="#7c9cbf" font-size="12" font-weight="600">Layer 1–32</text>
+  <text x="303" y="58" text-anchor="middle" fill="#556" font-size="10">Mono-Eingänge CH 1–32</text>
+  <text x="303" y="68" text-anchor="middle" fill="#445" font-size="9">Soundcheck, Setup</text>
+
+  <!-- Layer 33-64 -->
+  <rect x="228" y="85" width="150" height="55" rx="8" fill="#1a1430" stroke="#4a2a6a" stroke-width="1.5"/>
+  <text x="303" y="107" text-anchor="middle" fill="#b07cc0" font-size="12" font-weight="600">Layer 33–64</text>
+  <text x="303" y="123" text-anchor="middle" fill="#556" font-size="10">Stereo-IN 1–4, Effekt-Returns</text>
+  <text x="303" y="133" text-anchor="middle" fill="#445" font-size="9">Notebooks, Playback-Quellen</text>
+
+  <!-- Master -->
+  <rect x="228" y="150" width="150" height="55" rx="8" fill="#1a2e1a" stroke="#3a6a3a" stroke-width="1.5"/>
+  <text x="303" y="172" text-anchor="middle" fill="#6abf6a" font-size="12" font-weight="600">Master-Layer</text>
+  <text x="303" y="188" text-anchor="middle" fill="#556" font-size="10">Aux 1–16, Matrix, Stereo-Master</text>
+  <text x="303" y="198" text-anchor="middle" fill="#445" font-size="9">Monitor-Pegel anpassen</text>
+
+  <!-- Custom -->
+  <rect x="430" y="80" width="260" height="100" rx="8" fill="#221a08" stroke="#5a4a18" stroke-width="2"/>
+  <text x="560" y="106" text-anchor="middle" fill="#e0a060" font-size="13" font-weight="600">Custom Layer ★</text>
+  <text x="560" y="124" text-anchor="middle" fill="#778" font-size="11">frei belegbar – quer durch alle Layer</text>
+  <text x="560" y="142" text-anchor="middle" fill="#556" font-size="10">z.B. Fader 1–4 = Bühnenmikros,</text>
+  <text x="560" y="156" text-anchor="middle" fill="#556" font-size="10">Fader 5–6 = Komm, Fader 8–9 = Notebooks,</text>
+  <text x="560" y="170" text-anchor="middle" fill="#556" font-size="10">Fader 11–13 = Monitor-Busse</text>
+
+  <!-- Pfeil von Custom -->
+  <line x1="380" y1="130" x2="428" y2="130" stroke="#e0a060" stroke-width="2" stroke-dasharray="4 2"/>
+
+  <!-- Beschriftung -->
+  <text x="560" y="200" text-anchor="middle" fill="#e0a060" font-size="10">→ im Show-Betrieb fast ausschließlich hier</text>
+</svg>
+</div>
+
+<p>Der <strong>Custom Layer</strong> ist das mächtigste Konzept. Du baust dir einmal deine persönliche Show-Ansicht – nur die Fader die du wirklich anfasst. Während der Veranstaltung wechselst du den Layer kaum noch. Die anderen Layer sind für Soundcheck und Ausnahmesituationen.</p>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="setup">5 · Unser konkretes Setup (Übersicht)</h2>
+
+<p>Das konkrete Setup: vier Bühnenmikrofone (Moderation, Redner), zwei Notebook-Inputs (Stereo-Einspielung), ein Kommunikationspaar zwischen vorderem Tech-Posten und Kabine, plus Monitoring für den Technik-Platz.</p>
+
+<div class="diagram">
+<svg width="720" height="310" viewBox="0 0 720 310">
+  <defs>
+    <marker id="bs" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6abf6a"/>
+    </marker>
+    <marker id="bs2" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#7c9cbf"/>
+    </marker>
+    <marker id="bs3" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#e0a060"/>
+    </marker>
+    <marker id="bs4" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#b07cc0"/>
+    </marker>
+  </defs>
+
+  <!-- Inputs links -->
+  <!-- Bühnenmikros -->
+  <rect x="5" y="20" width="150" height="100" rx="8" fill="#141a14" stroke="#2a5a2a" stroke-width="1.5"/>
+  <text x="80" y="40" text-anchor="middle" fill="#6abf6a" font-size="11" font-weight="600">Bühnenmikrofone</text>
+  <text x="80" y="56" text-anchor="middle" fill="#778" font-size="10">CH 1 – Moderation</text>
+  <text x="80" y="69" text-anchor="middle" fill="#778" font-size="10">CH 2 – Redner/Gast</text>
+  <text x="80" y="82" text-anchor="middle" fill="#778" font-size="10">CH 3 – Redner/Gast</text>
+  <text x="80" y="95" text-anchor="middle" fill="#778" font-size="10">CH 4 – Reserve</text>
+  <text x="80" y="110" text-anchor="middle" fill="#3a6a3a" font-size="9">dynamisch · XLR 1–4</text>
+
+  <!-- Notebooks -->
+  <rect x="5" y="130" width="150" height="68" rx="8" fill="#141828" stroke="#2a4a7a" stroke-width="1.5"/>
+  <text x="80" y="150" text-anchor="middle" fill="#7c9cbf" font-size="11" font-weight="600">Notebooks</text>
+  <text x="80" y="166" text-anchor="middle" fill="#778" font-size="10">ST IN 1 – Präsentation</text>
+  <text x="80" y="179" text-anchor="middle" fill="#778" font-size="10">ST IN 2 – Backup</text>
+  <text x="80" y="192" text-anchor="middle" fill="#3a4a7a" font-size="9">Stereo · XLR 7/8, 9/10</text>
+
+  <!-- Komm-Mikros -->
+  <rect x="5" y="208" width="150" height="68" rx="8" fill="#28200a" stroke="#5a4a18" stroke-width="1.5"/>
+  <text x="80" y="228" text-anchor="middle" fill="#e0a060" font-size="11" font-weight="600">Kommunikation</text>
+  <text x="80" y="244" text-anchor="middle" fill="#778" font-size="10">CH 5 – Mikro Tech-Posten</text>
+  <text x="80" y="257" text-anchor="middle" fill="#778" font-size="10">CH 6 – Mikro Kabine</text>
+  <text x="80" y="270" text-anchor="middle" fill="#5a4a18" font-size="9">nicht auf PA routen!</text>
+
+  <!-- LS9-32 Pult -->
+  <rect x="275" y="60" width="180" height="180" rx="12" fill="#0d0d18" stroke="#3a3a5a" stroke-width="2"/>
+  <text x="365" y="90" text-anchor="middle" fill="#445" font-size="12" font-weight="600">LS9-32</text>
+  <text x="365" y="108" text-anchor="middle" fill="#334" font-size="10">Patchbay</text>
+  <text x="365" y="122" text-anchor="middle" fill="#334" font-size="10">EQ · Gate · Kompressor</text>
+  <text x="365" y="136" text-anchor="middle" fill="#334" font-size="10">Fader · Routing</text>
+  <text x="365" y="155" text-anchor="middle" fill="#445" font-size="11">Mix-Busse</text>
+  <rect x="290" y="163" width="150" height="20" rx="3" fill="#1a1a2e" stroke="#3a3a5a"/>
+  <text x="365" y="177" text-anchor="middle" fill="#556" font-size="9">Stereo-Master · MIX 1–3</text>
+  <text x="365" y="220" text-anchor="middle" fill="#334" font-size="9">Scene: vollständiger</text>
+  <text x="365" y="232" text-anchor="middle" fill="#334" font-size="9">Zustand speicherbar</text>
+
+  <!-- Pfeile Inputs → LS9 -->
+  <line x1="157" y1="70" x2="273" y2="140" stroke="#6abf6a" stroke-width="2" marker-end="url(#bs)"/>
+  <line x1="157" y1="164" x2="273" y2="165" stroke="#7c9cbf" stroke-width="2" marker-end="url(#bs2)"/>
+  <line x1="157" y1="242" x2="273" y2="200" stroke="#e0a060" stroke-width="2" marker-end="url(#bs3)"/>
+
+  <!-- Outputs rechts -->
+  <!-- PA -->
+  <rect x="560" y="20" width="150" height="55" rx="8" fill="#1a2e1a" stroke="#3a6a3a" stroke-width="1.5"/>
+  <text x="635" y="42" text-anchor="middle" fill="#6abf6a" font-size="11" font-weight="600">PA / Saalbeschallung</text>
+  <text x="635" y="56" text-anchor="middle" fill="#556" font-size="10">Stereo-Master L/R → XLR Out 1/2</text>
+  <text x="635" y="68" text-anchor="middle" fill="#3a6a3a" font-size="9">CH 1–4 + ST IN 1/2</text>
+
+  <!-- Technik-Monitor -->
+  <rect x="560" y="85" width="150" height="55" rx="8" fill="#1a2a3a" stroke="#2a5a7a" stroke-width="1.5"/>
+  <text x="635" y="107" text-anchor="middle" fill="#7c9cbf" font-size="11" font-weight="600">Monitor Technik</text>
+  <text x="635" y="122" text-anchor="middle" fill="#556" font-size="10">MIX 1 L/R → XLR Out 3/4</text>
+  <text x="635" y="135" text-anchor="middle" fill="#3a5a7a" font-size="9">alles was in PA läuft</text>
+
+  <!-- Komm-Box Kabine -->
+  <rect x="560" y="150" width="150" height="55" rx="8" fill="#281808" stroke="#5a3a10" stroke-width="1.5"/>
+  <text x="635" y="172" text-anchor="middle" fill="#e0a060" font-size="11" font-weight="600">Monitorbox Kabine</text>
+  <text x="635" y="186" text-anchor="middle" fill="#556" font-size="10">MIX 2 → XLR Out 5</text>
+  <text x="635" y="198" text-anchor="middle" fill="#5a3a10" font-size="9">hört CH 5 (Tech-Posten spricht)</text>
+
+  <!-- Komm-Box Tech-Posten -->
+  <rect x="560" y="215" width="150" height="55" rx="8" fill="#281808" stroke="#5a3a10" stroke-width="1.5"/>
+  <text x="635" y="237" text-anchor="middle" fill="#e0a060" font-size="11" font-weight="600">Monitorbox Tech-Posten</text>
+  <text x="635" y="252" text-anchor="middle" fill="#556" font-size="10">MIX 3 → XLR Out 6</text>
+  <text x="635" y="264" text-anchor="middle" fill="#5a3a10" font-size="9">hört CH 6 (Kabine spricht)</text>
+
+  <!-- Pfeile LS9 → Outputs -->
+  <line x1="457" y1="130" x2="558" y2="47" stroke="#6abf6a" stroke-width="1.8" marker-end="url(#bs)"/>
+  <line x1="457" y1="150" x2="558" y2="112" stroke="#7c9cbf" stroke-width="1.8" marker-end="url(#bs2)"/>
+  <line x1="457" y1="175" x2="558" y2="177" stroke="#e0a060" stroke-width="1.8" marker-end="url(#bs3)"/>
+  <line x1="457" y1="190" x2="558" y2="242" stroke="#e0a060" stroke-width="1.8" marker-end="url(#bs3)"/>
+
+</svg>
+</div>
+
+<table>
+  <tr>
+    <th>Kanal</th>
+    <th>Quelle</th>
+    <th>Typ</th>
+    <th>Geht auf</th>
+  </tr>
+  <tr>
+    <td><code>CH 1</code></td>
+    <td>Handmikrofon – Moderation</td>
+    <td><span class="label-pill pill-green">dynamisch</span></td>
+    <td>Stereo-Master · MIX 1</td>
+  </tr>
+  <tr>
+    <td><code>CH 2–4</code></td>
+    <td>Handmikrofone – Redner</td>
+    <td><span class="label-pill pill-green">dynamisch</span></td>
+    <td>Stereo-Master · MIX 1</td>
+  </tr>
+  <tr>
+    <td><code>ST IN 1</code></td>
+    <td>Notebook Präsentation</td>
+    <td><span class="label-pill pill-blue">Stereo</span></td>
+    <td>Stereo-Master · MIX 1</td>
+  </tr>
+  <tr>
+    <td><code>ST IN 2</code></td>
+    <td>Notebook Backup</td>
+    <td><span class="label-pill pill-blue">Stereo</span></td>
+    <td>Stereo-Master · MIX 1 (Fader unten halten)</td>
+  </tr>
+  <tr>
+    <td><code>CH 5</code></td>
+    <td>Mikro Tech-Posten</td>
+    <td><span class="label-pill pill-orange">Komm</span></td>
+    <td><strong>nur MIX 2</strong> → Monitorbox Kabine</td>
+  </tr>
+  <tr>
+    <td><code>CH 6</code></td>
+    <td>Mikro Kabine</td>
+    <td><span class="label-pill pill-orange">Komm</span></td>
+    <td><strong>nur MIX 3</strong> → Monitorbox Tech-Posten</td>
+  </tr>
+</table>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<div style="margin: 0 0 24px; padding: 12px 18px; background: #1a2030; border: 1px solid #3a5a7a; border-radius: 8px; font-size: 13px;">
+  <strong style="color:#7c9cbf">Interaktive Routing-Grafik</strong> –
+  Hover-Pfade, 3D-Planes, Einstellungs-Modals:
+  <a href="ls9_setup_3d.html" style="color:#7c9cbf; margin-left: 8px;">ls9_setup_3d.html →</a>
+</div>
+
+<h2 id="kanaele">6 · Kanaleinstellungen: Gain, HPF, Gate, Kompressor</h2>
+
+<h3>Gain-Staging – die wichtigste Einstellung</h3>
+
+<p>Gain-Staging heißt: an jedem Punkt des Signalwegs einen gesunden Pegel. Beim LS9 gibt es den <strong>analogen Preamp-Gain</strong> (Gain-Regler rechts vom Display) – das ist die entscheidende Einstellung, sie findet vor der A/D-Wandlung statt.</p>
+
+<p><strong>Ziel:</strong> der Peakmeter des Kanals zeigt bei normaler Sprechlautstärke etwa <code>−18 bis −12 dBFS</code>. Gelegentliche Peaks bis −6 dBFS sind in Ordnung. Die rote Clip-LED darf nicht leuchten.</p>
+
+<div class="cmd-block">
+<span class="comment"># Gain einstellen:</span><br>
+SEL-Taste an Fader 1 drücken<br>
+Sprecher sprechen lassen (normal, nicht aufgeregt)<br>
+Gain-Regler drehen → Peakmeter beobachten<br>
+Ziel: <span class="step">−18 bis −12 dBFS</span> im normalen Bereich<br>
+Clip-LED leuchtet? → Gain zurückdrehen
+</div>
+
+<h3>HPF – Hochpassfilter, fast immer einschalten</h3>
+
+<p>Der HPF (High Pass Filter) schneidet alles unterhalb einer einstellbaren Frequenz ab. Für Sprachmikrofone entfernt er Trittschall, Klopfgeräusche und das dumpfe Rumpeln des Mikrofonstativs – ohne die Sprache zu berühren.</p>
+
+<div class="two-col">
+  <div class="mini-box">
+    <strong>Handmikrofon (CH 1–4)</strong>
+    HPF ca. 100–150 Hz. Höher als bei Stativmikrofon weil der Nahbesprechungseffekt (Bass durch Nähe) einen natürlichen Bassüberschuss erzeugt.
+  </div>
+  <div class="mini-box">
+    <strong>Komm-Mikrofone (CH 5–6)</strong>
+    HPF ca. 150 Hz. Kleine Monitorboxen haben ohnehin keinen Tiefbass – der HPF ist hier fast kosmetisch, aber schadet nicht.
+  </div>
+</div>
+
+<div class="mini-box" style="margin: 16px 0">
+  <strong>Notebooks (ST IN 1–2)</strong>
+  HPF ausschalten. Musik und Präsentationssoundtracks sollen vollständig übertragen werden. Kein Trittschall von einem Notebook zu erwarten.
+</div>
+
+<h3>Gate – Stille-Unterdrückung</h3>
+
+<p>Das Gate schließt den Kanal wenn das Signal unter einen Schwellwert fällt. Nützlich: wenn niemand ins Mikrofon spricht, werden Raumgeräusche und Mikrofon-Eigenrauschen unterdrückt. Gefährlich: ein zu aggressiv eingestelltes Gate schneidet Wortanfänge ab.</p>
+
+<table>
+  <tr>
+    <th>Parameter</th>
+    <th>Funktion</th>
+    <th>Empfehlung Handmikrofon</th>
+  </tr>
+  <tr>
+    <td><strong>Threshold</strong></td>
+    <td>Ab welchem Pegel öffnet das Gate</td>
+    <td>−35 bis −30 dBFS (testen!)</td>
+  </tr>
+  <tr>
+    <td><strong>Range</strong></td>
+    <td>Wie stark wird gedämpft wenn zu</td>
+    <td>40–60 dB</td>
+  </tr>
+  <tr>
+    <td><strong>Attack</strong></td>
+    <td>Wie schnell öffnet es</td>
+    <td>1–5 ms (schnell)</td>
+  </tr>
+  <tr>
+    <td><strong>Hold</strong></td>
+    <td>Wie lang bleibt es offen nach Unterschreiten</td>
+    <td>200–500 ms (verhindert Pumpen)</td>
+  </tr>
+  <tr>
+    <td><strong>Decay</strong></td>
+    <td>Wie schnell schließt es danach</td>
+    <td>100–300 ms</td>
+  </tr>
+</table>
+
+<div class="warn-box">
+  <strong>Vorsicht bei Handmikrofonen:</strong> Bei wechselnden Sprechern und unterschiedlichem Mikrofonabstand kann das Gate unzuverlässig werden. Lieber Threshold zu niedrig als zu hoch. Im Zweifelsfall Gate deaktivieren und stattdessen auf Fader-Disziplin setzen – besser ein wenig Raumrauschen als abgeschnittene Wortanfänge.
+</div>
+
+<h3>Kompressor – Dynamikkontrolle</h3>
+
+<p>Der Kompressor reduziert den Unterschied zwischen leisen und lauten Momenten. Nützlich wenn Sprecher das Mikrofon sehr unterschiedlich laut besprechen. Ziel: der Pegel am Ausgang ist konstanter als der Pegel am Eingang.</p>
+
+<div class="cmd-block">
+<span class="comment"># Typische Einstellung für wechselnde Sprecher:</span><br>
+Threshold:  <span class="step">−18 dBFS</span>       <span class="comment"># ab hier setzt Kompression ein</span><br>
+Ratio:      <span class="step">3:1 bis 4:1</span>     <span class="comment"># moderate Kompression</span><br>
+Attack:     <span class="step">10–30 ms</span>        <span class="comment"># zu schnell klingt unnatürlich</span><br>
+Release:    <span class="step">100–300 ms</span>      <span class="comment"># zu schnell = Pumpen</span><br>
+Gain:       so einstellen dass ohne Sprecher kein Pegel, mit Sprecher normaler Pegel
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="routing">7 · Bus-Routing: wer geht wohin</h2>
+
+<p>Jeder Eingangskanal kann sein Signal gleichzeitig an mehrere Busse schicken – mit individuell einstellbarem Pegel pro Bus. Das ermöglicht, dass dieselbe Stimme sowohl in der PA als auch im Technik-Monitor landet, aber die Kommunikation <em>nicht</em> in der PA.</p>
+
+<h3>Pre-Fader vs. Post-Fader – der entscheidende Unterschied</h3>
+
+<div class="two-col">
+  <div class="mini-box">
+    <strong>Post-Fader Send</strong>
+    Der Send-Pegel hängt vom Kanal-Fader ab. Wenn du den Kanal leiser machst, wird auch der Send leiser. Typisch für Hall-Effekte: der Effekt soll mit dem Kanal miteatmen.
+  </div>
+  <div class="mini-box">
+    <strong>Pre-Fader Send ← für Monitoring!</strong>
+    Der Send-Pegel ist unabhängig vom Kanal-Fader. Der Monitor-Mix bleibt gleich egal was am FOH-Fader passiert. Für alle Monitor-Busse (MIX 1–3) immer Pre-Fader.
+  </div>
+</div>
+
+<div class="diagram">
+<svg width="700" height="260" viewBox="0 0 700 260">
+  <defs>
+    <marker id="rt" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#6abf6a"/>
+    </marker>
+    <marker id="rt2" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#7c9cbf"/>
+    </marker>
+    <marker id="rt3" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#e0a060"/>
+    </marker>
+    <marker id="rt4" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#bf6a6a"/>
+    </marker>
+  </defs>
+
+  <!-- Kanäle links -->
+  <text x="90" y="18" text-anchor="middle" fill="#445" font-size="11">Eingangskanäle</text>
+
+  <rect x="10" y="25" width="160" height="28" rx="4" fill="#1a2a1a" stroke="#3a6a3a" stroke-width="1.2"/>
+  <text x="90" y="44" text-anchor="middle" fill="#6abf6a" font-size="11">CH 1–4 (Bühnenmikros)</text>
+
+  <rect x="10" y="63" width="160" height="28" rx="4" fill="#141828" stroke="#2a4a7a" stroke-width="1.2"/>
+  <text x="90" y="82" text-anchor="middle" fill="#7c9cbf" font-size="11">ST IN 1–2 (Notebooks)</text>
+
+  <rect x="10" y="101" width="160" height="28" rx="4" fill="#28200a" stroke="#5a4a18" stroke-width="1.2"/>
+  <text x="90" y="120" text-anchor="middle" fill="#e0a060" font-size="11">CH 5 (Mikro Tech-Posten)</text>
+
+  <rect x="10" y="139" width="160" height="28" rx="4" fill="#28200a" stroke="#5a4a18" stroke-width="1.2"/>
+  <text x="90" y="158" text-anchor="middle" fill="#e0a060" font-size="11">CH 6 (Mikro Kabine)</text>
+
+  <!-- Busse rechts -->
+  <text x="580" y="18" text-anchor="middle" fill="#445" font-size="11">Busse (Ausgänge)</text>
+
+  <rect x="500" y="25" width="190" height="28" rx="4" fill="#1a2e1a" stroke="#3a7a3a" stroke-width="1.5"/>
+  <text x="595" y="44" text-anchor="middle" fill="#6abf6a" font-size="11" font-weight="600">Stereo-Master (PA)</text>
+
+  <rect x="500" y="63" width="190" height="28" rx="4" fill="#141828" stroke="#2a4a7a" stroke-width="1.5"/>
+  <text x="595" y="82" text-anchor="middle" fill="#7c9cbf" font-size="11" font-weight="600">MIX 1 – Technik-Monitor</text>
+
+  <rect x="500" y="101" width="190" height="28" rx="4" fill="#281808" stroke="#5a3a10" stroke-width="1.5"/>
+  <text x="595" y="120" text-anchor="middle" fill="#e0a060" font-size="11" font-weight="600">MIX 2 – Monitorbox Kabine</text>
+
+  <rect x="500" y="139" width="190" height="28" rx="4" fill="#281808" stroke="#5a3a10" stroke-width="1.5"/>
+  <text x="595" y="158" text-anchor="middle" fill="#e0a060" font-size="11" font-weight="600">MIX 3 – Monitorbox Tech-Posten</text>
+
+  <!-- Verbindungen -->
+  <!-- CH 1-4 → PA -->
+  <line x1="172" y1="39" x2="498" y2="39" stroke="#6abf6a" stroke-width="2" marker-end="url(#rt)"/>
+  <!-- CH 1-4 → MIX 1 -->
+  <line x1="172" y1="48" x2="498" y2="77" stroke="#6abf6a" stroke-width="1.5" stroke-dasharray="5 2" marker-end="url(#rt)"/>
+
+  <!-- ST IN → PA -->
+  <line x1="172" y1="77" x2="498" y2="48" stroke="#7c9cbf" stroke-width="2" marker-end="url(#rt2)"/>
+  <!-- ST IN → MIX 1 -->
+  <line x1="172" y1="82" x2="498" y2="82" stroke="#7c9cbf" stroke-width="1.5" stroke-dasharray="5 2" marker-end="url(#rt2)"/>
+
+  <!-- CH 5 → MIX 2 (NUR) -->
+  <line x1="172" y1="115" x2="498" y2="115" stroke="#e0a060" stroke-width="2.5" marker-end="url(#rt3)"/>
+  <!-- CH 5 ≠ PA -->
+  <line x1="172" y1="108" x2="240" y2="108" stroke="#bf6a6a" stroke-width="1.5"/>
+  <line x1="240" y1="102" x2="240" y2="114" stroke="#bf6a6a" stroke-width="1.5"/>
+
+  <!-- CH 6 → MIX 3 (NUR) -->
+  <line x1="172" y1="153" x2="498" y2="153" stroke="#e0a060" stroke-width="2.5" marker-end="url(#rt3)"/>
+  <!-- CH 6 ≠ PA -->
+  <line x1="172" y1="145" x2="240" y2="145" stroke="#bf6a6a" stroke-width="1.5"/>
+  <line x1="240" y1="139" x2="240" y2="151" stroke="#bf6a6a" stroke-width="1.5"/>
+
+  <!-- Legende Pre/Post -->
+  <rect x="170" y="195" width="340" height="58" rx="6" fill="#141418" stroke="#2a2a3a" stroke-width="1"/>
+  <text x="340" y="213" text-anchor="middle" fill="#556" font-size="10" font-weight="600">Send-Konfiguration</text>
+  <text x="200" y="232" text-anchor="middle" fill="#6abf6a" font-size="10">PA (Stereo-Master):</text>
+  <text x="270" y="232" text-anchor="middle" fill="#778" font-size="10">Post-Fader</text>
+  <text x="200" y="246" text-anchor="middle" fill="#7c9cbf" font-size="10">MIX 1–3 (Monitor):</text>
+  <text x="272" y="246" text-anchor="middle" fill="#778" font-size="10">Pre-Fader ← immer!</text>
+  <text x="390" y="232" text-anchor="middle" fill="#bf6a6a" font-size="10">CH 5/6 kein</text>
+  <text x="390" y="246" text-anchor="middle" fill="#bf6a6a" font-size="10">PA-Send!</text>
+</svg>
+</div>
+
+<h3>Send-Pegel einstellen – zwei Wege</h3>
+
+<div class="cmd-block">
+<span class="comment"># Methode 1: MIX-Taste in der Master-Sektion</span><br>
+MIX 1 drücken<br>
+→ Fader der Master-Bank = Send-Pegel aller Kanäle zu MIX 1<br>
+→ Fader bewegen = dieser Kanal lauter/leiser im MIX 1<br>
+<br>
+<span class="comment"># Methode 2: Im Display</span><br>
+CH 1 SEL drücken → Display-Access: <span class="step">MIX SEND</span><br>
+→ Send-Pegel zu allen Bussen sichtbar<br>
+→ Cursor → Wheel → Enter
+</div>
+
+<div class="cmd-block">
+<span class="comment"># Pre-Fader für MIX 1 aktivieren (wichtig!)</span><br>
+CH 1 SEL → Display-Access: <span class="step">MIX SEND</span><br>
+MIX 1 auswählen → PRE auf ON<br>
+<span class="comment"># Für alle Kanäle wiederholen die in MIX 1 landen</span>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="komm">8 · Das Kommunikationssystem</h2>
+
+<p>Das Kommunikationssystem ist ein geschlossener Gesprächsweg zwischen vorderem Tech-Posten und Kabine. Beide hören einander über kleine Monitorboxen – aber <strong>keiner von beiden</strong> landet im Saallautsprecher.</p>
+
+<div class="diagram">
+<svg width="720" height="240" viewBox="0 0 720 240">
+  <defs>
+    <marker id="km" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#e0a060"/>
+    </marker>
+    <marker id="km2" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#b07cc0"/>
+    </marker>
+  </defs>
+
+  <!-- Tech-Posten -->
+  <rect x="10" y="60" width="150" height="110" rx="10" fill="#1e1808" stroke="#5a4a18" stroke-width="2"/>
+  <text x="85" y="84" text-anchor="middle" fill="#e0a060" font-size="12" font-weight="600">Vorderer Tech-Posten</text>
+  <rect x="24" y="96" width="122" height="28" rx="4" fill="#281e08" stroke="#5a3a10"/>
+  <text x="85" y="115" text-anchor="middle" fill="#e0a060" font-size="11">CH 5 – Mikrofon</text>
+  <rect x="24" y="134" width="122" height="28" rx="4" fill="#1a1820" stroke="#3a3050"/>
+  <text x="85" y="153" text-anchor="middle" fill="#b07cc0" font-size="11">Monitorbox ← MIX 3</text>
+  <text x="85" y="178" text-anchor="middle" fill="#5a4a18" font-size="9">hört: Kabine spricht</text>
+
+  <!-- LS9 Mitte -->
+  <rect x="280" y="40" width="160" height="160" rx="10" fill="#0d0d18" stroke="#2a2a4a" stroke-width="2"/>
+  <text x="360" y="64" text-anchor="middle" fill="#445" font-size="11" font-weight="600">LS9-32</text>
+
+  <rect x="292" y="76" width="136" height="30" rx="4" fill="#1e1808" stroke="#4a3a18" stroke-width="1.2"/>
+  <text x="360" y="95" text-anchor="middle" fill="#e0a060" font-size="10">CH 5 → MIX 2</text>
+  <text x="360" y="105" text-anchor="middle" fill="#445" font-size="9">Pre-Fader, kein PA-Send</text>
+
+  <rect x="292" y="116" width="136" height="30" rx="4" fill="#1e1808" stroke="#4a3a18" stroke-width="1.2"/>
+  <text x="360" y="135" text-anchor="middle" fill="#e0a060" font-size="10">CH 6 → MIX 3</text>
+  <text x="360" y="145" text-anchor="middle" fill="#445" font-size="9">Pre-Fader, kein PA-Send</text>
+
+  <text x="360" y="185" text-anchor="middle" fill="#334" font-size="9">MIX 2 → XLR Out 5</text>
+  <text x="360" y="197" text-anchor="middle" fill="#334" font-size="9">MIX 3 → XLR Out 6</text>
+
+  <!-- Kabine -->
+  <rect x="560" y="60" width="150" height="110" rx="10" fill="#1e1808" stroke="#5a4a18" stroke-width="2"/>
+  <text x="635" y="84" text-anchor="middle" fill="#e0a060" font-size="12" font-weight="600">Kabine</text>
+  <rect x="574" y="96" width="122" height="28" rx="4" fill="#281e08" stroke="#5a3a10"/>
+  <text x="635" y="115" text-anchor="middle" fill="#e0a060" font-size="11">CH 6 – Mikrofon</text>
+  <rect x="574" y="134" width="122" height="28" rx="4" fill="#1a1820" stroke="#3a3050"/>
+  <text x="635" y="153" text-anchor="middle" fill="#b07cc0" font-size="11">Monitorbox ← MIX 2</text>
+  <text x="635" y="178" text-anchor="middle" fill="#5a4a18" font-size="9">hört: Tech-Posten spricht</text>
+
+  <!-- Pfeile Mikrofone → LS9 -->
+  <line x1="162" y1="110" x2="278" y2="91" stroke="#e0a060" stroke-width="2" marker-end="url(#km)"/>
+  <line x1="558" y1="110" x2="440" y2="131" stroke="#e0a060" stroke-width="2" marker-end="url(#km)"/>
+
+  <!-- Pfeile LS9 → Monitorboxen -->
+  <line x1="278" y1="151" x2="148" y2="148" stroke="#b07cc0" stroke-width="2" marker-end="url(#km2)"/>
+  <line x1="440" y1="91" x2="558" y2="148" stroke="#b07cc0" stroke-width="2" marker-end="url(#km2)"/>
+
+  <!-- Gesprächs-Pfeile über das Diagramm -->
+  <path d="M 165 50 Q 360 15 555 50" stroke="#e0a060" stroke-width="1.5" stroke-dasharray="6 3" fill="none" marker-end="url(#km)"/>
+  <path d="M 555 220 Q 360 255 165 220" stroke="#e0a060" stroke-width="1.5" stroke-dasharray="6 3" fill="none" marker-end="url(#km)"/>
+  <text x="360" y="12" text-anchor="middle" fill="#5a4a18" font-size="10">Sprache via LS9</text>
+  <text x="360" y="255" text-anchor="middle" fill="#5a4a18" font-size="10">Gegenrichtung</text>
+</svg>
+</div>
+
+<div class="warn-box">
+  <strong>Das Wichtigste beim Routing der Kommunikationskanäle:</strong><br>
+  CH 5 und CH 6 dürfen <em>keinen Send auf den Stereo-Master</em> haben. Andernfalls hört das gesamte Saalpublikum das interne Techniker-Gespräch. Nach jedem Scene-Recall prüfen. Beim ersten Einrichten mit einem langen Stumm-Test sicherstellen (Fader hochziehen, ins Mikro sprechen, PA beobachten).
+</div>
+
+<h3>Was die Technik-Monitorbox (MIX 1) hört</h3>
+
+<p>MIX 1 ist der allgemeine Abhörmonitor für den Technik-Platz: er spiegelt was in der PA läuft. Er bekommt alle Bühnenmikrofone und beide Notebooks. Ob die Kommunikationskanäle (CH 5/6) auch in MIX 1 landen, ist eine Frage des Geschmacks – in der Regel nicht nötig, da man am Technik-Posten direkt am Mikrofon sitzt.</p>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="custom">9 · Custom Layer und Show-Betrieb</h2>
+
+<h3>Custom Layer einrichten</h3>
+
+<p>Der Custom Layer ist die persönliche Show-Ansicht. Alles was du während der Veranstaltung anfassen wirst, liegt dort – übersichtlich nebeneinander.</p>
+
+<table>
+  <tr>
+    <th>Physischer Fader</th>
+    <th>Zugewiesene Quelle</th>
+    <th>Funktion</th>
+  </tr>
+  <tr><td>1</td><td><code>CH 1</code></td><td>Handmikrofon – Moderation</td></tr>
+  <tr><td>2</td><td><code>CH 2</code></td><td>Handmikrofon – Redner</td></tr>
+  <tr><td>3</td><td><code>CH 3</code></td><td>Handmikrofon – Redner</td></tr>
+  <tr><td>4</td><td><code>CH 4</code></td><td>Handmikrofon – Reserve</td></tr>
+  <tr><td>5</td><td><code>CH 5</code></td><td>Komm – Tech-Posten</td></tr>
+  <tr><td>6</td><td><code>CH 6</code></td><td>Komm – Kabine</td></tr>
+  <tr><td>8</td><td><code>ST IN 1</code></td><td>Notebook – Präsentation</td></tr>
+  <tr><td>9</td><td><code>ST IN 2</code></td><td>Notebook – Backup (Fader unten)</td></tr>
+  <tr><td>11</td><td><code>MIX 1</code></td><td>Technik-Monitor-Level</td></tr>
+  <tr><td>12</td><td><code>MIX 2</code></td><td>Monitorbox Kabine – Pegel</td></tr>
+  <tr><td>13</td><td><code>MIX 3</code></td><td>Monitorbox Tech-Posten – Pegel</td></tr>
+</table>
+
+<div class="cmd-block">
+<span class="comment"># Custom Layer befüllen:</span><br>
+Display-Access: <span class="step">USER DEFINED</span> → Custom Fader Layer aufrufen<br>
+Fader 1 auswählen → Quelle: Input CH 1 → Enter<br>
+Fader 2 → CH 2, Fader 3 → CH 3, Fader 4 → CH 4<br>
+Fader 5 → CH 5, Fader 6 → CH 6<br>
+Fader 8 → ST IN 1, Fader 9 → ST IN 2<br>
+Fader 11 → MIX 1, Fader 12 → MIX 2, Fader 13 → MIX 3<br>
+→ Store
+</div>
+
+<h3>Scenes speichern</h3>
+
+<div class="cmd-block">
+<span class="comment"># Nach vollständigem Soundcheck:</span><br>
+SCENE → Store → Scene 1 → Name: "Soundcheck" → Enter<br>
+<br>
+<span class="comment"># Vor Show-Beginn (nach letzten Anpassungen):</span><br>
+SCENE → Store → Scene 2 → Name: "Show Start" → Enter<br>
+<br>
+<span class="comment"># Gain-Recall-Safe – wichtig!</span><br>
+SCENE → Recall Safe → HA GAIN für alle Eingangskanäle aktivieren<br>
+<span class="comment"># Damit bleibt der manuell eingestellte Gain beim Scene-Wechsel erhalten</span>
+</div>
+
+<div class="highlight-box">
+  <strong>Warum Gain Recall Safe?</strong><br>
+  Der Gain ist eine analoge Einstellung – du hast ihn per Ohr und Pegelanzeige eingestellt, auf den konkreten Sprecher und das konkrete Mikrofon. Wenn du zwischen Scenes wechselst, soll dieser Wert nicht durch gespeicherte Werte aus einem früheren Soundcheck überschrieben werden. Recall Safe schützt genau diesen Parameter.
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="checklist">10 · Checkliste vor Beginn</h2>
+
+<div class="box">
+<ul class="checklist">
+  <li>Input Patch geprüft: XLR-Eingänge 1–6 und 7/8, 9/10 korrekt zugewiesen</li>
+  <li>Output Patch geprüft: Stereo-Master → XLR Out 1/2, MIX 1 → 3/4, MIX 2 → 5, MIX 3 → 6</li>
+  <li>Gain CH 1–6 eingestellt: Sprecher sprechen lassen, −18 bis −12 dBFS</li>
+  <li>HPF CH 1–4: eingeschaltet ca. 100–150 Hz</li>
+  <li>HPF CH 5–6: eingeschaltet ca. 150 Hz</li>
+  <li>HPF ST IN 1–2: ausgeschaltet</li>
+  <li>Gate CH 1–4: getestet, kein Abreißen bei normaler Sprache</li>
+  <li>Gate CH 5–6: moderat, kein Abreißen</li>
+  <li>Kompressor CH 1–6: aktiv, Makeup-Gain angepasst</li>
+  <li>Notebook ST IN 1: Pegel geprüft, Dynamics aus</li>
+  <li>Notebook ST IN 2: Pegel geprüft, Fader auf Null (Backup bereit)</li>
+  <li>MIX 1 Pre-Fader: für alle Kanäle aktiviert, Technik-Monitor klingt</li>
+  <li>MIX 2 Pre-Fader: CH 5 Send aufgedreht, Kabine hört Tech-Posten</li>
+  <li>MIX 3 Pre-Fader: CH 6 Send aufgedreht, Tech-Posten hört Kabine</li>
+  <li class="warn">CH 5 und CH 6: Stereo-Master Send = 0 – bestätigt! (PA-Schutz)</li>
+  <li class="warn">CH 5 und CH 6: MIX 1 Send = 0 – sofern Komm nicht im Technik-Monitor gewünscht</li>
+  <li>Custom Layer eingerichtet und aktiv</li>
+  <li>Scene "Soundcheck" gespeichert (Scene 1)</li>
+  <li>Scene "Show Start" gespeichert (Scene 2)</li>
+  <li>Gain Recall Safe aktiv (alle Eingangskanäle)</li>
+  <li>Kommunikationsweg getestet: Tech-Posten spricht → Kabine hört, umgekehrt</li>
+  <li>PA: Bühnenmikrofone und Notebooks im Saal hörbar, kein Komm-Ton</li>
+</ul>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2 id="glossar">Glossar</h2>
+
+<p>Alle im Text verwendeten Fachbegriffe, alphabetisch.</p>
+
+<table>
+  <tr><th style="width:160px">Begriff</th><th>Bedeutung</th></tr>
+
+  <tr><td><strong>A/D-Wandlung</strong></td><td>Analog-Digital-Wandlung: das analoge Mikrofonsignal wird in Zahlenwerte umgewandelt, damit das Pult es digital verarbeiten kann. Findet nach dem Preamp statt.</td></tr>
+
+  <tr><td><strong>Attack</strong></td><td>Bei Gate und Kompressor: wie schnell das Gerät auf einen Pegelwechsel reagiert, in Millisekunden. Kurzer Attack = sofortiges Eingreifen; zu kurz kann unnatürlich klingen.</td></tr>
+
+  <tr><td><strong>Aux-Bus</strong></td><td>Auxiliar-Bus – ein Ausgangsweg neben dem Stereo-Master. Beim LS9: Mix 1–16. Typisch für Monitoring oder Effektsends. Jeder Eingangskanal hat einen eigenen Send-Pegel zu jedem Aux-Bus.</td></tr>
+
+  <tr><td><strong>Channel / CH</strong></td><td>Ein einzelner interner Signalweg im Pult. Nicht zu verwechseln mit dem physischen Eingang: der Kanal ist das interne Objekt, dem per Patch ein physischer Eingang zugewiesen wird.</td></tr>
+
+  <tr><td><strong>Clip / Clipping</strong></td><td>Digitale Übersteuerung: der Signalpegel übersteigt das Maximum (0 dBFS). Das Ergebnis ist harter, unangenehmer Verzerrklang. Die rote Clip-LED am Kanal leuchtet auf.</td></tr>
+
+  <tr><td><strong>Custom Fader Layer</strong></td><td>Frei belegbarer Layer beim LS9: du weist jedem physischen Fader beliebige interne Kanäle zu, quer durch alle Layer. Hauptarbeitsfläche im Show-Betrieb.</td></tr>
+
+  <tr><td><strong>dBFS</strong></td><td>Dezibel Full Scale – Pegelmaß im digitalen Bereich. 0 dBFS ist das Maximum (Clip-Grenze). Alle anderen Pegel sind negativ: −18 dBFS ist ein gesunder Arbeitspegel für Sprache.</td></tr>
+
+  <tr><td><strong>Decay</strong></td><td>Beim Gate: die Zeit, in der das Gate nach dem Schließen den Pegel absenkt. Langsamer Decay = sanftes Ausblenden; zu schnell = hörbares Abschneiden.</td></tr>
+
+  <tr><td><strong>DI-Box</strong></td><td>Direct-Injection-Box: wandelt ein unsymmetrisches Signal (z.B. Gitarren-Klinke) in ein symmetrisches XLR-Signal um, das über lange Kabelwege rauschfrei übertragen werden kann.</td></tr>
+
+  <tr><td><strong>Display-Access-Tasten</strong></td><td>Tastengruppe links vom Display beim LS9. Jede Taste ruft eine bestimmte Parameterseite auf (EQ, Dynamics, Patch, Scene …), bezogen auf den aktuell gewählten Kanal (SEL).</td></tr>
+
+  <tr><td><strong>Dynamisches Mikrofon</strong></td><td>Mikrofontyp, der keine Stromversorgung benötigt. Robust, gut für laute Quellen und Handmikrofone. Im Gegensatz dazu: Kondensatormikrofon.</td></tr>
+
+  <tr><td><strong>EQ / Equalizer</strong></td><td>Frequenzkorrektur: einzelne Frequenzbereiche werden angehoben oder abgesenkt. Parametrisch = Frequenz, Breite (Q) und Pegel sind frei einstellbar. Beim LS9: 4-Band pro Kanal plus HPF.</td></tr>
+
+  <tr><td><strong>Fader</strong></td><td>Der Schieberegler zur Pegeleinstellung eines Kanals oder Busses. Nominalposition (0 dB) ist die markierte Referenzstellung, nicht der Maximalwert.</td></tr>
+
+  <tr><td><strong>FOH</strong></td><td>Front of House – der Mischpult-Platz im Publikumsbereich, von dem aus die PA für das Publikum eingestellt wird. Der FOH-Fader steuert den Pegel in der Saalbeschallung.</td></tr>
+
+  <tr><td><strong>Gain / Preamp-Gain</strong></td><td>Analoge Vorverstärkung vor der A/D-Wandlung. Wichtigste Einstellung: zu wenig Gain = Rauschen; zu viel = Clipping. Ziel: −18 bis −12 dBFS bei Normalpegel.</td></tr>
+
+  <tr><td><strong>Gain-Staging</strong></td><td>Das Prinzip, an jedem Punkt des Signalwegs einen gesunden Pegel zu haben – nicht zu laut, nicht zu leise. Beginnt beim Preamp-Gain, setzt sich über Fader und Busse fort.</td></tr>
+
+  <tr><td><strong>Gate / Noise Gate</strong></td><td>Dynamikprozessor: unterdrückt das Signal wenn der Pegel unter einen Schwellwert fällt. Sinnvoll zur Rauschunterdrückung zwischen Redebeiträgen. Kommt im Signalfluss vor dem Kompressor.</td></tr>
+
+  <tr><td><strong>GEQ</strong></td><td>Grafischer Equalizer – ein EQ mit fest vorgegebenen Frequenzbändern (31 Bänder beim LS9), typisch für Raumkorrektur auf Ausgangsbussen. Die Fader werden zu GEQ-Bändern.</td></tr>
+
+  <tr><td><strong>HA Gain</strong></td><td>Head Amplifier Gain – Yamaha-Bezeichnung für den analogen Preamp-Gain. Im Recall-Safe-Menü als "HA GAIN" bezeichnet.</td></tr>
+
+  <tr><td><strong>Headroom</strong></td><td>Spielraum zwischen dem normalen Arbeitspegel und der Clip-Grenze (0 dBFS). Genug Headroom (mind. 10–15 dB) erlaubt laute Peaks ohne Verzerrung.</td></tr>
+
+  <tr><td><strong>Hold</strong></td><td>Beim Gate: die Zeit, die das Gate nach Unterschreiten des Threshold noch offen bleibt, bevor der Decay beginnt. Verhindert unerwünschtes Pumpen bei kurzen Sprechpausen.</td></tr>
+
+  <tr><td><strong>HPF</strong></td><td>High Pass Filter (Hochpassfilter): lässt hohe Frequenzen durch, schneidet tiefe Frequenzen ab. Beim LS9 pro Kanal einschaltbar. Für Sprachmikrofone ab ca. 100–150 Hz empfohlen.</td></tr>
+
+  <tr><td><strong>Insert</strong></td><td>Einschleifpunkt im Signalfluss (zwischen Dynamics und Fader), an dem ein externes Gerät in den Kanalweg eingebunden werden kann.</td></tr>
+
+  <tr><td><strong>Kondensatormikrofon</strong></td><td>Mikrofontyp mit höherer Empfindlichkeit und Detailwiedergabe als dynamische Mikrofone. Benötigt Phantom Power (+48V).</td></tr>
+
+  <tr><td><strong>Kompressor</strong></td><td>Dynamikprozessor: reduziert den Pegelunterschied zwischen leisen und lauten Momenten. Wenn der Pegel den Threshold überschreitet, wird er um den Faktor Ratio reduziert.</td></tr>
+
+  <tr><td><strong>Layer</strong></td><td>Ebene des Fader-Systems: dieselben physischen Fader zeigen je nach aktivem Layer andere interne Kanäle. Beim LS9: Layer 1–32, 33–64, Master, Custom.</td></tr>
+
+  <tr><td><strong>Makeup-Gain</strong></td><td>Beim Kompressor: Nachverstärkung, um den durch die Kompression verursachten Pegelabfall auszugleichen. Ziel: gleicher Ausgangspegel wie Eingangspegel bei Normallautstärke.</td></tr>
+
+  <tr><td><strong>Matrix-Bus</strong></td><td>Ausgangsbus zweiter Ordnung beim LS9 (8 Stück): nimmt als Eingang Mix-Busse oder den Stereo-Master und verteilt sie flexibel auf physische Ausgänge. Für komplexe Verteilungen (Lobby, Aufnahme).</td></tr>
+
+  <tr><td><strong>MIX-Bus</strong></td><td>Interner Ausgangsbus beim LS9 (16 Stück). Jeder Eingangskanal kann einen individuellen Send-Pegel auf jeden MIX-Bus haben. Basis für Monitoring und Subgruppen. Auch als Aux-Bus bezeichnet.</td></tr>
+
+  <tr><td><strong>Mute / ON</strong></td><td>Die ON-Taste am Fader schaltet den Kanal stumm (leuchtet = aktiv, aus = stumm). Nicht zu verwechseln mit dem Fader auf Null: ON/Mute unterbricht den Signalweg vollständig.</td></tr>
+
+  <tr><td><strong>Nahbesprechungseffekt</strong></td><td>Bassanhebung die bei Mikrofonen mit Niere-Charakteristik auftritt, wenn der Sprecher sehr nah am Mikrofon ist. Handmikrofone sind besonders betroffen. Der HPF kompensiert das.</td></tr>
+
+  <tr><td><strong>PA</strong></td><td>Public Address – die Hauptbeschallung für das Publikum. Am LS9 über den Stereo-Master gespeist.</td></tr>
+
+  <tr><td><strong>Pan</strong></td><td>Panorama: Position des Signals im Stereofeld von ganz links bis ganz rechts. Bei Mono-Sprachmikrofonen typischerweise Mitte (Center).</td></tr>
+
+  <tr><td><strong>Parametrischer EQ</strong></td><td>EQ bei dem für jedes Band Frequenz, Güte (Q = Bandbreite) und Pegel frei einstellbar sind. Gegenteil: grafischer EQ mit festen Frequenzbändern.</td></tr>
+
+  <tr><td><strong>Patch / Input Patch</strong></td><td>Die Zuweisung zwischen physischen XLR-Eingängen und internen Kanälen. Beim LS9 vollständig frei konfigurierbar. Ohne korrekten Patch landet das Mikrofonsignal nicht auf dem gewünschten Kanal.</td></tr>
+
+  <tr><td><strong>Phantom Power (+48V)</strong></td><td>Gleichspannung auf dem XLR-Kabel, die Kondensatormikrofone zur Arbeit benötigen. Beim LS9 pro Kanal schaltbar. Dynamische Mikrofone benötigen sie nicht.</td></tr>
+
+  <tr><td><strong>Post-Fader Send</strong></td><td>Ein Send-Pegel der vom Kanal-Fader abhängt: Fader runter = Send auch leiser. Typisch für Effekt-Sends (Hall soll mitatmen).</td></tr>
+
+  <tr><td><strong>Pre-Fader Send</strong></td><td>Ein Send-Pegel der unabhängig vom Kanal-Fader ist: auch wenn der FOH-Fader auf Null steht, bleibt der Monitor-Send gleich. Pflicht für alle Monitoring-Busse.</td></tr>
+
+  <tr><td><strong>Q / Güte</strong></td><td>Beim parametrischen EQ: die Breite des Eingriffs. Hohe Q = schmales Band (chirurgischer Eingriff); niedrige Q = breites Band (sanfter Klangcharakter).</td></tr>
+
+  <tr><td><strong>Range</strong></td><td>Beim Gate: wie stark das Signal gedämpft wird wenn das Gate geschlossen ist, in dB. Range 60 dB = das Signal ist um 60 dB leiser, praktisch unhörbar.</td></tr>
+
+  <tr><td><strong>Ratio</strong></td><td>Beim Kompressor: das Verhältnis zwischen Eingangs- und Ausgangspegeländerung oberhalb des Threshold. 3:1 bedeutet: 3 dB mehr am Eingang = 1 dB mehr am Ausgang. 1:1 = keine Kompression, ∞:1 = Limiter.</td></tr>
+
+  <tr><td><strong>Recall Safe</strong></td><td>Schutzfunktion: markierte Parameter oder Kanäle werden beim Scene-Recall nicht überschrieben. Typisch für HA Gain, der manuell eingestellt wurde und stabil bleiben soll.</td></tr>
+
+  <tr><td><strong>Release</strong></td><td>Beim Kompressor: die Zeit, nach der der Kompressor wieder loslässt nachdem der Pegel unter den Threshold gefallen ist. Zu schnell = Pumpen; zu langsam = der nächste Peak wird nicht komprimiert.</td></tr>
+
+  <tr><td><strong>Scene</strong></td><td>Speicherplatz für den vollständigen Zustand des Pultes: alle Fader, EQ, Dynamics, Routing, Patch-Einstellungen. Bis zu 300 Scenes möglich. Abrufbar per Tastendruck.</td></tr>
+
+  <tr><td><strong>SEL-Taste</strong></td><td>Select – Auswahltaste am Fader. Drücken markiert diesen Kanal als "selected": die Schnellregler (Gain, EQ, Dynamics) rechts vom Display sowie Display-Access-Seiten beziehen sich jetzt auf ihn.</td></tr>
+
+  <tr><td><strong>Send</strong></td><td>Die Verbindung eines Eingangskanals zu einem Bus, mit eigenem Pegelregler. Jeder Kanal hat einen Send zu jedem Bus – unabhängig einstellbar.</td></tr>
+
+  <tr><td><strong>ST IN / Stereo-Eingangskanal</strong></td><td>Stereo-Eingangskanal beim LS9 (4 Stück: ST IN 1–4). Nimmt ein Stereopaar auf, hat gemeinsame EQ-Bearbeitung für beide Seiten. Liegt auf Layer 33–64.</td></tr>
+
+  <tr><td><strong>Stereo-Master</strong></td><td>Der Hauptausgangsbus des Pultes, links/rechts. Geht an die PA. Der große Fader ganz rechts am Pult steuert ihn.</td></tr>
+
+  <tr><td><strong>Threshold</strong></td><td>Schwellwert bei Gate und Kompressor, in dBFS. Beim Gate: unterhalb = Gate schließt. Beim Kompressor: oberhalb = Kompression setzt ein.</td></tr>
+
+  <tr><td><strong>Übersprechen / Crosstalk</strong></td><td>Unerwünschtes Eindringen eines Signals in einen anderen Kanal – z.B. wenn ein offenes Saalmikrofon auch den benachbarten Lautsprecher aufnimmt. Ein Gate hilft, Kanäle zuzuhalten wenn sie nicht benutzt werden.</td></tr>
+
+  <tr><td><strong>XLR</strong></td><td>Standardstecker für symmetrische Audiosignale (3-polig: Masse, Signal+, Signal−). Symmetrisch bedeutet: Störgeräusche auf dem Kabel heben sich am Eingang des Empfängers auf.</td></tr>
+</table>
+
+<hr>
+
+<div style="color: var(--muted); font-size: 12px; text-align: center;">
+  Erstellt mit Claude Sonnet 4.6 · Yamaha LS9-32 Erklärung · 2026
+</div>
+
+</body>
+</html>

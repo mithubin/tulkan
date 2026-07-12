@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Drucken</h1>
+
+<div class="print-layout">
+
+  {# ── Konfiguration ────────────────────────────────────────────────────── #}
+  <div class="print-config-col">
+    <section class="card-box">
+      <h2>PDF &amp; Parameter</h2>
+      <form id="print-form">
+
+        <div class="form-row">
+          <label>PDF</label>
+          <select name="pdf" id="pdf-select" onchange="updatePrintPreview()">
+            {% for pdf in pdfs %}
+            <option value="{{ pdf.filename }}" {% if selected == pdf.filename %}selected{% endif %}>
+              {{ pdf.filename }} ({{ pdf.cards }} Karten)
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Vorlage</label>
+          <button type="button" class="preset-btn" onclick="applyPrintPreset('A4q_3x5')">A4 quer 3×5</button>
+          <button type="button" class="preset-btn" onclick="applyPrintPreset('A4h_2x7')">A4 hoch 2×7</button>
+        </div>
+
+        <div class="form-row">
+          <label>Papierformat</label>
+          <select name="paper" onchange="updatePrintPreview()">
+            {% for fmt in paper_formats %}
+            <option value="{{ fmt }}" {% if fmt == default_paper %}selected{% endif %}>{{ fmt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Spalten</label>
+          <input type="number" name="cols" value="3" min="1" max="6" style="width:60px"
+                 oninput="updatePrintPreview()">
+          <label style="margin-left:20px">Zeilen</label>
+          <input type="number" name="rows" value="5" min="1" max="10" style="width:60px"
+                 oninput="updatePrintPreview()">
+        </div>
+
+        <div class="form-row">
+          <label>Seitenrand (mm)</label>
+          <input type="number" name="margin_mm" value="5" min="0" max="30" step="0.5" style="width:68px"
+                 oninput="updatePrintPreview()">
+        </div>
+
+        <div class="form-row">
+          <label>Kartenabstand (mm)</label>
+          <input type="number" name="spacing" value="1" min="0" max="20" step="0.5" style="width:68px"
+                 oninput="updatePrintPreview()">
+        </div>
+
+        <div class="form-row">
+          <label>Kartenbereich (leer = alle)</label>
+          <input type="number" name="range_start" placeholder="Von" min="1" style="width:70px">
+          <span>–</span>
+          <input type="number" name="range_end" placeholder="Bis" min="1" style="width:70px">
+        </div>
+
+        <div class="form-row">
+          <label>Schnittmarken</label>
+          <input type="checkbox" name="crop_marks">
+        </div>
+
+        <div class="form-row">
+          <button type="button" onclick="buildPrint()">Druck-PDF erzeugen</button>
+          <span id="print-status"></span>
+        </div>
+
+        <div id="print-result" style="display:none; margin-top:10px; padding-top:10px;
+             border-top:1px solid var(--border)">
+          <p id="print-result-text" style="margin-bottom:8px; color:var(--ok); font-size:13px"></p>
+          <a id="print-download" href="#" download
+             style="font-weight:600; font-size:14px">↓ PDF herunterladen</a>
+        </div>
+
+      </form>
+    </section>
+
+    <section class="card-box">
+      <h2>Hinweis Duplex-Druck</h2>
+      <p>
+        Das erzeugte PDF enthält abwechselnd Vorderseiten- und Rückseiten-Blätter.<br>
+        Druckereinstellung: <strong>Duplex, lange Seite wenden</strong>.<br>
+        Dann ausschneiden – die Karten treffen aufeinander.
+      </p>
+    </section>
+  </div>
+
+  {# ── Druckvorschau ────────────────────────────────────────────────────── #}
+  <div class="print-preview-col">
+    <section class="card-box print-preview-sticky">
+      <h2>Druckvorschau</h2>
+      <div id="print-preview-label" class="preview-label">Vorderseiten-Blatt (1. Seite)</div>
+      <img id="print-preview-img" alt="Druckvorschau">
+      <div id="print-preview-err" class="muted" style="font-size:12px; margin-top:6px"></div>
+    </section>
+  </div>
+
+</div>
+{% endblock %}

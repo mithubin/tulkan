@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git &amp; GitHub — Grundlagen &amp; Workflow</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surf:#161b22;--surf2:#1c2128;--border:#30363d;
+  --text:#e6edf3;--muted:#7d8590;--dim:#484f58;
+  --c-git:#f0883e;--c-gh:#bc8cff;--c-nuc:#2ea043;--c-local:#388bfd;
+  --c-err:#f85149;--c-warn:#d29922;--c-ok:#3fb950;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;
+  font-size:15px;line-height:1.7;max-width:980px;margin:0 auto;padding:2rem 1.5rem 5rem}
+h1{font-size:1.75rem;font-weight:700;margin-bottom:.4rem}
+h2{font-size:1.2rem;margin:2.5rem 0 1rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;color:#cdd9e5;font-weight:600}
+h3{font-size:1rem;margin:1.4rem 0 .5rem;color:#adbac7;font-weight:600}
+p{margin-bottom:.85rem;color:#adbac7}
+code{background:var(--surf2);border:1px solid var(--border);padding:0 .4em;
+  border-radius:4px;font-size:.88em;font-family:'Cascadia Code','Fira Code',monospace;color:#f0883e}
+pre{background:var(--surf2);border:1px solid var(--border);border-radius:8px;
+  padding:1rem 1.2rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.87rem;
+  color:#adbac7;overflow-x:auto;margin-bottom:1rem;line-height:1.65}
+pre .c{color:var(--dim);font-style:italic}
+pre .cmd{color:#79c0ff}
+pre .arg{color:#f0883e}
+pre .out{color:#3fb950}
+pre .h{color:#bc8cff}
+em{color:#cdd9e5;font-style:normal;font-weight:500}
+a{color:#79c0ff;text-decoration:none}
+a:hover{text-decoration:underline}
+
+.lead{font-size:1.05rem;color:var(--muted);margin-bottom:2rem}
+.back-link{font-size:.88rem;color:var(--muted);margin-bottom:1.5rem;display:block}
+.back-link:hover{color:var(--text)}
+
+.toc{background:var(--surf);border:1px solid var(--border);border-radius:8px;
+  padding:.8rem 1.2rem;margin-bottom:2rem;font-size:.88rem}
+.toc strong{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.4rem}
+.toc a{color:var(--muted);text-decoration:none;display:inline-block;margin-right:1rem;margin-bottom:.2rem}
+.toc a:hover{color:var(--text)}
+
+.card{background:var(--surf);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem 1.4rem;margin-bottom:1rem}
+.card.warn{border-color:#9e6a03;background:#161208}
+.card.err{border-color:#6e2726;background:#130d0d}
+.card.info{border-color:#1c4b8c;background:#0d1621}
+.card.ok{border-color:#1a5e29;background:#0d1a10}
+
+.hrow{display:flex;gap:.6rem;padding:.5rem .7rem;border-radius:5px;margin-bottom:.4rem;
+  font-size:.88rem;color:#adbac7;align-items:flex-start}
+.hrow .ico{flex-shrink:0;font-size:.95rem;margin-top:.1rem}
+.hrow.ok{background:#0a1f0d;border-left:3px solid #2ea043}
+.hrow.bad{background:#180a0a;border-left:3px solid var(--c-err)}
+.hrow.warn{background:#1a1500;border-left:3px solid var(--c-warn)}
+.hrow.note{background:#0d1621;border-left:3px solid #388bfd}
+
+.tabs{display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap}
+.tab-btn{padding:.45rem 1.1rem;border:1px solid var(--border);background:var(--surf);
+  color:var(--muted);border-radius:6px;cursor:pointer;font-size:.88rem;
+  transition:all .15s;font-family:inherit}
+.tab-btn:hover{color:var(--text);background:var(--surf2)}
+.tab-btn.active{background:var(--surf2);color:var(--text);border-color:#58a6ff}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Drei-Zonen-Diagramm */
+.zones{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;margin:1.2rem 0}
+@media(max-width:620px){.zones{grid-template-columns:1fr}}
+.zone{border-radius:8px;padding:.9rem 1rem;text-align:center}
+.zone.wt{background:#0d1621;border:1.5px solid var(--c-local)}
+.zone.st{background:#161208;border:1.5px solid var(--c-warn)}
+.zone.re{background:#0a1f0d;border:1.5px solid var(--c-nuc)}
+.zone h4{font-size:.88rem;font-weight:700;margin-bottom:.4rem}
+.zone.wt h4{color:var(--c-local)}
+.zone.st h4{color:var(--c-warn)}
+.zone.re h4{color:var(--c-nuc)}
+.zone p{font-size:.82rem;color:var(--muted);margin-bottom:.5rem}
+.zone code{font-size:.78rem}
+
+.arrow-row{display:flex;align-items:center;justify-content:center;gap:.3rem;margin:.5rem 0;font-size:.88rem;color:var(--dim)}
+.arrow-row .cmd-pill{background:var(--surf2);border:1px solid var(--border);border-radius:4px;
+  padding:.1rem .5rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.8rem;color:#79c0ff}
+.arrow-row .arr{color:#484f58;font-size:1.1rem}
+
+/* Remotes-Diagramm */
+.remotes{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
+@media(max-width:620px){.remotes{grid-template-columns:1fr}}
+.remote-box{border-radius:8px;padding:1rem 1.1rem;border:1.5px solid var(--border)}
+.remote-box.gh{border-color:var(--c-gh);background:#130d1f}
+.remote-box.nuc{border-color:var(--c-nuc);background:#0a1a0d}
+.remote-box h4{font-weight:700;font-size:.9rem;margin-bottom:.5rem}
+.remote-box.gh h4{color:var(--c-gh)}
+.remote-box.nuc h4{color:var(--c-nuc)}
+.remote-box ul{padding-left:1.2rem;color:#adbac7;font-size:.87rem}
+.remote-box li{margin-bottom:.3rem}
+
+.cmd-table{width:100%;border-collapse:collapse;font-size:.88rem;margin:.8rem 0 1rem}
+.cmd-table th,.cmd-table td{padding:.5rem .8rem;border:1px solid var(--border);text-align:left;vertical-align:top}
+.cmd-table th{background:var(--surf2);color:#adbac7;font-weight:600}
+.cmd-table tr:hover td{background:var(--surf2)}
+.cmd-table td:first-child{font-family:'Cascadia Code','Fira Code',monospace;font-size:.85rem;color:#79c0ff;white-space:nowrap}
+
+.see-also{font-size:.85rem;color:var(--muted);margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border)}
+.see-also a{margin-right:1rem}
+</style>
+</head>
+<body>
+
+<a class="back-link" href="index_it-wissen.html">← Übersicht</a>
+
+<h1>Git &amp; GitHub</h1>
+<p class="lead">Wie Versionskontrolle hier tatsächlich funktioniert — drei Zonen, zwei Remotes, ein Deployment-Hook.</p>
+
+<nav class="toc">
+  <strong>Inhalt</strong>
+  <a href="#s-warum">1. Wozu das alles</a>
+  <a href="#s-zonen">2. Die drei Zonen</a>
+  <a href="#s-basics">3. Kernbefehle</a>
+  <a href="#s-remotes">4. Lokal vs. GitHub vs. NUC</a>
+  <a href="#s-workflow">5. Workflow hier</a>
+  <a href="#s-hook">6. post-receive-Hook</a>
+  <a href="#s-mistakes">7. Häufige Fallen</a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="s-warum">
+<h2>1. Wozu das alles</h2>
+
+<p>Git ist kein Backup-System — obwohl es wie eines wirkt. Es ist eine Datenbank von <em>Absichten</em>: was geändert wurde, warum, in welcher Reihenfolge. Das Wichtigste daran ist nicht die Wiederherstellung, sondern dass mehrere Zustände eines Projekts gleichzeitig existieren können (Branches), und dass die Geschichte nicht verloren geht.</p>
+
+<p>Für dieses Setup kommt dazu: <em>Git ist der Deploy-Mechanismus.</em> Ein <code>git push nuc master</code> löst vollautomatisch einen Container-Rebuild auf dem NUC aus. Keine SSH-Session, kein manuelles Kopieren.</p>
+
+<div class="card info">
+  <strong>Grundregel:</strong> Änderungen an <code>tools_nuc/</code> werden <em>nie</em> manuell auf den NUC kopiert — immer über <code>git push nuc master</code>. Manuelle Kopien ohne Push führen dazu, dass der nächste Push die Änderungen wieder überschreibt.
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="s-zonen">
+<h2>2. Die drei Zonen</h2>
+
+<p>Jede Datei in einem Git-Projekt lebt in einer von drei Zonen. Der größte Verständnissprung passiert, wenn man diese Zonen aufgehört hat zu verwechseln.</p>
+
+<div class="zones">
+  <div class="zone wt">
+    <h4>Working Tree</h4>
+    <p>Die Dateien wie du sie siehst — dein Editor, der Dateibrowser. Hier passieren alle Änderungen.</p>
+    <code>ls / vim / gedit</code>
+  </div>
+  <div class="zone st">
+    <h4>Staging (Index)</h4>
+    <p>Eine Vorschau des nächsten Commits. Nur was hier drin ist, kommt in den Commit.</p>
+    <code>git add datei.py</code>
+  </div>
+  <div class="zone re">
+    <h4>Repository</h4>
+    <p>Die unveränderliche Geschichte. Jeder Commit ist ein fester Punkt mit Hash.</p>
+    <code>.git/ intern</code>
+  </div>
+</div>
+
+<div class="arrow-row">
+  <span>Working Tree</span>
+  <span class="arr">→</span>
+  <span class="cmd-pill">git add</span>
+  <span class="arr">→</span>
+  <span>Staging</span>
+  <span class="arr">→</span>
+  <span class="cmd-pill">git commit</span>
+  <span class="arr">→</span>
+  <span>Repository</span>
+</div>
+
+<p>Umgekehrt — um zu sehen was sich wo befindet:</p>
+
+<pre><span class="cmd">git status</span>          <span class="c"># zeigt: unstaged (rot) + staged (grün)</span>
+<span class="cmd">git diff</span>            <span class="c"># Working Tree vs. Staging</span>
+<span class="cmd">git diff --staged</span>   <span class="c"># Staging vs. letztem Commit</span>
+<span class="cmd">git log --oneline</span>   <span class="c"># alle Commits, kurz</span></pre>
+
+<div class="hrow note">
+  <span class="ico">💡</span>
+  <span><code>git add -A</code> oder <code>git add .</code> nimmt <em>alle</em> geänderten/neuen Dateien — aufpassen, keine Secrets (<code>.env</code>, Passwörter) dabei. Lieber einzeln: <code>git add datei.py template.html</code>.</span>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="s-basics">
+<h2>3. Kernbefehle</h2>
+
+<table class="cmd-table">
+  <thead><tr><th>Befehl</th><th>Was er tut</th></tr></thead>
+  <tbody>
+    <tr><td>git init</td><td>Neues lokales Repository anlegen (erzeugt <code>.git/</code>)</td></tr>
+    <tr><td>git clone &lt;url&gt;</td><td>Repo von einem Remote kopieren (alle History dabei)</td></tr>
+    <tr><td>git status</td><td>Welche Dateien sind geändert / staged / untracked?</td></tr>
+    <tr><td>git add &lt;datei&gt;</td><td>Datei in Staging aufnehmen</td></tr>
+    <tr><td>git commit -m "..."</td><td>Staged-Inhalt als Commit speichern</td></tr>
+    <tr><td>git log --oneline</td><td>Commit-Geschichte kurz anzeigen</td></tr>
+    <tr><td>git diff</td><td>Was hat sich geändert (nicht-staged vs. zuletzt committed)</td></tr>
+    <tr><td>git push &lt;remote&gt; &lt;branch&gt;</td><td>Commits zu einem Remote schicken</td></tr>
+    <tr><td>git pull</td><td>Commits vom Remote holen und mergen</td></tr>
+    <tr><td>git branch</td><td>Branches auflisten; <code>-b name</code> erstellt einen neuen</td></tr>
+    <tr><td>git checkout &lt;branch&gt;</td><td>Branch wechseln (oder: <code>git switch</code>)</td></tr>
+    <tr><td>git remote -v</td><td>Welche Remotes sind konfiguriert?</td></tr>
+  </tbody>
+</table>
+
+<h3>Was ein Commit wirklich ist</h3>
+<p>Ein Commit ist kein "gespeicherter Zustand" — es ist ein <em>Diff plus Metadaten</em> plus ein Zeiger auf den Vorgänger. Git speichert also nicht N Kopien, sondern eine Kette von Änderungen. Jeder Commit hat einen Hash (SHA-1, 40 Zeichen), der eindeutig aus seinem Inhalt berechnet wird.</p>
+
+<pre><span class="h">commit eaee155a3b</span>
+Author: Milan
+Date:   2026-06-20
+
+    CLAUDE.md: Panel-Header-Standard dokumentiert</pre>
+
+<p>Der Hash <code>eaee155</code> (gekürzte Form reicht meistens) ist der "Name" dieses Commits. Mit ihm kann man immer auf diesen exakten Zustand zurückspringen: <code>git checkout eaee155</code>.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="s-remotes">
+<h2>4. Lokal vs. GitHub vs. NUC</h2>
+
+<p>Ein lokales Repository kann beliebig viele Remotes kennen — einfach benannte Adressen für andere Repos. Hier gibt es zwei:</p>
+
+<div class="remotes">
+  <div class="remote-box gh">
+    <h4>origin → GitHub</h4>
+    <ul>
+      <li>Klassisches Remote auf github.com</li>
+      <li>Dient als Backup / öffentliche Spiegelung</li>
+      <li>Pull Requests, Issues, Code-Review laufen hier</li>
+      <li>kein Deploy-Hook — Push nur archiviert Code</li>
+      <li><code>git push origin master</code></li>
+    </ul>
+  </div>
+  <div class="remote-box nuc">
+    <h4>nuc → NUC-Server</h4>
+    <ul>
+      <li>Bare-Repository auf dem NUC: <code>~/tul.git</code></li>
+      <li>Hat einen <strong>post-receive-Hook</strong></li>
+      <li>Push löst sofort vollständigen Deploy aus</li>
+      <li>Kein Web-Interface, nur Git-Protokoll (SSH)</li>
+      <li><code>git push nuc master</code></li>
+    </ul>
+  </div>
+</div>
+
+<div class="tabs" id="remote-tabs">
+  <button class="tab-btn active" data-tab="was-ist-bare">Bare-Repository</button>
+  <button class="tab-btn" data-tab="was-ist-gh">GitHub-Repo</button>
+  <button class="tab-btn" data-tab="remote-einrichten">Remote einrichten</button>
+</div>
+
+<div class="tab-panel active" id="tab-was-ist-bare">
+  <p>Ein <em>Bare-Repository</em> hat keinen Working Tree — nur die <code>.git/</code>-Inhalte, direkt im Verzeichnis. Es dient als Empfänger für Pushes. Man arbeitet nicht darin, man schickt Commits hinein.</p>
+  <pre><span class="c"># Auf dem NUC: ~/tul.git/
+# Enthält: HEAD, config, objects/, refs/ — aber keine Arbeitsdateien</span>
+<span class="cmd">git init --bare ~/tul.git</span>   <span class="c"># so wurde es angelegt</span></pre>
+  <p>Das eigentliche Checkout (Working Tree) liegt dann woanders — in <code>~/tul/tools_nuc/</code>. Der post-receive-Hook macht dieses Checkout nach jedem Push.</p>
+</div>
+
+<div class="tab-panel" id="tab-was-ist-gh">
+  <p>Ein GitHub-Repository ist im Kern auch ein Bare-Repository, gehostet auf github.com-Servern. Dazu kommen Web-Interface, Issues, Actions, Pull Requests. Git selbst "kennt" das alles nicht — das ist alles GitHub-Schicht obendrauf.</p>
+  <pre><span class="c"># Verbindung prüfen:</span>
+<span class="cmd">git remote -v</span>
+<span class="out">origin  git@github.com:milan/mkan.git (fetch)
+origin  git@github.com:milan/mkan.git (push)
+nuc     user@yourserver:tul.git (fetch)
+nuc     user@yourserver:tul.git (push)</span></pre>
+</div>
+
+<div class="tab-panel" id="tab-remote-einrichten">
+  <pre><span class="c"># Remote hinzufügen</span>
+<span class="cmd">git remote add nuc</span> <span class="arg">user@yourserver:tul.git</span>
+
+<span class="c"># Ersten Push (Branch-Tracking setzen)</span>
+<span class="cmd">git push -u nuc master</span>
+
+<span class="c"># Danach reicht:</span>
+<span class="cmd">git push nuc master</span>
+
+<span class="c"># Remote umbenennen oder entfernen</span>
+<span class="cmd">git remote rename</span> <span class="arg">old new</span>
+<span class="cmd">git remote remove</span> <span class="arg">nuc</span></pre>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="s-workflow">
+<h2>5. Der Workflow hier</h2>
+
+<p>Für <code>tools_nuc/</code> (tul.yourdomain.example) ist der komplette Ablauf:</p>
+
+<pre><span class="c"># 1. Dateien bearbeiten (in tools_nuc/)</span>
+<span class="c"># 2. Was hat sich geändert?</span>
+<span class="cmd">git status</span>
+<span class="cmd">git diff</span>
+
+<span class="c"># 3. Relevante Dateien stagen</span>
+<span class="cmd">git add</span> <span class="arg">tools_nuc/nach/panel.html tools_nuc/static/tul-files.js</span>
+
+<span class="c"># 4. Commit</span>
+<span class="cmd">git commit -m</span> <span class="arg">"nach: Umbenennen-Feature + DV-Refresh"</span>
+
+<span class="c"># 5. Deploy — startet vollautomatisch</span>
+<span class="cmd">git push nuc master</span>
+
+<span class="c"># Optional: auch auf GitHub sichern</span>
+<span class="cmd">git push origin master</span></pre>
+
+<div class="card ok">
+  <strong>Nach dem Push:</strong> Der NUC-Hook checkt den Code aus, baut alle geänderten Container neu (<code>--build</code>) und startet sie. In ca. 30–60 Sekunden ist die Änderung live auf tul.yourdomain.example.
+</div>
+
+<h3>Branches hier</h3>
+<p>Für tools_nuc wird direkt auf <code>master</code> gearbeitet — kein Branch-Overhead für ein Einzelnutzer-Setup. Bei mkan (GitHub-Projekt mit mehr Komplexität) gibt es Feature-Branches und Pull Requests.</p>
+
+<pre><span class="c"># Feature-Branch (für experimentelle Sachen)</span>
+<span class="cmd">git checkout -b</span> <span class="arg">feature/neues-modul</span>
+<span class="c"># ... arbeiten ...</span>
+<span class="cmd">git checkout master</span>
+<span class="cmd">git merge</span> <span class="arg">feature/neues-modul</span>
+<span class="cmd">git branch -d</span> <span class="arg">feature/neues-modul</span></pre>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="s-hook">
+<h2>6. Der post-receive-Hook</h2>
+
+<p>Auf dem NUC liegt in <code>~/tul.git/hooks/post-receive</code> ein Shell-Skript, das nach jedem empfangenen Push automatisch ausgeführt wird. Das ist der Kern des Deploy-Mechanismus.</p>
+
+<pre><span class="c">#!/bin/bash
+# ~/tul.git/hooks/post-receive</span>
+
+<span class="c"># Commits in den Work Tree auschecken</span>
+<span class="cmd">GIT_WORK_TREE=</span><span class="arg">~/tul/tools_nuc</span> <span class="cmd">git checkout -f</span>
+
+<span class="c"># Deploy-Skript ausführen</span>
+<span class="cmd">cd ~/tul &amp;&amp; bash deploy-tul.sh</span></pre>
+
+<p><code>deploy-tul.sh</code> macht dann:</p>
+
+<div class="hrow ok"><span class="ico">1.</span><span>nginx-Config zusammenbauen: <code>nginx.conf.base</code> + <code>tools_nuc/nginx_tul.conf</code> + schließende Klammer → <code>nexcloc/nginx.conf</code></span></div>
+<div class="hrow ok"><span class="ico">2.</span><span>nginx-Container neu laden (<code>nginx -s reload</code>)</span></div>
+<div class="hrow ok"><span class="ico">3.</span><span><code>docker compose up -d --build</code> — baut nur geänderte Container neu, startet alle</span></div>
+
+<div class="card info">
+  <strong>nginx.conf.base-Mechanismus:</strong> Beim ersten Lauf von deploy-tul.sh wird alles, was in <code>nexcloc/nginx.conf</code> über dem Marker <code># ── tul.yourdomain.example</code> steht, als <code>nginx.conf.base</code> gespeichert. Danach wird bei jedem Deploy aus <code>base + nginx_tul.conf + "}"</code> eine neue <code>nginx.conf</code> gebaut. So koexistieren tul mit anderen nginx-Diensten auf dem NUC.
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="s-mistakes">
+<h2>7. Häufige Fallen</h2>
+
+<div class="hrow bad">
+  <span class="ico">✗</span>
+  <span><strong>Dateien per SCP deployed, dann git push gemacht:</strong> Der Hook checkt den Repo-Stand aus — überschreibt dabei alles im Work Tree, also auch die SCP-Änderungen die nicht im Repo waren. Fix: immer erst committen, dann pushen.</span>
+</div>
+
+<div class="hrow bad">
+  <span class="ico">✗</span>
+  <span><strong><code>git add -A</code> ohne hinzuschauen:</strong> Nimmt auch <code>.env</code>, temporäre Debug-Dateien, binäre Daten. Dann sind Secrets im Repository — und git vergisst nichts. Fix: erst <code>git status</code>, dann selektiv adden.</span>
+</div>
+
+<div class="hrow bad">
+  <span class="ico">✗</span>
+  <span><strong><code>git commit --amend</code> nach Push:</strong> Verändert einen bereits gepushten Commit — die Hashes divergieren, ein Force-Push wird nötig. Besser: Fehler im nächsten Commit korrigieren.</span>
+</div>
+
+<div class="hrow warn">
+  <span class="ico">⚠</span>
+  <span><strong>Merge-Konflikte:</strong> Entstehen wenn zwei Commits dieselbe Stelle einer Datei unterschiedlich ändern. Git markiert die Konfliktstellen in der Datei mit <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> / <code>=======</code> / <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>. Manuell auflösen, dann <code>git add</code> + <code>git commit</code>.</span>
+</div>
+
+<div class="hrow note">
+  <span class="ico">💡</span>
+  <span><strong><code>.gitignore</code>:</strong> Dateien die nie ins Repo sollen (Caches, Secrets, Build-Artefakte) in <code>.gitignore</code> eintragen. Wird von <code>git add -A</code> respektiert. Bereits getrackte Dateien werden davon nicht berührt — zuerst <code>git rm --cached datei</code>.</span>
+</div>
+
+<div class="hrow note">
+  <span class="ico">💡</span>
+  <span><strong>Rückgängig machen:</strong> Letzte Änderungen (nicht-staged): <code>git restore datei.py</code>. Staged zurückziehen: <code>git restore --staged datei.py</code>. Letzten Commit rückgängig (lokal, nicht gepusht): <code>git reset HEAD~1</code>. Nie <code>git reset --hard</code> ohne vorherige Überlegung.</span>
+</div>
+</section>
+
+<div class="see-also">
+  Siehe auch:
+  <a href="docker_grundlagen.html">Docker-Grundlagen</a>
+  <a href="mkan-architektur.html">mkan-Architektur</a>
+  <a href="index_it-wissen.html">Übersicht</a>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(tabs => {
+  tabs.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.tab;
+      const parent = tabs.parentElement;
+      tabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      parent.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      const panel = parent.querySelector('#tab-' + id);
+      if (panel) panel.classList.add('active');
+    });
+  });
+});
+</script>
+</body>
+</html>

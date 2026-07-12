@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+lern/_tech/panel_theme.json
+*.ods
+.claude/

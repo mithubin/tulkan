@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+RUN pip install --no-cache-dir flask PyJWT bcrypt
+WORKDIR /app
+COPY tools_nuc/tul_auth/ tul_auth/
+COPY tools_nuc/tul_hub/hub_server.py .
+COPY tools_nuc/tul_hub/hub.html .
+COPY tools_nuc/tul_hub/dv_admin.html .
+COPY tools_nuc/static/ static/
+ENV DOCKER=1
+ENV PORT=5000
+EXPOSE 5000
+CMD ["python3", "hub_server.py"]

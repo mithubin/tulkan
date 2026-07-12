@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+RUN pip install --no-cache-dir flask pymupdf pillow PyJWT bcrypt
+
+WORKDIR /app
+
+COPY tools_nuc/tul_auth/ tul_auth/
+COPY tools_nuc/lern/panel_server.py .
+COPY tools_nuc/lern/_tech/ _tech/
+
+ENV DOCKER=1
+ENV SUBPATH=/lern
+ENV PORT=5007
+ENV DATA_DIR=/data
+
+EXPOSE 5007
+
+CMD ["python3", "panel_server.py", "--no-browser", "--port", "5007"]

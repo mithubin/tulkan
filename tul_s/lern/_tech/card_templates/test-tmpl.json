@@ -1,0 +1,138 @@
+{
+  "card_width_pt": 510.24,
+  "card_height_pt": 226.77,
+  "front": {
+    "bg_image": "regex.png",
+    "topic_field": {
+      "x": 8,
+      "y": 49,
+      "w": 151,
+      "h": 136,
+      "size": 22.5,
+      "font": "helv",
+      "font_path": "/path/to/lernkarten_panel/fonts/FrederickatheGreat-Regular.ttf",
+      "color": [
+        1,
+        1,
+        1
+      ],
+      "align": 1,
+      "rotate": 90,
+      "shadow_offset": [
+        0,
+        0
+      ],
+      "shadow_color": [
+        0,
+        0,
+        0
+      ]
+    },
+    "main_field": {
+      "x": 58,
+      "y": 52,
+      "w": 456,
+      "h": 140,
+      "size": 30,
+      "font": "helv",
+      "font_path": "/path/to/lernkarten_panel/fonts/a song for jennifer.ttf",
+      "color": [
+        1,
+        1,
+        1
+      ],
+      "align": 1,
+      "rotate": 0,
+      "shadow_offset": [
+        1.5,
+        1.5
+      ],
+      "shadow_color": [
+        0,
+        0,
+        0
+      ]
+    },
+    "sub_field": null,
+    "level_field": {
+      "x": 8,
+      "y": 210,
+      "w": 120,
+      "h": 10,
+      "font": "helv",
+      "font_path": "",
+      "size": 4,
+      "color": [
+        0.9,
+        0.9,
+        0.9
+      ],
+      "align": 0,
+      "rotate": 0,
+      "shadow_offset": [
+        0,
+        0
+      ],
+      "shadow_color": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "back": {
+    "bg_image": "regex2.png",
+    "topic_field": null,
+    "main_field": {
+      "x": 18,
+      "y": 43,
+      "w": 478,
+      "h": 130,
+      "size": 21.5,
+      "font": "helv",
+      "font_path": "/path/to/lernkarten_panel/fonts/a song for jennifer.ttf",
+      "color": [
+        1,
+        1,
+        1
+      ],
+      "align": 1,
+      "rotate": 0,
+      "shadow_offset": [
+        1.5,
+        1.5
+      ],
+      "shadow_color": [
+        0,
+        0,
+        0
+      ]
+    },
+    "sub_field": {
+      "x": 18,
+      "y": 169,
+      "w": 478,
+      "h": 40,
+      "size": 10,
+      "font": "helv",
+      "font_path": "/path/to/lernkarten_panel/fonts/a song for jennifer.ttf",
+      "color": [
+        1,
+        0.7450980392156863,
+        0.43529411764705883
+      ],
+      "align": 1,
+      "rotate": 0,
+      "shadow_offset": [
+        1,
+        1
+      ],
+      "shadow_color": [
+        0.3686274509803922,
+        0.3607843137254902,
+        0.39215686274509803
+      ]
+    },
+    "level_field": null
+  }
+}

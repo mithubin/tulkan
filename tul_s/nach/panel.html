@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nachschlagen</title>
+<link rel="stylesheet" href="/static/tul-theme.css">
+<style>
+:root {
+  --bg:     #141820;
+  --bg2:    #1e2230;
+  --bg3:    #262a3c;
+  --acc:    #8080c0;
+  --acc2:   #9898d0;
+  --blur:   0px;
+  --border:  #32365a;
+  --text:    #ccd0e8;
+  --muted:   #5a5e80;
+  --ok:      #a6e3a1;
+  --warn:    #f9e2af;
+  --err:     #f38ba8;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: system-ui, sans-serif; font-size: 14px;
+  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+}
+
+header {
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 6px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+header h1 {
+  font-size: 13px; font-weight: 600; flex: 1; text-align: center;
+  outline: none; border-radius: 3px;
+}
+header h1[contenteditable]:focus { outline: 1px solid var(--acc); padding: 1px 6px; }
+
+.nach-body {
+  flex: 1; overflow-y: auto; padding: 16px 20px 40px;
+}
+.nach-body::-webkit-scrollbar       { width: 5px; }
+.nach-body::-webkit-scrollbar-track { background: transparent; }
+.nach-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.count { font-size: 12px; color: var(--muted); }
+
+/* ── Kachel-Grid: 260px Spalten, max 6, zentriert ── */
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  max-width: calc(6 * 260px + 5 * 10px);
+  margin: 0 auto;
+}
+
+/* ── Basis-Tile ── */
+.tile {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px 9px;
+  display: flex; flex-direction: column; gap: 5px;
+  height: 130px; min-height: 130px;
+  transition: border-color .15s, background .12s;
+  position: relative; user-select: none;
+}
+.tile:hover          { border-color: var(--acc); }
+.tile.dragging       { opacity: .3; }
+.tile.drag-over      { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 7%, var(--bg2)); }
+
+/* ── Ghost-Tile (Leerslot) ── */
+.tile-ghost {
+  background: transparent; border: 2px dashed var(--border); cursor: default;
+}
+.tile-ghost:hover { border-color: color-mix(in srgb, var(--acc) 50%, var(--border)); }
+.tile-ghost.drag-over { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 8%, transparent); }
+.ghost-rm {
+  position: absolute; top: 4px; right: 6px;
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 1rem; line-height: 1; padding: 2px;
+}
+.ghost-rm:hover { color: var(--err); }
+
+/* ── Upload-Drop-Zone (erstes Tile) ── */
+.tile-drop {
+  background: transparent; border: 2px dashed var(--border);
+  align-items: center; justify-content: center;
+  cursor: pointer; gap: 4px;
+}
+.tile-drop:hover,
+.tile-drop.drag-over {
+  border-color: var(--acc);
+  background: color-mix(in srgb, var(--acc) 5%, transparent);
+}
+.drop-icon { font-size: 22px; }
+.drop-text { font-size: 12px; color: var(--muted); }
+.tile-drop small { font-size: 10px; color: var(--muted); opacity: .65; }
+
+/* ── Add-Slot-Button ── */
+.tile-add {
+  background: transparent;
+  border: 2px dashed color-mix(in srgb, var(--border) 50%, transparent);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  opacity: .5; font-size: 1.4rem; color: var(--muted);
+}
+.tile-add:hover { opacity: 1; border-color: var(--acc); color: var(--acc); }
+
+/* ── Tile-Inhalt ── */
+.tile-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.tile-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 7px;
+  border-radius: 8px; letter-spacing: .4px; text-transform: uppercase; flex-shrink: 0;
+}
+.badge-single { background: color-mix(in srgb, var(--acc) 18%, transparent); color: var(--acc); }
+.badge-set    { background: color-mix(in srgb, #66ccaa 15%, transparent); color: #66ccaa; }
+.tile-pages { font-size: 10px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+.tile-title {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  line-height: 1.35; word-break: break-word; flex: 1; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+}
+.tile-title-inp {
+  background: var(--bg); border: 1px solid var(--acc); border-radius: 4px;
+  color: var(--text); font-size: 13px; font-weight: 600;
+  padding: 2px 7px; width: 100%; outline: none; box-sizing: border-box;
+  font-family: inherit;
+}
+
+.tile-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-open {
+  flex: 1; padding: 5px 0; background: var(--acc); color: #fff;
+  border: none; border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: 600;
+  text-align: center; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: filter .15s;
+}
+.btn-open:hover { filter: brightness(1.12); }
+.btn-icon {
+  padding: 4px 8px; background: transparent;
+  border: 1px solid var(--border); color: var(--muted);
+  border-radius: 5px; cursor: pointer; font-size: 12px;
+  transition: color .12s, border-color .12s;
+}
+.btn-icon:hover     { color: var(--text); border-color: var(--muted); }
+.btn-icon.del:hover { color: var(--err); border-color: var(--err); }
+.btn-icon.ok        { color: var(--ok); border-color: var(--ok); }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 18px; font-size: 13px; color: var(--text);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s; z-index: 1000;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.err  { border-color: var(--err); color: var(--err); }
+</style>
+</head>
+<body>
+
+<script>
+const _B = window._B||'';
+</script>
+
+<header>
+  <div class="hdr-left">
+    <a href="/" class="hdr-btn" style="text-decoration:none" title="Zurück zum Panel-Hub">← Panel</a>
+  </div>
+  <h1 id="panel-title" contenteditable="true" spellcheck="false" title="Klicken zum Umbenennen">Nachschlagen</h1>
+</header>
+
+<div class="nach-body">
+  <div class="toolbar">
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="tile-grid" id="tile-grid">
+    <div class="tile tile-drop" id="upload-zone"
+         onclick="document.getElementById('file-input').click()">
+      <div class="drop-icon">📄</div>
+      <div class="drop-text">HTML oder ZIP hochladen</div>
+      <small>.html · .htm · .zip</small>
+      <input type="file" id="file-input" accept=".html,.htm,.zip" multiple style="display:none">
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/tul-theme.js"></script>
+<script>
+window.TUL_HELP = {
+  title: 'nach – HTML-Hoster',
+  sections: [
+    {
+      heading: 'Dateien hochladen',
+      items: [
+        'Einzelne <strong>.html</strong>- oder <strong>.htm</strong>-Datei per Drag & Drop auf das Upload-Feld ziehen.',
+        '<strong>.zip</strong>-Archiv mit mehrseitigen Sets hochladen (index.html als Startseite).',
+        'Mehrere Dateien gleichzeitig wählbar.',
+      ]
+    },
+    {
+      heading: 'Kacheln verwalten',
+      items: [
+        'Jede Datei erscheint als Kachel im Raster — per Klick direkt im Browser öffnen.',
+        'Reihenfolge per Drag & Drop ändern.',
+        'Kacheln umbenennen: Titel-Text anklicken.',
+        'Kachel löschen: ✕-Button an der Kachel.',
+        'Leerplätze (Platzhalter) können per Klick auf das +-Feld eingefügt werden.',
+      ]
+    },
+    {
+      heading: 'Hinweise',
+      warn: 'nach hat kein DV-Modal. Dateien werden direkt hochgeladen und sind danach unter tul.yourdomain.example/nach/<name> erreichbar.'
+    },
+  ]
+};
+tulTheme.init({ subpath: _B, preset: tulTheme.PRESETS.nach });
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let _items    = {};   // name → item object
+let _order    = [];   // Array<string|null> — item names or null (Leerslot)
+let _names    = {};   // name → Display-Override (wie Hub, überlebt loadList)
+let _dragIdx  = null;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function toast(msg, isErr = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'toast', 2800);
+}
+function fmtSize(b) {
+  if (b < 1024)    return b + ' B';
+  if (b < 1048576) return Math.round(b / 1024) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+// ── Prefs ─────────────────────────────────────────────────────────────────────
+function _postPrefs() {
+  fetch(_B + '/prefs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      order: _order,
+      names: _names,
+      title: document.getElementById('panel-title').textContent.trim(),
+    }),
+  }).catch(() => {});
+}
+
+// ── Paneltitel ────────────────────────────────────────────────────────────────
+const _titleEl = document.getElementById('panel-title');
+_titleEl.addEventListener('blur', () => {
+  const v = _titleEl.textContent.trim() || 'Nachschlagen';
+  _titleEl.textContent = v;
+  document.title = v;
+  _postPrefs();
+});
+_titleEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter')  { e.preventDefault(); _titleEl.blur(); }
+  if (e.key === 'Escape') { _titleEl.textContent = document.title; _titleEl.blur(); }
+});
+
+// ── Laden ─────────────────────────────────────────────────────────────────────
+async function loadList() {
+  const [itemsRes, prefsRes] = await Promise.all([
+    fetch(_B + '/api/list'),
+    fetch(_B + '/prefs').catch(() => ({ ok: false })),
+  ]);
+
+  const rawItems = await itemsRes.json();
+  _items = Object.fromEntries(rawItems.map(i => [i.name, i]));
+
+  let savedOrder = [], savedNames = {}, savedTitle = '';
+  if (prefsRes.ok) {
+    try {
+      const p = await prefsRes.json();
+      if (Array.isArray(p.order))                   savedOrder = p.order;
+      if (p.names && typeof p.names === 'object')   savedNames = p.names;
+      if (p.title)                                  savedTitle = p.title;
+    } catch {}
+  }
+
+  _names = savedNames;
+
+  if (savedOrder.length) {
+    // Leerslots behalten; entfernte Items rausfiltern; neue Items anhängen
+    const kept      = savedOrder.filter(n => n === null || n in _items);
+    const usedNames = new Set(savedOrder.filter(Boolean));
+    const newNames  = rawItems.filter(i => !usedNames.has(i.name)).map(i => i.name);
+    _order = [...kept, ...newNames];
+  } else {
+    _order = rawItems.map(i => i.name);
+  }
+
+  if (savedTitle) {
+    _titleEl.textContent = savedTitle;
+    document.title = savedTitle;
+  }
+
+  renderGrid();
+}
+
+// ── Rendern ───────────────────────────────────────────────────────────────────
+function renderGrid() {
+  const grid    = document.getElementById('tile-grid');
+  const dropZone = document.getElementById('upload-zone');
+  Array.from(grid.children).forEach(el => { if (el !== dropZone) el.remove(); });
+
+  const realCount = _order.filter(Boolean).length;
+  document.getElementById('count').textContent =
+    realCount ? realCount + (realCount === 1 ? ' Eintrag' : ' Einträge') : '';
+
+  _order.forEach((name, idx) => {
+    if (name === null) {
+      grid.appendChild(_buildGhost(idx));
+    } else if (name in _items) {
+      grid.appendChild(_buildTile(_items[name], idx));
+    }
+  });
+
+  // "+" Leerslot einfügen
+  const addBtn = document.createElement('div');
+  addBtn.className = 'tile tile-add';
+  addBtn.title = 'Leerslot einfügen';
+  addBtn.textContent = '+';
+  addBtn.addEventListener('click', () => { _order.push(null); _postPrefs(); renderGrid(); });
+  grid.appendChild(addBtn);
+}
+
+// ── Ghost-Tile ────────────────────────────────────────────────────────────────
+function _buildGhost(idx) {
+  const el = document.createElement('div');
+  el.className = 'tile tile-ghost';
+  el.innerHTML = `<button class="ghost-rm" title="Slot entfernen">×</button>`;
+  el.querySelector('.ghost-rm').addEventListener('click', () => {
+    _order.splice(idx, 1); _postPrefs(); renderGrid();
+  });
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', e => _dropOn(e, el, idx));
+  return el;
+}
+
+// ── Datei-Tile ────────────────────────────────────────────────────────────────
+function _buildTile(item, idx) {
+  const tile = document.createElement('div');
+  tile.className = 'tile';
+  tile.draggable = true;
+
+  const meta  = document.createElement('div'); meta.className = 'tile-meta';
+  const badge = document.createElement('span');
+  badge.className = 'tile-badge ' + (item.type === 'set' ? 'badge-set' : 'badge-single');
+  badge.textContent = item.type === 'set' ? 'Set' : 'Single';
+  const pages = document.createElement('span'); pages.className = 'tile-pages';
+  pages.textContent = item.type === 'set'
+    ? item.page_count + ' S. · ' + fmtSize(item.size)
+    : fmtSize(item.size);
+  meta.append(badge, pages);
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'tile-title';
+  titleEl.textContent = _names[item.name] || item.title;
+  titleEl.title = 'Doppelklick zum Umbenennen';
+  titleEl.addEventListener('dblclick', e => { e.preventDefault(); _startRename(tile, titleEl, item); });
+
+  const actions = document.createElement('div'); actions.className = 'tile-actions';
+  const openBtn = document.createElement('a');
+  openBtn.className = 'btn-open'; openBtn.href = _B + '/files/' + item.entry;
+  openBtn.target = '_blank'; openBtn.textContent = 'Öffnen →';
+  openBtn.addEventListener('click', e => e.stopPropagation());
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn-icon del'; delBtn.title = 'Löschen'; delBtn.textContent = '✕';
+  delBtn.onclick = () => _deleteItem(item);
+  actions.append(openBtn, delBtn);
+
+  tile.append(meta, titleEl, actions);
+
+  tile.addEventListener('dragstart', e => {
+    _dragIdx = idx; tile.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move';
+  });
+  tile.addEventListener('dragend', () => {
+    _dragIdx = null; tile.classList.remove('dragging');
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  });
+  tile.addEventListener('dragover', e => {
+    if (_dragIdx !== null && _dragIdx !== idx) { e.preventDefault(); tile.classList.add('drag-over'); }
+  });
+  tile.addEventListener('dragleave', () => tile.classList.remove('drag-over'));
+  tile.addEventListener('drop', e => _dropOn(e, tile, idx));
+
+  return tile;
+}
+
+function _dropOn(e, el, toIdx) {
+  e.preventDefault(); el.classList.remove('drag-over');
+  if (_dragIdx === null || _dragIdx === toIdx) return;
+  [_order[_dragIdx], _order[toIdx]] = [_order[toIdx], _order[_dragIdx]];
+  _dragIdx = null; _postPrefs(); renderGrid();
+}
+
+// ── Drop-Zone (Datei-Upload per Drag) ────────────────────────────────────────
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => {
+  if (_dragIdx !== null) return;
+  e.preventDefault(); zone.classList.add('drag-over');
+});
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', async e => {
+  if (_dragIdx !== null) return;
+  e.preventDefault(); zone.classList.remove('drag-over');
+  const files = [...e.dataTransfer.files].filter(f => /\.(html?|zip)$/i.test(f.name));
+  if (!files.length) { toast('Nur .html, .htm oder .zip', true); return; }
+  for (const f of files) await _upload(f);
+  await loadList();
+});
+document.getElementById('file-input').addEventListener('change', async e => {
+  for (const f of e.target.files) await _upload(f);
+  e.target.value = ''; await loadList();
+});
+
+// ── Upload ────────────────────────────────────────────────────────────────────
+async function _upload(file) {
+  const fd = new FormData(); fd.append('file', file);
+  const res = await fetch(_B + '/upload', { method: 'POST', body: fd });
+  const d   = await res.json();
+  if (res.ok) toast(d.type === 'set' ? `Set hochgeladen (${d.count} Seiten)` : 'Hochgeladen: ' + d.name);
+  else toast(d.error || 'Upload fehlgeschlagen', true);
+}
+
+// ── Rename (Doppelklick, exakt Hub-Muster — synchron, kein Server-Call) ──────
+function _startRename(tile, titleEl, item) {
+  const current = _names[item.name] || item.title;
+  const inp = document.createElement('input');
+  inp.className = 'tile-title-inp';
+  inp.value = current; inp.maxLength = 120;
+  titleEl.replaceWith(inp);
+  inp.focus(); inp.select();
+
+  const finish = () => {
+    const v = inp.value.trim() || current;
+    _names[item.name] = v;
+    _postPrefs();
+    const nd = document.createElement('div');
+    nd.className = 'tile-title'; nd.textContent = v;
+    nd.title = 'Doppelklick zum Umbenennen';
+    nd.addEventListener('dblclick', e => { e.preventDefault(); _startRename(tile, nd, item); });
+    inp.replaceWith(nd);
+  };
+  inp.addEventListener('blur', finish);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    if (e.key === 'Escape') { inp.value = current; inp.blur(); }
+  });
+  inp.addEventListener('click', e => e.stopPropagation());
+}
+
+// ── Löschen ───────────────────────────────────────────────────────────────────
+async function _deleteItem(item) {
+  if (!confirm(`„${item.title}" löschen?`)) return;
+  const url = item.type === 'set'
+    ? _B + '/set/'  + encodeURIComponent(item.name)
+    : _B + '/file/' + encodeURIComponent(item.name);
+  const res = await fetch(url, { method: 'DELETE' });
+  if (res.ok) toast('Gelöscht'); else toast('Fehler beim Löschen', true);
+  await loadList();
+}
+
+loadList();
+</script>
+</body>
+</html>
